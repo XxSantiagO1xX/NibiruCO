@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Login - NibiruCO</title>
+
+<link rel="stylesheet" href="css/styles.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+
+<style>
+.login-container {
+    max-width: 400px;
+    margin: 80px auto;
+}
+
+.login-card {
+    padding: 30px;
+    border-radius: 12px;
+    background: white;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+}
+
+.login-card h2 {
+    margin-bottom: 20px;
+}
+
+.login-card input {
+    width: 100%;
+    padding: 12px;
+    margin-bottom: 10px;
+    border-radius: 8px;
+    border: 1px solid #ddd;
+}
+
+.login-card button {
+    width: 100%;
+    margin-top: 5px;
+}
+</style>
+
+</head>
+
+<body>
+
+<div class="login-container">
+    <div class="login-card">
+
+        <h2>Iniciar sesión</h2>
+
+        <input type="email" id="email" placeholder="Correo">
+        <input type="password" id="password" placeholder="Contraseña">
+
+        <button class="btn-primary" onclick="login()">Entrar</button>
+        <button class="btn-secondary" onclick="register()">Registrarse</button>
+
+        <p id="error" style="color:red; margin-top:10px;"></p>
+
+    </div>
+</div>
+
+<script>
+
+const API = "http://localhost:3000";
+
+
+// 🔐 DECODIFICAR TOKEN (BASE64)
+function parseJwt(token) {
+    try {
+        return JSON.parse(atob(token.split('.')[1]));
+    } catch (e) {
+        return null;
+    }
+}
+
+
+// LOGIN
+async function login() {
+    const email = document.getElementById("email").value.trim();
+    const password = document.getElementById("password").value.trim();
+    const errorEl = document.getElementById("error");
+
+    errorEl.textContent = "";
+
+    if (!email || !password) {
+        errorEl.textContent = "Completa todos los campos";
+        return;
+    }
+
+    try {
+        const res = await fetch(`${API}/auth/login`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email, password })
+        });
+
+        const data = await res.json();
+        console.log("LOGIN:", data);
+
+        if (!res.ok) {
+            errorEl.textContent = data.message || "Error en login";
+            return;
+        }
+
+        // 🔐 GUARDAR TOKEN
+        localStorage.setItem("token", data.token);
+
+        // 🔥 EXTRA: GUARDAR USUARIO DECODIFICADO
+        const user = parseJwt(data.token);
+
+        if (user) {
+            localStorage.setItem("user", JSON.stringify(user));
+            console.log("USER:", user);
+        }
+
+        // 🚀 REDIRECCIÓN (SIN ROMPER NADA)
+        // después podemos cambiar por roles
+        window.location.href = "index.html";
+
+    } catch (err) {
+        console.error(err);
+        errorEl.textContent = "Error de conexión con el servidor";
+    }
+}
+
+
+// REGISTER
+async function register() {
+    const email = document.getElementById("email").value.trim();
+    const password = document.getElementById("password").value.trim();
+    const errorEl = document.getElementById("error");
+
+    errorEl.textContent = "";
+
+    if (!email || !password) {
+        errorEl.textContent = "Completa todos los campos";
+        return;
+    }
+
+    try {
+        const res = await fetch(`${API}/auth/register`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email, password })
+        });
+
+        const data = await res.json();
+        console.log("REGISTER:", data);
+
+        if (!res.ok) {
+            errorEl.textContent = data.message || "Error en registro";
+            return;
+        }
+
+        errorEl.style.color = "green";
+        errorEl.textContent = "Usuario creado. Ahora inicia sesión.";
+
+    } catch (err) {
+        console.error(err);
+        errorEl.textContent = "Error de conexión";
+    }
+}
+
+</script>
+
+</body>
+</html>

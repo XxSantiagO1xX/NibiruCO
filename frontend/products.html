@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Gestión de Productos</title>
+    <link rel="stylesheet" href="../css/styles.css">
+</head>
+
+<body>
+
+    <header class="hero">
+
+        <h1>MealOps</h1>
+        <p>Gestion de Productos</p>
+
+        <div class="header-wave">
+            <svg viewBox="0 0 1440 320" preserveAspectRatio="none">
+                <path fill="#FDBA74"
+                    d="M0,160L60,170C120,180,240,200,360,192C480,184,600,148,720,144C840,140,960,168,1080,170C1200,172,1320,148,1380,136L1440,128V0H0Z">
+                </path>
+            </svg>
+        </div>
+
+    </header>
+
+    <div class="container">
+
+
+        <!-- CREAR -->
+        <div class="card">
+            <h3>Nuevo producto</h3>
+
+            <input id="name" placeholder="Nombre del platillo">
+            <input id="price" type="number" placeholder="Precio">
+            <input id="image" placeholder="URL de imagen">
+
+            <br><br>
+
+            <button class="btn-primary" onclick="createProduct()">Agregar</button>
+        </div>
+
+        <!-- LISTA -->
+        <h2>Productos</h2>
+        <div id="list"></div>
+
+    </div>
+
+    <script>
+        function showToast(message, type = "info") {
+            const container = document.getElementById("toast-container");
+
+            const toast = document.createElement("div");
+            toast.className = `toast ${type}`;
+            toast.textContent = message;
+
+            container.appendChild(toast);
+
+            setTimeout(() => {
+                toast.remove();
+            }, 3000);
+        }
+
+        const API = "http://localhost:3000";
+
+
+        // 🔥 CARGAR TODOS (IMPORTANTE CAMBIO)
+        async function loadProducts() {
+            const res = await fetch(`${API}/products/all`);
+            const data = await res.json();
+
+            const list = document.getElementById("list");
+            list.innerHTML = "";
+
+            data.forEach(p => {
+                const div = document.createElement("div");
+                div.className = "card product";
+
+                div.innerHTML = `
+            <div>
+                <strong>${p.name}</strong><br>
+                <span class="badge">$${p.price}</span><br>
+                <span class="badge">
+                    ${p.available ? "Disponible" : "Agotado"}
+                </span>
+            </div>
+
+            <div>
+                <button class="btn-soft" onclick="toggleProduct(${p.id})">
+                    ${p.available ? "Agotar" : "Activar"}
+                </button>
+            </div>
+        `;
+
+                list.appendChild(div);
+            });
+        }
+
+
+        // ➕ CREAR
+        async function createProduct() {
+
+    const name = document.getElementById("name").value.trim();
+    const price = Number(document.getElementById("price").value);
+    const image = document.getElementById("image").value;
+
+    if (!name || !price) {
+        showToast("Nombre y precio requeridos", "error");
+        return;
+    }
+
+    await fetch(`${API}/products`, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ name, price, image })
+    });
+
+    loadProducts();
+}
+
+
+        // 🔁 TOGGLE DISPONIBILIDAD
+        async function toggleProduct(id) {
+            await fetch(`${API}/products/${id}`, {
+                method: "PATCH"
+            });
+
+            loadProducts();
+        }
+
+
+        // INIT
+        loadProducts();
+    </script>
+    <div id="toast-container"></div>
+</body>
+
+</html>

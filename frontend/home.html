@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>MealOps Panel</title>
+<link rel="stylesheet" href="../css/styles.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+</head>
+
+<body>
+
+
+<header class="hero">
+
+    <h1>MealOps</h1>
+    <p>Panel principal</p>
+
+    <div class="header-wave">
+        <svg viewBox="0 0 1440 320" preserveAspectRatio="none">
+            <path fill="#FDBA74"
+            d="M0,160L60,170C120,180,240,200,360,192C480,184,600,148,720,144C840,140,960,168,1080,170C1200,172,1320,148,1380,136L1440,128V0H0Z">
+            </path>
+        </svg>
+    </div>
+
+</header>
+
+<div class="container">
+
+
+
+<div class="grid">
+
+  <div class="card card-menu" onclick="go('index.html')">
+    <div class="title">🧾 Ventas</div>
+    <div class="desc">Registrar pedidos</div>
+  </div>
+
+  <div class="card card-menu" onclick="go('kds.html')">
+    <div class="title">🍳 Cocina</div>
+    <div class="desc">Pantalla de pedidos</div>
+  </div>
+
+  <div class="card card-menu" onclick="go('menu.html')">
+    <div class="title">📅 Menú</div>
+    <div class="desc">Configurar menú diario</div>
+  </div>
+
+  <div class="card card-menu" onclick="go('products.html')">
+    <div class="title">📦 Productos</div>
+    <div class="desc">Gestionar platillos</div>
+  </div>
+
+</div>
+
+</div>
+
+<script>
+function showToast(message, type = "info") {
+    const container = document.getElementById("toast-container");
+
+    const toast = document.createElement("div");
+    toast.className = `toast ${type}`;
+    toast.textContent = message;
+
+    container.appendChild(toast);
+
+    setTimeout(() => {
+        toast.remove();
+    }, 3000);
+}
+
+function go(page) {
+  window.location.href = page;
+}
+</script>
+
+<div id="toast-container"></div>
+
+</body>
+</html>

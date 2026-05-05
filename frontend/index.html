@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <title>NibiruCO Ventas</title>
+    <link rel="stylesheet" href="../css/styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+</head>
+
+<body>
+
+<header class="hero">
+    <h1>NibiruCO</h1>
+    <p>Ventas</p>
+
+   
+
+    <div class="header-wave">
+        <svg viewBox="0 0 1440 320" preserveAspectRatio="none">
+            <path fill="#FDBA74"
+                d="M0,160L60,170C120,180,240,200,360,192C480,184,600,148,720,144C840,140,960,168,1080,170C1200,172,1320,148,1380,136L1440,128V0H0Z">
+            </path>
+        </svg>
+    </div>
+</header>
+
+<div class="container">
+
+    <!-- TOAST -->
+    <div id="toast-container"></div>
+
+    <h1>Ventas</h1>
+
+    <h2>Productos</h2>
+    <div id="products" class="products"></div>
+
+    <!-- CARRITO -->
+    <div class="card cart">
+        <h2>Carrito</h2>
+        <div id="cart"></div>
+
+        <h3>Total: $<span id="total">0</span></h3>
+
+        <select id="type">
+            <option value="llevar">Llevar</option>
+            <option value="local">Local</option>
+            <option value="domicilio">Domicilio</option>
+        </select>
+
+        <br><br>
+
+        <button class="btn-success" onclick="createOrder()">Crear Pedido</button>
+        <button class="btn-danger" onclick="clearCart()">Vaciar carrito</button>
+    </div>
+     <button onclick="logout()" class="btn-danger">Cerrar sesión</button>
+    <h2>Pedidos</h2>
+    <div id="orders"></div>
+
+</div>
+
+<script>
+
+let TOKEN = localStorage.getItem("token");
+
+if (!TOKEN) {
+    window.location.href = "login.html";
+}
+
+function logout() {
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    window.location.href = "login.html";
+}
+
+const API = "http://localhost:3000";
+
+let cart = {};
+let loading = false;
+
+// TOAST
+function showToast(message, type = "info") {
+    const container = document.getElementById("toast-container");
+
+    const toast = document.createElement("div");
+    toast.className = `toast ${type}`;
+    toast.textContent = message;
+
+    container.appendChild(toast);
+
+    setTimeout(() => toast.remove(), 3000);
+}
+
+
+// CARGAR PRODUCTOS
+async function loadProducts() {
+    try {
+        const res = await fetch("http://localhost:3000/products");
+        const products = await res.json();
+
+        console.log("PRODUCTS:", products);
+
+        const container = document.getElementById("products");
+        container.innerHTML = "";
+
+        products.forEach(p => {
+            const div = document.createElement("div");
+            div.innerHTML = `
+    <div class="card">
+        <h3>${p.name}</h3>
+        <p>$${p.price}</p>
+        <button onclick="addToCart(${p.id}, '${p.name}', ${p.price})">
+            Agregar
+        </button>
+    </div>
+`;
+            container.appendChild(div);
+        });
+
+    } catch (err) {
+        console.error("ERROR PRODUCTS:", err);
+    }
+}
+
+
+// AGREGAR
+function addToCart(id, name, price) {
+    if (!cart[id]) {
+        cart[id] = { id, name, price, quantity: 1 };
+    } else {
+        cart[id].quantity++;
+    }
+
+    showToast(`${name} agregado`, "success");
+    renderCart();
+}
+
+
+// DISMINUIR
+function decrease(id) {
+    if (cart[id]) {
+        cart[id].quantity--;
+        if (cart[id].quantity <= 0) delete cart[id];
+    }
+    renderCart();
+}
+
+
+// AUMENTAR
+function increase(id) {
+    cart[id].quantity++;
+    renderCart();
+}
+
+
+// LIMPIAR
+function clearCart() {
+    cart = {};
+    renderCart();
+}
+
+
+// RENDER CARRITO
+function renderCart() {
+    const container = document.getElementById("cart");
+    const totalEl = document.getElementById("total");
+
+    container.innerHTML = "";
+
+    let total = 0;
+
+    Object.values(cart).forEach(item => {
+        total += item.price * item.quantity;
+
+        const div = document.createElement("div");
+        div.className = "cart-item";
+
+        div.innerHTML = `
+            <div>
+                <strong>${item.name}</strong><br>
+                $${item.price} x ${item.quantity} = $${item.price * item.quantity}
+            </div>
+
+            <div class="qty-controls">
+                <button class="qty-btn" onclick="decrease(${item.id})">-</button>
+                <span>${item.quantity}</span>
+                <button class="qty-btn" onclick="increase(${item.id})">+</button>
+            </div>
+        `;
+
+        container.appendChild(div);
+    });
+
+    totalEl.textContent = total;
+}
+
+
+// CREAR PEDIDO
+async function createOrder() {
+    if (loading) return;
+    loading = true;
+
+    const items = Object.values(cart).map(i => ({
+        product_id: i.id,
+        quantity: i.quantity
+    }));
+
+    if (!items.length) {
+        showToast("Agrega productos al carrito", "error");
+        loading = false;
+        return;
+    }
+
+    const type = document.getElementById("type").value;
+
+    const res = await fetch(`${API}/orders`, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "Authorization": "Bearer " + TOKEN
+        },
+        body: JSON.stringify({ items, type })
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+        showToast(data.message, "error");
+        loading = false;
+        return;
+    }
+
+    cart = {};
+    renderCart();
+    loadOrders();
+
+    showToast("Pedido creado correctamente", "success");
+
+    loading = false;
+}
+
+
+// PEDIDOS
+async function loadOrders() {
+    const res = await fetch(`${API}/orders`, {
+        headers: {
+            "Authorization": "Bearer " + TOKEN
+        }
+    });
+
+    const data = await res.json();
+
+    const container = document.getElementById("orders");
+    container.innerHTML = "";
+
+    data.forEach(o => {
+        const div = document.createElement("div");
+        div.className = "card";
+
+        div.innerHTML = `
+            <strong>Pedido #${o.id}</strong><br>
+            Tipo: ${o.type}<br>
+            Total: $${o.total}<br>
+            <span class="badge">${o.status}</span>
+        `;
+
+        container.appendChild(div);
+    });
+}
+
+
+// INIT
+loadProducts();
+loadOrders();
+
+</script>
+
+</body>
+</html>

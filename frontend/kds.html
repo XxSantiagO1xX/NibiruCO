@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+<meta charset="UTF-8">
+<title>MealOps Cocina</title>
+
+<link rel="stylesheet" href="../css/styles.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+</head>
+
+<body>
+
+    <header class="hero">
+
+    <h1>MealOps</h1>
+    <p>Pedidos</p>
+
+    <div class="header-wave">
+        <svg viewBox="0 0 1440 320" preserveAspectRatio="none">
+            <path fill="#FDBA74"
+            d="M0,160L60,170C120,180,240,200,360,192C480,184,600,148,720,144C840,140,960,168,1080,170C1200,172,1320,148,1380,136L1440,128V0H0Z">
+            </path>
+        </svg>
+    </div>
+
+</header>
+
+
+<div class="container">
+
+<h1>MealOps Cocina</h1>
+
+<div class="board">
+
+    <div class="column">
+        <h2>🟡 Pendientes</h2>
+        <div id="pending"></div>
+    </div>
+
+    <div class="column">
+        <h2>🟢 Entregados</h2>
+        <div id="done"></div>
+    </div>
+
+</div>
+
+</div>
+
+<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+<script>
+const socket = io("http://localhost:3000");
+
+socket.on("connect", () => {
+  console.log("Conectado a WebSocket");
+});
+
+// Cuando llega nuevo pedido
+socket.on("new-order", (order) => {
+  console.log("Nuevo pedido:", order);
+  loadOrders(); // recarga UI
+});
+
+// Cuando se actualiza pedido
+socket.on("order-updated", (order) => {
+  console.log("Pedido actualizado:", order);
+  loadOrders();
+});
+const API = "http://localhost:3000";
+const token = localStorage.getItem("token");
+
+if (!token) {
+    window.location.href = "login.html";
+}
+
+// 🔐 VALIDAR ROL
+const user = JSON.parse(atob(token.split('.')[1]));
+
+if (user.role !== "cocina" && user.role !== "admin") {
+    alert("Acceso denegado");
+    window.location.href = "index.html";
+}
+
+let productsMap = {};
+let previousOrderIds = [];
+
+// 🔥 CARGAR PRODUCTOS (USAMOS /all PARA EVITAR PROBLEMAS DE MENÚ)
+async function loadProducts() {
+    const res = await fetch(`${API}/products/all`);
+    const products = await res.json();
+
+    productsMap = {};
+    products.forEach(p => productsMap[p.id] = p.name);
+}
+
+
+// 🔥 CARGAR PEDIDOS (IMPORTANTE: /orders/all)
+async function loadOrders() {
+    const res = await fetch(`${API}/orders/all`, {
+        headers: {
+            "Authorization": "Bearer " + token
+        }
+    });
+
+    const orders = await res.json();
+
+    const pending = document.getElementById("pending");
+    const done = document.getElementById("done");
+
+    pending.innerHTML = "";
+    done.innerHTML = "";
+
+    const currentIds = orders.map(o => o.id);
+
+    orders.forEach(order => {
+        const div = document.createElement("div");
+
+        const isNew = !previousOrderIds.includes(order.id);
+
+        div.className = "card " + (order.status === "pendiente" ? "pending" : "done");
+
+        if (isNew) div.classList.add("new");
+
+        div.innerHTML = `
+            <div class="order-id">Pedido #${order.id}</div>
+
+            <div class="meta">
+                ${order.type} • $${order.total}
+            </div>
+
+            <div class="items">
+                ${order.items.map(i => {
+                    const name = productsMap[i.product_id] || `Producto ${i.product_id}`;
+                    return `
+                        <div class="item">
+                            <span>${name}</span>
+                            <span class="badge">x${i.quantity}</span>
+                        </div>
+                    `;
+                }).join("")}
+            </div>
+
+            <div class="meta">
+                <span class="badge">${order.status}</span>
+            </div>
+
+            ${
+                order.status === "pendiente"
+                ? `<button class="btn-success" onclick="completeOrder(${order.id})">
+                    Entregar
+                   </button>`
+                : ""
+            }
+        `;
+
+        if (order.status === "pendiente") {
+            pending.appendChild(div);
+        } else {
+            done.appendChild(div);
+        }
+    });
+
+    previousOrderIds = currentIds;
+}
+
+
+// 🔥 COMPLETAR PEDIDO (CON TOKEN)
+async function completeOrder(id) {
+    await fetch(`${API}/orders/${id}`, {
+        method: "PATCH",
+        headers: {
+            "Authorization": "Bearer " + token
+        }
+    });
+
+    loadOrders();
+}
+
+
+// INIT
+async function init() {
+    await loadProducts();
+    loadOrders();
+
+    setInterval(loadOrders, 3000);
+    setInterval(loadProducts, 10000);
+}
+
+init();
+
+</script>
+<div id="toast-container"></div>
+</body>
+</html>
