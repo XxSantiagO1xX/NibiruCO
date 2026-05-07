@@ -1,14 +1,15 @@
 const express = require("express");
 const router = express.Router();
 
+// Menú en memoria
 let weeklyMenu = require("../data/menu");
 
-// Obtener todo el menú
+/* OBTENER TODO EL MENÚ */
 router.get("/", (req, res) => {
   res.json(weeklyMenu);
 });
 
-// Obtener menú por día
+/* OBTENER MENÚ POR DÍA */
 router.get("/:day", (req, res) => {
   const { day } = req.params;
 
@@ -18,7 +19,7 @@ router.get("/:day", (req, res) => {
   });
 });
 
-// Guardar menú por día
+/* GUARDAR MENÚ POR DÍA */
 router.post("/day", (req, res) => {
   const { day, products } = req.body;
 
@@ -29,6 +30,12 @@ router.post("/day", (req, res) => {
   }
 
   weeklyMenu[day] = products;
+
+  // WebSocket: notificar que el menú cambió
+  const io = req.app.get("io");
+  if (io) {
+    io.emit("menu-updated", { day, products });
+  }
 
   res.json({
     message: "Menú guardado",

@@ -24,6 +24,8 @@ router.get("/", async (req, res) => {
   try {
     const today = getTodayKey();
 
+    console.log("Menú de Hoy: ", today);
+
     const result = await pool.query(`
       SELECT p.*
       FROM products p

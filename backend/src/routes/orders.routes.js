@@ -8,13 +8,18 @@ const roles = require("../middleware/roles");
 // DB
 const pool = require("../db");
 
-// IMPORTAR menú (solo para validar día)
+// IMPORTAR menú (solo validación)
 const weeklyMenu = require("../data/menu");
 
 // Obtener día actual
 function getTodayKey() {
   const days = ["sunday","monday","tuesday","wednesday","thursday","friday","saturday"];
+  
   return days[new Date().getDay()];
+
+  console.log("🔥 HOY ES:", today);
+
+  return today;
 }
 
 
@@ -47,9 +52,7 @@ router.get("/all", auth, roles(["cocina", "admin"]), async (req, res) => {
 });
 
 
-// 🔥 CREAR PEDIDO (PROTEGIDO)
-const io = req.app.get("io");
-io.emit("new-order", order);
+// 🔥 CREAR PEDIDO
 router.post("/", auth, async (req, res) => {
   const client = await pool.connect();
 
@@ -72,7 +75,7 @@ router.post("/", auth, async (req, res) => {
 
     let total = 0;
 
-    // 🔎 VALIDACIÓN CONTRA DB (NO archivos)
+    // Validación contra DB
     for (let item of items) {
       const result = await pool.query(
         "SELECT * FROM products WHERE id = $1",
@@ -118,6 +121,10 @@ router.post("/", auth, async (req, res) => {
 
     await client.query("COMMIT");
 
+    // 🔥 WEBSOCKET (CORRECTO)
+    const io = req.app.get("io");
+    io.emit("new-order", order);
+
     res.json(order);
 
   } catch (err) {
@@ -130,7 +137,7 @@ router.post("/", auth, async (req, res) => {
 });
 
 
-// 🔥 PEDIDOS DEL USUARIO (CLIENTE)
+// 🔥 PEDIDOS DEL USUARIO
 router.get("/", auth, async (req, res) => {
   try {
     const userId = req.user.id;
@@ -163,7 +170,7 @@ router.get("/", auth, async (req, res) => {
 });
 
 
-// 🔥 MARCAR COMO ENTREGADO (PROTEGIDO)
+// 🔥 MARCAR COMO ENTREGADO
 router.patch("/:id", auth, async (req, res) => {
   try {
     const { id } = req.params;
@@ -172,13 +179,18 @@ router.patch("/:id", auth, async (req, res) => {
       "UPDATE orders SET status = 'entregado' WHERE id = $1 RETURNING *",
       [id]
     );
-    const io = req.app.get("io");
-io.emit("order-updated", result.rows[0]);
+
     if (!result.rows.length) {
       return res.status(404).json({ message: "Pedido no encontrado" });
     }
 
-    res.json(result.rows[0]);
+    const updatedOrder = result.rows[0];
+
+    // 🔥 WEBSOCKET
+    const io = req.app.get("io");
+    io.emit("order-updated", updatedOrder);
+
+    res.json(updatedOrder);
 
   } catch (err) {
     console.error(err);
