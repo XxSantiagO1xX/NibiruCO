@@ -63,6 +63,11 @@ export default function LoginScreen({ navigation }) {
         res.data.token
       );
 
+      await AsyncStorage.setItem(
+  "role",
+  res.data.user.role
+);
+
       navigation.replace("Tabs");
 
     } catch (err) {
@@ -111,7 +116,22 @@ export default function LoginScreen({ navigation }) {
           Entrar
         </Text>
 
+
       </TouchableOpacity>
+
+      <TouchableOpacity
+  onPress={() =>
+    navigation.navigate(
+      "ForgotPassword"
+    )
+  }
+>
+
+  <Text style={styles.forgot}>
+    ¿Olvidaste tu contraseña?
+  </Text>
+
+</TouchableOpacity>
 
       <TouchableOpacity
         onPress={() =>
@@ -178,5 +198,11 @@ const styles = StyleSheet.create({
     textAlign: "center",
     color: colors.primary,
     fontWeight: "600"
-  }
+  },
+  forgot: {
+  marginTop: 18,
+  textAlign: "center",
+  color: colors.primary,
+  fontWeight: "700"
+},
 });
