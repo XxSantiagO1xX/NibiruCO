@@ -12,22 +12,25 @@ import {
 
 import { Ionicons } from "@expo/vector-icons";
 
-import AppProvider from "./context/AppContext.js";
+import AppProvider from "./context/AppContext";
 
-import colors from "./theme/colors.js";
+import colors from "./theme/colors";
+import {
+  SafeAreaView
+} from "react-native-safe-area-context";
 
 /* SCREENS */
-import LoginScreen from "./screens/LoginScreen.js";
-import RegisterScreen from "./screens/RegisterScreen.js";
+import LoginScreen from "./screens/LoginScreen";
+import RegisterScreen from "./screens/RegisterScreen";
 
-import ProductsScreen from "./screens/ProductsScreen.js";
-import CartScreen from "./screens/CartScreen.js";
-import OrdersScreen from "./screens/OrdersScreen.js";
-import ProfileScreen from "./screens/ProfileScreen.js";
+import ProductsScreen from "./screens/ProductsScreen";
+import CartScreen from "./screens/CartScreen";
+import OrdersScreen from "./screens/OrdersScreen";
+import ProfileScreen from "./screens/ProfileScreen";
 
 const Tab = createBottomTabNavigator();
 
-const Stack = createNativeStackNavigator();
+const Stack = createStackNavigator();
 
 /* TABS */
 function Tabs() {
@@ -45,12 +48,13 @@ function Tabs() {
         tabBarStyle: {
           height: 65,
           paddingBottom: 8,
-          paddingTop: 5,
-          borderTopWidth: 1,
-          borderTopColor: colors.border
+          paddingTop: 5
         },
 
-        tabBarIcon: ({ color, size }) => {
+        tabBarIcon: ({
+          color,
+          size
+        }) => {
 
           let iconName;
 
