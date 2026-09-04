@@ -11,8 +11,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import axios from "axios";
 import colors from "../theme/colors";
-
-const API = "http://192.168.1.86:3000";
+import API from "../config/api";
 
 export default function LoginScreen({ navigation }) {
   const [phone, setPhone] = useState("");
@@ -86,7 +85,7 @@ export default function LoginScreen({ navigation }) {
           <Text style={styles.buttonText}>{loading ? "Entrando…" : "Entrar"}</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity onPress={() => navigation.navigate("ForgotPassword")}> 
+        <TouchableOpacity onPress={() => navigation.navigate("ForgotPassword")}>
           <Text style={styles.secondaryLink}>¿Olvidaste tu contraseña?</Text>
         </TouchableOpacity>
       </View>
