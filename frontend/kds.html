@@ -36,15 +36,13 @@
     const nextStatus = {
       pendiente: 'aceptado',
       aceptado: 'preparando',
-      preparando: 'listo',
-      listo: 'entregado'
+      preparando: 'listo'
     };
 
     const actionLabel = {
       pendiente: 'Aceptar pedido',
       aceptado: 'Comenzar preparación',
-      preparando: 'Marcar como listo',
-      listo: 'Entregar'
+      preparando: 'Marcar como listo'
     };
 
     const serviceLabels = {
@@ -100,6 +98,23 @@
       return `${service}${folio}`;
     }
 
+    function renderKitchenAction(order) {
+      const next = nextStatus[order.status];
+      if (next) {
+        return `<button class="btn btn-primary" onclick="advanceOrder(${Number(order.id)}, '${order.status}')">${actionLabel[order.status]}</button>`;
+      }
+
+      if (order.status === 'listo' && order.service_type === 'mesa') {
+        return `<button class="btn btn-success" onclick="deliverTable(${Number(order.id)})">Entregado en mesa</button>`;
+      }
+
+      if (order.status === 'listo') {
+        return '<div class="order-meta" style="padding:10px 0">Listo · esperando entrega en Mostrador</div>';
+      }
+
+      return '';
+    }
+
     function renderOrders() {
       const active = orders.filter((order) => !['entregado', 'cancelado'].includes(order.status));
       document.getElementById('kds-stats').textContent = `${socket.connected ? '● ' : ''}${active.length} pedidos activos`;
@@ -130,7 +145,7 @@
                 <div class="order-item" style="align-items:flex-start">
                   <span>
                     ${escapeHtml(item.name || `Producto ${item.product_id}`)}
-                    ${(Array.isArray(item.choices) && item.choices.length) ? `<small style="display:block;margin-top:4px;color:var(--muted)">${item.choices.map((choice) => escapeHtml(choice.name)).join(' · ')}</small>` : ''}
+                    ${(Array.isArray(item.choices) && item.choices.length) ? `<small style="display:block;margin-top:4px;color:#aaa">${item.choices.map((choice) => escapeHtml(choice.name)).join(' · ')}</small>` : ''}
                   </span>
                   <strong>×${Number(item.quantity) || 1}</strong>
                 </div>
@@ -138,9 +153,7 @@
             </div>
 
             <div class="order-meta">Estado: ${escapeHtml(order.status)}</div>
-            <div class="order-actions">
-              ${nextStatus[order.status] ? `<button class="btn ${order.status === 'listo' ? 'btn-success' : 'btn-primary'}" onclick="advanceOrder(${order.id}, '${order.status}')">${actionLabel[order.status]}</button>` : ''}
-            </div>
+            <div class="order-actions">${renderKitchenAction(order)}</div>
           </article>
         `;
       }).join('');
@@ -153,6 +166,18 @@
         await apiFetch(`/orders/${id}/status`, {
           method: 'PATCH',
           body: JSON.stringify({ status: next })
+        });
+        await loadOrders();
+      } catch (error) {
+        showToast(error.message, 'error');
+      }
+    }
+
+    async function deliverTable(id) {
+      try {
+        await apiFetch(`/orders/${id}/status`, {
+          method: 'PATCH',
+          body: JSON.stringify({ status: 'entregado' })
         });
         await loadOrders();
       } catch (error) {
