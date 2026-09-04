@@ -18,6 +18,79 @@ function getTodayKey() {
   return days[new Date().getDay()];
 }
 
+function normalizeServiceType(value) {
+  const normalized = String(value || "local").toLowerCase();
+  const allowed = ["local", "llevar", "recoger", "domicilio"];
+  return allowed.includes(normalized) ? normalized : "local";
+}
+
+async function validateComboChoices(client, comboProduct, rawChoices) {
+  const groupsResult = await client.query(`
+    SELECT id, name, min_select, max_select
+    FROM combo_groups
+    WHERE combo_product_id = $1
+    ORDER BY sort_order, id
+  `, [comboProduct.id]);
+
+  const choices = Array.isArray(rawChoices) ? rawChoices : [];
+  const normalized = [];
+  let extraTotal = 0;
+  let optionNeedsKitchen = false;
+
+  for (const group of groupsResult.rows) {
+    const selected = choices.filter((choice) => Number(choice.group_id) === Number(group.id));
+    if (selected.length < Number(group.min_select) || selected.length > Number(group.max_select)) {
+      throw Object.assign(new Error(`Selecciona ${group.min_select === group.max_select ? group.min_select : `${group.min_select}-${group.max_select}`} opción(es) en ${group.name}`), { status: 400 });
+    }
+
+    for (const choice of selected) {
+      const optionId = Number(choice.option_product_id);
+      if (!Number.isInteger(optionId)) {
+        throw Object.assign(new Error("Opción de combo inválida"), { status: 400 });
+      }
+
+      const optionResult = await client.query(`
+        SELECT
+          o.option_product_id,
+          o.extra_price,
+          p.name,
+          p.available,
+          p.kitchen_required
+        FROM combo_group_options o
+        JOIN products p ON p.id = o.option_product_id
+        WHERE o.group_id = $1
+          AND o.option_product_id = $2
+          AND o.active = TRUE
+      `, [group.id, optionId]);
+
+      const option = optionResult.rows[0];
+      if (!option) {
+        throw Object.assign(new Error(`Una opción de ${group.name} ya no está disponible`), { status: 400 });
+      }
+      if (!option.available) {
+        throw Object.assign(new Error(`Agotado: ${option.name}`), { status: 400 });
+      }
+
+      const extraPrice = Number(option.extra_price || 0);
+      extraTotal += extraPrice;
+      optionNeedsKitchen = optionNeedsKitchen || Boolean(option.kitchen_required);
+      normalized.push({
+        group_id: Number(group.id),
+        group_name: group.name,
+        option_product_id: Number(option.option_product_id),
+        option_name: option.name,
+        extra_price: extraPrice
+      });
+    }
+  }
+
+  if (!groupsResult.rows.length && choices.length) {
+    throw Object.assign(new Error("Este combo no tiene opciones configuradas"), { status: 400 });
+  }
+
+  return { choices: normalized, extraTotal, optionNeedsKitchen };
+}
+
 router.get(
   "/admin/all",
   auth,
@@ -35,15 +108,37 @@ router.get(
             json_agg(
               json_build_object(
                 'product_id', oi.product_id,
-                'quantity', oi.quantity
+                'name', p.name,
+                'quantity', oi.quantity,
+                'product_kind', p.product_kind,
+                'choices', COALESCE((
+                  SELECT json_agg(
+                    json_build_object(
+                      'option_product_id', occ.option_product_id,
+                      'name', op.name,
+                      'quantity', occ.quantity
+                    ) ORDER BY occ.id
+                  )
+                  FROM order_item_combo_choices occ
+                  JOIN products op ON op.id = occ.option_product_id
+                  WHERE occ.order_item_id = oi.id
+                ), '[]'::json)
               )
-            ) FILTER (WHERE oi.id IS NOT NULL),
+            ) FILTER (WHERE oi.id IS NOT NULL AND p.kitchen_required = TRUE),
             '[]'
           ) AS items
         FROM orders o
         LEFT JOIN users u ON u.id = o.user_id
         LEFT JOIN user_addresses ua ON ua.id = o.address_id
         LEFT JOIN order_items oi ON oi.order_id = o.id
+        LEFT JOIN products p ON p.id = oi.product_id
+        WHERE EXISTS (
+          SELECT 1
+          FROM order_items koi
+          JOIN products kp ON kp.id = koi.product_id
+          WHERE koi.order_id = o.id
+            AND kp.kitchen_required = TRUE
+        )
         GROUP BY o.id, u.id, ua.id
         ORDER BY o.created_at DESC
       `);
@@ -63,7 +158,11 @@ router.post("/", auth, async (req, res) => {
     const {
       items,
       type,
+      service_type,
       payment_method = null,
+      mark_paid = false,
+      customer_name = null,
+      pickup_at = null,
       address_id = null,
       table_session_id = null
     } = req.body;
@@ -71,10 +170,17 @@ router.post("/", auth, async (req, res) => {
     const userId = req.user.id;
     const today = getTodayKey();
     let effectiveType = type || "local";
+    let serviceType = normalizeServiceType(service_type || type);
     let tableSessionId = null;
+    let customerName = customer_name ? String(customer_name).trim().slice(0, 120) : null;
+    let pickupAt = pickup_at || null;
 
     if (!Array.isArray(items) || items.length === 0) {
       return res.status(400).json({ message: "No hay productos en el pedido" });
+    }
+
+    if (pickupAt && Number.isNaN(new Date(pickupAt).getTime())) {
+      return res.status(400).json({ message: "Hora de recolección inválida" });
     }
 
     if (table_session_id !== null && table_session_id !== undefined) {
@@ -100,7 +206,10 @@ router.post("/", auth, async (req, res) => {
         return res.status(409).json({ message: "La mesa tiene la cuenta solicitada o ya fue cerrada" });
       }
 
+      serviceType = "mesa";
       effectiveType = session.name;
+      customerName = null;
+      pickupAt = null;
     }
 
     const menuResult = await client.query(
@@ -114,6 +223,7 @@ router.post("/", auth, async (req, res) => {
     }
 
     let total = 0;
+    let requiresKitchen = false;
     const normalizedItems = [];
 
     for (const rawItem of items) {
@@ -125,7 +235,7 @@ router.post("/", auth, async (req, res) => {
       }
 
       const result = await client.query(
-        "SELECT id, name, price, available FROM products WHERE id = $1",
+        "SELECT id, name, price, available, kitchen_required, product_kind FROM products WHERE id = $1",
         [productId]
       );
       const product = result.rows[0];
@@ -140,43 +250,100 @@ router.post("/", auth, async (req, res) => {
         return res.status(400).json({ message: `Producto agotado: ${product.name}` });
       }
 
-      total += Number(product.price) * quantity;
-      normalizedItems.push({ product_id: productId, quantity });
+      let choices = [];
+      let extraTotal = 0;
+      let optionNeedsKitchen = false;
+      if (product.product_kind === "combo") {
+        const validated = await validateComboChoices(client, product, rawItem.choices);
+        choices = validated.choices;
+        extraTotal = validated.extraTotal;
+        optionNeedsKitchen = validated.optionNeedsKitchen;
+      } else if (Array.isArray(rawItem.choices) && rawItem.choices.length) {
+        return res.status(400).json({ message: `${product.name} no acepta opciones de combo` });
+      }
+
+      total += (Number(product.price) + extraTotal) * quantity;
+      requiresKitchen = requiresKitchen || Boolean(product.kitchen_required) || optionNeedsKitchen;
+      normalizedItems.push({ product_id: productId, quantity, choices });
     }
 
     await client.query("BEGIN");
 
+    let folio = null;
+    let serviceDate = null;
+    if (!tableSessionId) {
+      const folioResult = await client.query(`
+        INSERT INTO daily_folio_counters (day, last_folio)
+        VALUES (CURRENT_DATE, 1)
+        ON CONFLICT (day)
+        DO UPDATE SET last_folio = daily_folio_counters.last_folio + 1
+        RETURNING day, last_folio
+      `);
+      folio = Number(folioResult.rows[0].last_folio);
+      serviceDate = folioResult.rows[0].day;
+    }
+
+    const orderStatus = requiresKitchen ? "pendiente" : "entregado";
+    const paid = Boolean(mark_paid);
+
     const orderResult = await client.query(
       `
         INSERT INTO orders
-          (user_id, type, total, status, payment_method, address_id, table_session_id)
-        VALUES ($1, $2, $3, $4, $5, $6, $7)
+          (user_id, type, total, status, payment_method, address_id, table_session_id,
+           service_type, customer_name, pickup_at, folio, service_date, payment_status, paid_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11,
+                COALESCE($12, CURRENT_DATE), $13, CASE WHEN $13 = 'paid' THEN NOW() ELSE NULL END)
         RETURNING *
       `,
-      [userId, effectiveType, total, "pendiente", payment_method, address_id, tableSessionId]
+      [
+        userId,
+        effectiveType,
+        total,
+        orderStatus,
+        payment_method,
+        address_id,
+        tableSessionId,
+        serviceType,
+        customerName,
+        pickupAt,
+        folio,
+        serviceDate,
+        paid ? "paid" : "pending"
+      ]
     );
 
     const order = orderResult.rows[0];
 
     for (const item of normalizedItems) {
-      await client.query(
+      const itemResult = await client.query(
         `
           INSERT INTO order_items (order_id, product_id, quantity)
           VALUES ($1, $2, $3)
+          RETURNING id
         `,
         [order.id, item.product_id, item.quantity]
       );
+
+      const orderItemId = itemResult.rows[0].id;
+      for (const choice of item.choices) {
+        await client.query(`
+          INSERT INTO order_item_combo_choices
+            (order_item_id, option_product_id, quantity, extra_price)
+          VALUES ($1, $2, $3, $4)
+        `, [orderItemId, choice.option_product_id, item.quantity, choice.extra_price]);
+      }
     }
 
     await client.query("COMMIT");
 
     const io = req.app.get("io");
     if (io) {
-      io.emit("new-order", order);
+      if (requiresKitchen) io.emit("new-order", order);
+      io.emit("orders-updated", order);
       if (tableSessionId) io.emit("tables-updated");
     }
 
-    res.status(201).json(order);
+    res.status(201).json({ ...order, requires_kitchen: requiresKitchen });
   } catch (err) {
     try {
       await client.query("ROLLBACK");
@@ -184,7 +351,7 @@ router.post("/", auth, async (req, res) => {
       // La transacción puede no haber iniciado todavía.
     }
     console.error(err);
-    res.status(500).json({ message: "Error creando pedido" });
+    res.status(err.status || 500).json({ message: err.status ? err.message : "Error creando pedido" });
   } finally {
     client.release();
   }
