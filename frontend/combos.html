@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MealOps · Combos</title>
+  <link rel="stylesheet" href="../css/styles.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand"><div class="brand-mark">M</div><div class="brand-copy"><strong>MealOps</strong><span>Restaurant operations</span></div></div>
+      <nav class="nav">
+        <a href="home.html">Panel</a>
+        <a href="index.html">Ventas</a>
+        <a href="kds.html">Cocina KDS</a>
+        <a href="menu.html">Menú</a>
+        <a href="products.html">Productos</a>
+        <a href="combos.html" class="active">Combos</a>
+      </nav>
+      <div class="sidebar-footer"><button class="btn btn-ghost" onclick="logout()">Cerrar sesión</button></div>
+    </aside>
+
+    <main class="main">
+      <header class="page-header">
+        <div>
+          <h1>Combos y comida corrida</h1>
+          <p>Crea una comida con precio fijo y define qué puede elegir el cliente en cada tiempo.</p>
+        </div>
+      </header>
+
+      <section class="card card-pad">
+        <h2 class="section-title">Nuevo combo</h2>
+        <div class="form-grid">
+          <div class="field"><label for="combo-name">Nombre</label><input id="combo-name" placeholder="Ej. Comida completa"></div>
+          <div class="field"><label for="combo-price">Precio base</label><input id="combo-price" type="number" min="0" step="0.01" placeholder="95.00"></div>
+          <div class="field">
+            <label for="combo-kitchen">Preparación</label>
+            <select id="combo-kitchen">
+              <option value="true">Enviar a cocina</option>
+              <option value="false">Entrega inmediata</option>
+            </select>
+          </div>
+        </div>
+        <div class="spacer-16"></div>
+        <button class="btn btn-primary" onclick="createCombo()">Crear combo</button>
+      </section>
+
+      <div class="spacer-24"></div>
+
+      <section class="card card-pad">
+        <div class="page-header" style="margin-bottom:16px">
+          <div>
+            <h2 class="section-title" style="margin:0">Configurar opciones</h2>
+            <p class="muted" style="margin:5px 0 0;font-size:12px">Ejemplo: grupo “Guisado” → Milanesa, Mole, Enchiladas.</p>
+          </div>
+          <div class="field" style="min-width:280px">
+            <label for="combo-select">Combo</label>
+            <select id="combo-select" onchange="selectCombo()"></select>
+          </div>
+        </div>
+
+        <div id="combo-empty" class="muted">Crea un combo para comenzar.</div>
+        <div id="combo-editor" class="hidden">
+          <div class="form-grid">
+            <div class="field"><label for="group-name">Nombre del grupo</label><input id="group-name" placeholder="Ej. Guisado"></div>
+            <div class="field"><label for="group-min">Mínimo</label><input id="group-min" type="number" min="0" value="1"></div>
+            <div class="field"><label for="group-max">Máximo</label><input id="group-max" type="number" min="1" value="1"></div>
+          </div>
+          <div class="spacer-16"></div>
+          <button class="btn btn-secondary" onclick="addGroup()">+ Agregar grupo</button>
+          <div class="spacer-24"></div>
+          <div id="groups" class="list"></div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div id="toast-container"></div>
+  <script src="app.js"></script>
+  <script>
+    requireAuth(['admin']);
+    let combos = [];
+    let products = [];
+    let selectedComboId = null;
+
+    async function loadData(preferredId = null) {
+      try {
+        [combos, products] = await Promise.all([
+          apiFetch('/combos'),
+          apiFetch('/products/all')
+        ]);
+        renderComboSelect(preferredId);
+      } catch (error) {
+        showToast(error.message, 'error');
+      }
+    }
+
+    function renderComboSelect(preferredId) {
+      const select = document.getElementById('combo-select');
+      if (!combos.length) {
+        select.innerHTML = '<option value="">Sin combos</option>';
+        selectedComboId = null;
+        document.getElementById('combo-empty').classList.remove('hidden');
+        document.getElementById('combo-editor').classList.add('hidden');
+        return;
+      }
+
+      select.innerHTML = combos.map((combo) => `<option value="${combo.id}">${escapeHtml(combo.name)} · ${formatCurrency(combo.price)}</option>`).join('');
+      const target = Number(preferredId || selectedComboId || combos[0].id);
+      select.value = String(combos.some((combo) => Number(combo.id) === target) ? target : combos[0].id);
+      selectedComboId = Number(select.value);
+      document.getElementById('combo-empty').classList.add('hidden');
+      document.getElementById('combo-editor').classList.remove('hidden');
+      renderGroups();
+    }
+
+    function selectCombo() {
+      selectedComboId = Number(document.getElementById('combo-select').value);
+      renderGroups();
+    }
+
+    function currentCombo() {
+      return combos.find((combo) => Number(combo.id) === Number(selectedComboId));
+    }
+
+    async function createCombo() {
+      const name = document.getElementById('combo-name').value.trim();
+      const price = Number(document.getElementById('combo-price').value);
+      const kitchenRequired = document.getElementById('combo-kitchen').value === 'true';
+      if (!name || !Number.isFinite(price) || price <= 0) return showToast('Ingresa nombre y precio válido.', 'error');
+
+      try {
+        const combo = await apiFetch('/combos', {
+          method: 'POST',
+          body: JSON.stringify({ name, price, kitchen_required: kitchenRequired })
+        });
+        document.getElementById('combo-name').value = '';
+        document.getElementById('combo-price').value = '';
+        await loadData(combo.id);
+        showToast('Combo creado. Ahora agrega sus grupos de elección.', 'success');
+      } catch (error) {
+        showToast(error.message, 'error');
+      }
+    }
+
+    async function addGroup() {
+      if (!selectedComboId) return;
+      const name = document.getElementById('group-name').value.trim();
+      const minSelect = Number(document.getElementById('group-min').value);
+      const maxSelect = Number(document.getElementById('group-max').value);
+      if (!name || !Number.isInteger(minSelect) || !Number.isInteger(maxSelect) || minSelect < 0 || maxSelect < 1 || minSelect > maxSelect) {
+        return showToast('Revisa el nombre, mínimo y máximo del grupo.', 'error');
+      }
+
+      try {
+        await apiFetch(`/combos/${selectedComboId}/groups`, {
+          method: 'POST',
+          body: JSON.stringify({ name, min_select: minSelect, max_select: maxSelect })
+        });
+        document.getElementById('group-name').value = '';
+        await loadData(selectedComboId);
+        showToast('Grupo agregado.', 'success');
+      } catch (error) {
+        showToast(error.message, 'error');
+      }
+    }
+
+    function renderGroups() {
+      const combo = currentCombo();
+      const container = document.getElementById('groups');
+      if (!combo || !combo.groups.length) {
+        container.innerHTML = '<div class="muted">Todavía no hay grupos. Agrega, por ejemplo, “Sopa”, “Guisado” o “Agua”.</div>';
+        return;
+      }
+
+      const eligibleProducts = products.filter((product) => Number(product.id) !== Number(combo.id) && product.product_kind !== 'combo');
+
+      container.innerHTML = combo.groups.map((group) => `
+        <div class="card card-pad" style="margin-bottom:12px">
+          <div class="page-header" style="margin-bottom:12px">
+            <div>
+              <strong>${escapeHtml(group.name)}</strong>
+              <div class="muted" style="font-size:11px;margin-top:4px">Elegir ${group.min_select === group.max_select ? group.min_select : `${group.min_select}–${group.max_select}`}</div>
+            </div>
+            <button class="btn btn-sm btn-secondary" onclick="deleteGroup(${group.id})">Eliminar grupo</button>
+          </div>
+
+          <div class="list" style="margin-bottom:12px">
+            ${(group.options || []).map((option) => `
+              <div class="list-row">
+                <div class="list-main">
+                  <strong>${escapeHtml(option.name)}</strong>
+                  <small>${Number(option.extra_price) > 0 ? `+ ${formatCurrency(option.extra_price)}` : 'Sin costo extra'} · ${option.active ? 'Activa' : 'Inactiva'}</small>
+                </div>
+                <button class="btn btn-sm ${option.active ? 'btn-secondary' : 'btn-primary'}" onclick="toggleOption(${group.id}, ${option.id}, ${option.active ? 'false' : 'true'})">${option.active ? 'Desactivar' : 'Activar'}</button>
+              </div>
+            `).join('') || '<div class="muted">Sin opciones todavía.</div>'}
+          </div>
+
+          <div class="form-grid">
+            <div class="field">
+              <label>Agregar producto</label>
+              <select id="option-product-${group.id}">
+                ${eligibleProducts.map((product) => `<option value="${product.id}">${escapeHtml(product.name)}</option>`).join('')}
+              </select>
+            </div>
+            <div class="field">
+              <label>Costo extra</label>
+              <input id="option-extra-${group.id}" type="number" min="0" step="0.01" value="0">
+            </div>
+            <div class="field" style="justify-content:end">
+              <label>&nbsp;</label>
+              <button class="btn btn-primary" onclick="addOption(${group.id})">Agregar opción</button>
+            </div>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    async function addOption(groupId) {
+      const optionProductId = Number(document.getElementById(`option-product-${groupId}`).value);
+      const extraPrice = Number(document.getElementById(`option-extra-${groupId}`).value || 0);
+      if (!optionProductId) return showToast('Selecciona un producto.', 'error');
+      try {
+        await apiFetch(`/combos/groups/${groupId}/options`, {
+          method: 'POST',
+          body: JSON.stringify({ option_product_id: optionProductId, extra_price: extraPrice })
+        });
+        await loadData(selectedComboId);
+        showToast('Opción agregada.', 'success');
+      } catch (error) {
+        showToast(error.message, 'error');
+      }
+    }
+
+    async function toggleOption(groupId, optionId, active) {
+      try {
+        await apiFetch(`/combos/groups/${groupId}/options/${optionId}`, {
+          method: 'PATCH',
+          body: JSON.stringify({ active })
+        });
+        await loadData(selectedComboId);
+      } catch (error) {
+        showToast(error.message, 'error');
+      }
+    }
+
+    async function deleteGroup(groupId) {
+      if (!confirm('¿Eliminar este grupo y sus opciones?')) return;
+      try {
+        await apiFetch(`/combos/groups/${groupId}`, { method: 'DELETE' });
+        await loadData(selectedComboId);
+      } catch (error) {
+        showToast(error.message, 'error');
+      }
+    }
+
+    loadData();
+  </script>
+</body>
+</html>
