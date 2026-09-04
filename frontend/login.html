@@ -2,27 +2,38 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>MealOps · Acceso</title>
   <link rel="stylesheet" href="../css/styles.css">
+  <link rel="stylesheet" href="../css/theme.css" data-mealops-theme="true">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 </head>
 <body>
   <main class="auth-page">
     <section class="auth-aside">
       <div class="brand">
-        <div class="brand-mark">M</div>
+        <div class="brand-mark"><svg class="ui-icon" viewBox="0 0 32 32"><use href="assets/icons.svg#logo"></use></svg></div>
         <div class="brand-copy">
           <strong>MealOps</strong>
-          <span>Restaurant operations</span>
+          <span>Operación de cocina</span>
         </div>
       </div>
-      <h1>Tu operación diaria, en un solo lugar.</h1>
-      <p>Ventas, cocina, menú y productos conectados para que el equipo trabaje con la misma información.</p>
+      <div style="margin:auto 0 14px;position:relative;z-index:1">
+        <div class="eyebrow">Operación conectada</div>
+        <h1 style="margin-top:14px">Una cocina económica puede operar como un gran restaurante.</h1>
+        <p>Ventas, mesas, cocina, mostrador, menú y pedidos del cliente trabajan sobre el mismo flujo sin duplicar información.</p>
+        <div class="hero-meta" style="margin-top:24px">
+          <span style="background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.1);color:#c9c4be">POS</span>
+          <span style="background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.1);color:#c9c4be">Mesero</span>
+          <span style="background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.1);color:#c9c4be">KDS</span>
+          <span style="background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.1);color:#c9c4be">Mostrador</span>
+        </div>
+      </div>
     </section>
 
     <section class="auth-main">
       <div class="auth-card">
+        <div class="eyebrow" style="margin-bottom:9px">MealOps</div>
         <h2 id="auth-title">Iniciar sesión</h2>
         <p id="auth-copy">Accede con el teléfono registrado en MealOps.</p>
 
@@ -77,7 +88,7 @@
       document.getElementById('email-field').classList.toggle('hidden', !registering);
       document.getElementById('auth-title').textContent = registering ? 'Crear cuenta' : 'Iniciar sesión';
       document.getElementById('auth-copy').textContent = registering
-        ? 'Crea un acceso para comenzar a usar MealOps.'
+        ? 'Crea tu acceso de cliente para usar MealOps.'
         : 'Accede con el teléfono registrado en MealOps.';
       document.getElementById('submit-button').textContent = registering ? 'Crear cuenta' : 'Entrar';
       document.getElementById('switch-copy').textContent = registering ? '¿Ya tienes una cuenta?' : '¿Aún no tienes una cuenta?';
