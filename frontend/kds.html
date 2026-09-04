@@ -30,7 +30,6 @@
   <script>
     requireAuth(['cocina', 'admin']);
 
-    let productsMap = {};
     let orders = [];
     let refreshTimer;
 
@@ -48,6 +47,14 @@
       listo: 'Entregar'
     };
 
+    const serviceLabels = {
+      mesa: 'Mesa',
+      local: 'Local',
+      llevar: 'Para llevar',
+      recoger: 'Recoger',
+      domicilio: 'Domicilio'
+    };
+
     const socket = io(API, { transports: ['websocket', 'polling'] });
     socket.on('connect', () => {
       document.getElementById('kds-stats').textContent = '● Sincronizado';
@@ -57,19 +64,11 @@
     });
     socket.on('new-order', scheduleRefresh);
     socket.on('order-updated', scheduleRefresh);
+    socket.on('orders-updated', scheduleRefresh);
 
     function scheduleRefresh() {
       clearTimeout(refreshTimer);
       refreshTimer = setTimeout(loadOrders, 180);
-    }
-
-    async function loadProducts() {
-      try {
-        const products = await apiFetch('/products/all');
-        productsMap = Object.fromEntries(products.map((product) => [Number(product.id), product.name]));
-      } catch (error) {
-        showToast(error.message, 'error');
-      }
     }
 
     async function loadOrders() {
@@ -87,6 +86,20 @@
       return Math.max(0, Math.floor((Date.now() - timestamp) / 60000));
     }
 
+    function formatPickup(value) {
+      if (!value) return '';
+      const date = new Date(value);
+      if (Number.isNaN(date.getTime())) return '';
+      return date.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
+    }
+
+    function orderLabel(order) {
+      if (order.service_type === 'mesa') return order.type || 'Mesa';
+      const service = serviceLabels[order.service_type] || order.type || 'Pedido';
+      const folio = order.folio ? ` · F${String(order.folio).padStart(3, '0')}` : '';
+      return `${service}${folio}`;
+    }
+
     function renderOrders() {
       const active = orders.filter((order) => !['entregado', 'cancelado'].includes(order.status));
       document.getElementById('kds-stats').textContent = `${socket.connected ? '● ' : ''}${active.length} pedidos activos`;
@@ -101,20 +114,24 @@
         const age = ageInMinutes(order.created_at);
         const cssState = age >= 15 ? 'urgent' : order.status === 'preparando' ? 'preparing' : order.status === 'listo' ? 'ready' : 'pending';
         const items = Array.isArray(order.items) ? order.items : [];
+        const pickup = formatPickup(order.pickup_at);
         return `
           <article class="order-card ${cssState}">
             <div class="order-head">
               <div>
-                <strong>#${order.id}</strong>
-                <div class="order-meta">${escapeHtml(order.type || 'local')} · ${escapeHtml(order.name || order.phone || 'Cliente')}</div>
+                <strong>${escapeHtml(orderLabel(order))}</strong>
+                <div class="order-meta">${escapeHtml(order.customer_name || order.name || order.phone || 'Cliente')}${pickup ? ` · ${escapeHtml(pickup)}` : ''}</div>
               </div>
               <div class="order-meta">${age} min</div>
             </div>
 
             <div class="order-items">
               ${items.map((item) => `
-                <div class="order-item">
-                  <span>${escapeHtml(productsMap[Number(item.product_id)] || `Producto ${item.product_id}`)}</span>
+                <div class="order-item" style="align-items:flex-start">
+                  <span>
+                    ${escapeHtml(item.name || `Producto ${item.product_id}`)}
+                    ${(Array.isArray(item.choices) && item.choices.length) ? `<small style="display:block;margin-top:4px;color:var(--muted)">${item.choices.map((choice) => escapeHtml(choice.name)).join(' · ')}</small>` : ''}
+                  </span>
                   <strong>×${Number(item.quantity) || 1}</strong>
                 </div>
               `).join('') || '<div class="order-meta">Sin detalle de productos</div>'}
@@ -144,10 +161,8 @@
     }
 
     async function init() {
-      await loadProducts();
       await loadOrders();
       setInterval(loadOrders, 10000);
-      setInterval(loadProducts, 60000);
     }
 
     init();
