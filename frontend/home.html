@@ -24,7 +24,7 @@
       <section class="home-hero">
         <div class="eyebrow">Panel principal</div>
         <h1>Todo lo necesario para operar el restaurante, sin ruido.</h1>
-        <p>MealOps organiza ventas, servicio en mesa, cocina, menú y productos para que cada rol trabaje desde la pantalla que necesita.</p>
+        <p>MealOps organiza ventas, mesas, servicio, cocina, menú y productos para que cada rol trabaje desde la pantalla que necesita.</p>
       </section>
 
       <section class="module-grid" aria-label="Módulos de MealOps">
@@ -38,7 +38,7 @@
         <article class="module-card" id="waiter-card" onclick="go('waiter.html')" tabindex="0">
           <div class="module-icon">🍽️</div>
           <h2>Mesero</h2>
-          <p>Selecciona mesa, levanta la comanda y envíala directamente a cocina.</p>
+          <p>Selecciona mesa, levanta comandas, consulta la cuenta y registra el pago.</p>
           <div class="module-link">Abrir modo mesero →</div>
         </article>
 
@@ -61,6 +61,13 @@
           <h2>Productos</h2>
           <p>Crea platillos, actualiza disponibilidad y administra precios.</p>
           <div class="module-link">Gestionar productos →</div>
+        </article>
+
+        <article class="module-card" id="tables-card" onclick="go('tables.html')" tabindex="0">
+          <div class="module-icon">🪑</div>
+          <h2>Mesas</h2>
+          <p>Crea mesas, organiza zonas, define capacidad y activa o desactiva espacios.</p>
+          <div class="module-link">Administrar mesas →</div>
         </article>
       </section>
     </main>
@@ -85,6 +92,7 @@
       if (user.role !== 'admin') {
         document.getElementById('menu-card').classList.add('hidden');
         document.getElementById('products-card').classList.add('hidden');
+        document.getElementById('tables-card').classList.add('hidden');
       }
     }
 
