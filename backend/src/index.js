@@ -11,6 +11,7 @@ const { Server } = require("socket.io");
 
 const app = express();
 require("./db");
+const ensureOperationalSchema = require("./schema");
 
 const allowedOrigins = (process.env.CORS_ORIGINS || "")
   .split(",")
@@ -35,8 +36,9 @@ const productRoutes = require("./routes/products.routes");
 const orderRoutes = require("./routes/orders.routes");
 const menuRoutes = require("./routes/menu.routes");
 const usersRoutes = require("./routes/users.routes");
+const tableRoutes = require("./routes/tables.routes");
 
-const routes = [authRoutes, productRoutes, orderRoutes, menuRoutes, usersRoutes];
+const routes = [authRoutes, productRoutes, orderRoutes, menuRoutes, usersRoutes, tableRoutes];
 if (routes.some((route) => typeof route !== "function")) {
   throw new Error("Una o más rutas de MealOps no son válidas");
 }
@@ -46,6 +48,7 @@ app.use("/products", productRoutes);
 app.use("/orders", orderRoutes);
 app.use("/menu", menuRoutes);
 app.use("/users", usersRoutes);
+app.use("/tables", tableRoutes);
 
 const projectRoot = path.resolve(__dirname, "../..");
 app.use("/css", express.static(path.join(projectRoot, "css")));
@@ -86,6 +89,15 @@ io.on("connection", (socket) => {
 });
 
 const PORT = Number(process.env.PORT) || 3000;
-server.listen(PORT, () => {
-  console.log(`MealOps disponible en http://localhost:${PORT}`);
+
+async function start() {
+  await ensureOperationalSchema();
+  server.listen(PORT, () => {
+    console.log(`MealOps disponible en http://localhost:${PORT}`);
+  });
+}
+
+start().catch((error) => {
+  console.error("No se pudo iniciar MealOps:", error);
+  process.exit(1);
 });
