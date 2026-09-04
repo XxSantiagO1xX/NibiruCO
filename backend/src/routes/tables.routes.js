@@ -47,7 +47,11 @@ async function getSessionSummary(sessionId, client = pool) {
             'product_id', oi.product_id,
             'name', p.name,
             'quantity', oi.quantity,
-            'price', p.price,
+            'price', p.price + COALESCE((
+              SELECT SUM(occ_price.extra_price)
+              FROM order_item_combo_choices occ_price
+              WHERE occ_price.order_item_id = oi.id
+            ), 0),
             'product_kind', p.product_kind,
             'choices', COALESCE((
               SELECT json_agg(
