@@ -19,15 +19,13 @@ const socket = io(API);
 const nextStatus = {
   pendiente: "aceptado",
   aceptado: "preparando",
-  preparando: "listo",
-  listo: "entregado"
+  preparando: "listo"
 };
 
 const actionLabel = {
   pendiente: "Aceptar",
   aceptado: "Preparar",
-  preparando: "Marcar listo",
-  listo: "Entregar"
+  preparando: "Marcar listo"
 };
 
 const statusLabel = {
@@ -79,9 +77,11 @@ export default function AdminOrdersScreen() {
     const refresh = () => loadOrders();
     socket.on("new-order", refresh);
     socket.on("order-updated", refresh);
+    socket.on("orders-updated", refresh);
     return () => {
       socket.off("new-order", refresh);
       socket.off("order-updated", refresh);
+      socket.off("orders-updated", refresh);
     };
   }, []);
 
@@ -112,6 +112,9 @@ export default function AdminOrdersScreen() {
         renderItem={({ item }) => {
           const items = Array.isArray(item.items) ? item.items : [];
           const next = nextStatus[item.status];
+          const tableReady = item.status === "listo" && item.service_type === "mesa";
+          const counterReady = item.status === "listo" && item.service_type !== "mesa";
+
           return (
             <View style={[styles.card, item.status === "listo" && styles.readyCard]}>
               <View style={styles.cardHead}>
@@ -126,20 +129,34 @@ export default function AdminOrdersScreen() {
 
               <View style={styles.items}>
                 {items.map((product, index) => (
-                  <View key={`${item.id}-${index}`} style={styles.itemRow}>
-                    <Text style={styles.itemName}>{product.name || `Producto ${product.product_id}`}</Text>
-                    <Text style={styles.itemQty}>×{product.quantity || 1}</Text>
+                  <View key={`${item.id}-${index}`} style={styles.itemBlock}>
+                    <View style={styles.itemRow}>
+                      <Text style={styles.itemName}>{product.name || `Producto ${product.product_id}`}</Text>
+                      <Text style={styles.itemQty}>×{product.quantity || 1}</Text>
+                    </View>
+                    {Array.isArray(product.choices) && product.choices.length > 0 && (
+                      <Text style={styles.choiceText}>{product.choices.map((choice) => choice.name).join(" · ")}</Text>
+                    )}
                   </View>
                 ))}
               </View>
 
               {next && (
-                <TouchableOpacity
-                  style={[styles.button, item.status === "listo" && styles.buttonReady]}
-                  onPress={() => updateStatus(item.id, next)}
-                >
+                <TouchableOpacity style={styles.button} onPress={() => updateStatus(item.id, next)}>
                   <Text style={styles.buttonText}>{actionLabel[item.status]}</Text>
                 </TouchableOpacity>
+              )}
+
+              {tableReady && (
+                <TouchableOpacity style={[styles.button, styles.buttonReady]} onPress={() => updateStatus(item.id, "entregado")}>
+                  <Text style={styles.buttonText}>Entregado en mesa</Text>
+                </TouchableOpacity>
+              )}
+
+              {counterReady && (
+                <View style={styles.counterNotice}>
+                  <Text style={styles.counterNoticeText}>Listo para entrega en Mostrador</Text>
+                </View>
               )}
             </View>
           );
@@ -171,11 +188,15 @@ const styles = StyleSheet.create({
   statusReady: { backgroundColor: "#ECFDF3" },
   statusText: { color: colors.primaryDark, fontSize: 9, fontWeight: "900", textTransform: "uppercase" },
   statusReadyText: { color: colors.success },
-  items: { marginTop: 16, paddingTop: 13, borderTopWidth: 1, borderTopColor: colors.border, gap: 8 },
+  items: { marginTop: 16, paddingTop: 13, borderTopWidth: 1, borderTopColor: colors.border, gap: 10 },
+  itemBlock: { gap: 4 },
   itemRow: { flexDirection: "row", justifyContent: "space-between", gap: 12 },
   itemName: { flex: 1, color: colors.text, fontSize: 13 },
   itemQty: { color: colors.text, fontSize: 13, fontWeight: "800" },
+  choiceText: { color: colors.muted, fontSize: 10, lineHeight: 14 },
   button: { marginTop: 16, minHeight: 48, borderRadius: 15, alignItems: "center", justifyContent: "center", backgroundColor: colors.primary },
   buttonReady: { backgroundColor: colors.success },
-  buttonText: { color: "#FFF", fontSize: 13, fontWeight: "800" }
+  buttonText: { color: "#FFF", fontSize: 13, fontWeight: "800" },
+  counterNotice: { marginTop: 16, minHeight: 44, borderRadius: 14, alignItems: "center", justifyContent: "center", backgroundColor: "#ECFDF3" },
+  counterNoticeText: { color: colors.success, fontSize: 11, fontWeight: "800" }
 });
