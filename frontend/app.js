@@ -12,6 +12,33 @@
       element.textContent = 'Operación de cocina';
     }
   });
+
+  document.querySelectorAll('.brand-mark').forEach((mark) => {
+    if (!mark.querySelector('svg')) {
+      mark.textContent = '';
+      mark.innerHTML = '<svg class="ui-icon" viewBox="0 0 32 32" aria-hidden="true"><use href="assets/icons.svg#logo"></use></svg>';
+    }
+  });
+
+  const navIcons = {
+    'home.html': 'logo',
+    'index.html': 'sales',
+    'waiter.html': 'waiter',
+    'kds.html': 'kitchen',
+    'counter.html': 'counter',
+    'menu.html': 'calendar',
+    'products.html': 'products',
+    'tables.html': 'tables',
+    'combos.html': 'combo'
+  };
+
+  document.querySelectorAll('.nav a').forEach((link) => {
+    if (link.querySelector('.nav-icon')) return;
+    const href = (link.getAttribute('href') || '').split('/').pop();
+    const icon = navIcons[href];
+    if (!icon) return;
+    link.insertAdjacentHTML('afterbegin', `<svg class="nav-icon" aria-hidden="true"><use href="assets/icons.svg#${icon}"></use></svg>`);
+  });
 })();
 
 const API = window.MEALOPS_API_URL || localStorage.getItem("mealops_api_url") || "http://localhost:3000";
