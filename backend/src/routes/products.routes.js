@@ -44,14 +44,19 @@ router.post("/", auth, roles(["admin"]), async (req, res) => {
     const name = String(req.body.name || "").trim();
     const price = Number(req.body.price);
     const image = req.body.image ? String(req.body.image).trim() : null;
+    const kitchenRequired = req.body.kitchen_required !== false;
 
     if (!name || !Number.isFinite(price) || price <= 0) {
       return res.status(400).json({ message: "Nombre y precio válido son requeridos" });
     }
 
     const result = await pool.query(
-      "INSERT INTO products (name, price, image) VALUES ($1, $2, $3) RETURNING *",
-      [name, price, image || null]
+      `
+        INSERT INTO products (name, price, image, kitchen_required, product_kind)
+        VALUES ($1, $2, $3, $4, 'regular')
+        RETURNING *
+      `,
+      [name, price, image || null, kitchenRequired]
     );
 
     res.status(201).json(result.rows[0]);
@@ -81,6 +86,33 @@ router.patch("/:id", auth, roles(["admin"]), async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Error actualizando producto" });
+  }
+});
+
+router.patch("/:id/settings", auth, roles(["admin"]), async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id)) return res.status(400).json({ message: "ID inválido" });
+
+    const currentResult = await pool.query("SELECT * FROM products WHERE id = $1", [id]);
+    if (!currentResult.rows.length) return res.status(404).json({ message: "Producto no encontrado" });
+    const current = currentResult.rows[0];
+
+    const kitchenRequired = req.body.kitchen_required === undefined
+      ? current.kitchen_required
+      : Boolean(req.body.kitchen_required);
+
+    const result = await pool.query(`
+      UPDATE products
+      SET kitchen_required = $1
+      WHERE id = $2
+      RETURNING *
+    `, [kitchenRequired, id]);
+
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Error actualizando configuración del producto" });
   }
 });
 
