@@ -1,3 +1,19 @@
+(() => {
+  if (!document.querySelector('link[data-mealops-theme]')) {
+    const link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = '/css/theme.css';
+    link.dataset.mealopsTheme = 'true';
+    document.head.appendChild(link);
+  }
+
+  document.querySelectorAll('.brand-copy span').forEach((element) => {
+    if (element.textContent.trim() === 'Restaurant operations') {
+      element.textContent = 'Operación de cocina';
+    }
+  });
+})();
+
 const API = window.MEALOPS_API_URL || localStorage.getItem("mealops_api_url") || "http://localhost:3000";
 
 function getToken() {
