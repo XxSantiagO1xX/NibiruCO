@@ -22,6 +22,8 @@ router.get("/orders", auth, counterRoles, async (req, res) => {
         o.payment_status,
         o.payment_method,
         o.created_at,
+        ua.address,
+        ua.details,
         COALESCE(
           json_agg(
             json_build_object(
@@ -45,13 +47,14 @@ router.get("/orders", auth, counterRoles, async (req, res) => {
           '[]'
         ) AS items
       FROM orders o
+      LEFT JOIN user_addresses ua ON ua.id = o.address_id
       LEFT JOIN order_items oi ON oi.order_id = o.id
       LEFT JOIN products p ON p.id = oi.product_id
       WHERE o.table_session_id IS NULL
-        AND COALESCE(o.service_type, o.type, 'local') IN ('local', 'llevar', 'recoger')
+        AND COALESCE(o.service_type, o.type, 'local') IN ('local', 'llevar', 'recoger', 'domicilio')
         AND o.service_date = CURRENT_DATE
         AND o.status IN ('pendiente', 'aceptado', 'preparando', 'listo')
-      GROUP BY o.id
+      GROUP BY o.id, ua.id
       ORDER BY
         CASE WHEN o.status = 'listo' THEN 0 ELSE 1 END,
         COALESCE(o.pickup_at, o.created_at) ASC,
