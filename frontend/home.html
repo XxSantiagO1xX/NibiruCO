@@ -24,7 +24,7 @@
       <section class="home-hero">
         <div class="eyebrow">Panel principal</div>
         <h1>Todo lo necesario para operar el restaurante, sin ruido.</h1>
-        <p>MealOps mantiene las mismas funciones que ya usabas, pero ahora están organizadas para trabajar más rápido y con menos errores.</p>
+        <p>MealOps organiza ventas, servicio en mesa, cocina, menú y productos para que cada rol trabaje desde la pantalla que necesita.</p>
       </section>
 
       <section class="module-grid" aria-label="Módulos de MealOps">
@@ -33,6 +33,13 @@
           <h2>Ventas</h2>
           <p>Registra pedidos del menú disponible y consulta el historial reciente.</p>
           <div class="module-link">Abrir punto de venta →</div>
+        </article>
+
+        <article class="module-card" id="waiter-card" onclick="go('waiter.html')" tabindex="0">
+          <div class="module-icon">🍽️</div>
+          <h2>Mesero</h2>
+          <p>Selecciona mesa, levanta la comanda y envíala directamente a cocina.</p>
+          <div class="module-link">Abrir modo mesero →</div>
         </article>
 
         <article class="module-card" id="kds-card" onclick="go('kds.html')" tabindex="0">
@@ -66,6 +73,10 @@
 
     if (user) {
       document.getElementById("user-label").textContent = user.name || user.phone || user.role || "Usuario";
+
+      if (!['admin', 'mesero'].includes(user.role)) {
+        document.getElementById('waiter-card').classList.add('hidden');
+      }
 
       if (!['admin', 'cocina'].includes(user.role)) {
         document.getElementById('kds-card').classList.add('hidden');
