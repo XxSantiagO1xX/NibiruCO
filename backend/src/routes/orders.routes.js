@@ -64,14 +64,43 @@ router.post("/", auth, async (req, res) => {
       items,
       type,
       payment_method = null,
-      address_id = null
+      address_id = null,
+      table_session_id = null
     } = req.body;
 
     const userId = req.user.id;
     const today = getTodayKey();
+    let effectiveType = type || "local";
+    let tableSessionId = null;
 
     if (!Array.isArray(items) || items.length === 0) {
       return res.status(400).json({ message: "No hay productos en el pedido" });
+    }
+
+    if (table_session_id !== null && table_session_id !== undefined) {
+      if (!["mesero", "admin"].includes(req.user.role)) {
+        return res.status(403).json({ message: "No tienes permisos para crear comandas de mesa" });
+      }
+
+      tableSessionId = Number(table_session_id);
+      if (!Number.isInteger(tableSessionId)) {
+        return res.status(400).json({ message: "Sesión de mesa inválida" });
+      }
+
+      const sessionResult = await client.query(`
+        SELECT s.id, s.status, t.name
+        FROM table_sessions s
+        JOIN restaurant_tables t ON t.id = s.table_id
+        WHERE s.id = $1
+      `, [tableSessionId]);
+      const session = sessionResult.rows[0];
+
+      if (!session) return res.status(404).json({ message: "Sesión de mesa no encontrada" });
+      if (session.status !== "open") {
+        return res.status(409).json({ message: "La mesa tiene la cuenta solicitada o ya fue cerrada" });
+      }
+
+      effectiveType = session.name;
     }
 
     const menuResult = await client.query(
@@ -120,11 +149,11 @@ router.post("/", auth, async (req, res) => {
     const orderResult = await client.query(
       `
         INSERT INTO orders
-          (user_id, type, total, status, payment_method, address_id)
-        VALUES ($1, $2, $3, $4, $5, $6)
+          (user_id, type, total, status, payment_method, address_id, table_session_id)
+        VALUES ($1, $2, $3, $4, $5, $6, $7)
         RETURNING *
       `,
-      [userId, type || "local", total, "pendiente", payment_method, address_id]
+      [userId, effectiveType, total, "pendiente", payment_method, address_id, tableSessionId]
     );
 
     const order = orderResult.rows[0];
@@ -142,7 +171,10 @@ router.post("/", auth, async (req, res) => {
     await client.query("COMMIT");
 
     const io = req.app.get("io");
-    if (io) io.emit("new-order", order);
+    if (io) {
+      io.emit("new-order", order);
+      if (tableSessionId) io.emit("tables-updated");
+    }
 
     res.status(201).json(order);
   } catch (err) {
@@ -222,7 +254,10 @@ router.patch(
 
       const updatedOrder = result.rows[0];
       const io = req.app.get("io");
-      if (io) io.emit("order-updated", updatedOrder);
+      if (io) {
+        io.emit("order-updated", updatedOrder);
+        if (updatedOrder.table_session_id) io.emit("tables-updated");
+      }
 
       res.json(updatedOrder);
     } catch (err) {
@@ -255,7 +290,10 @@ router.patch("/:id/cancel", auth, async (req, res) => {
 
     const updatedOrder = result.rows[0];
     const io = req.app.get("io");
-    if (io) io.emit("order-updated", updatedOrder);
+    if (io) {
+      io.emit("order-updated", updatedOrder);
+      if (updatedOrder.table_session_id) io.emit("tables-updated");
+    }
 
     res.json({ message: "Pedido cancelado", order: updatedOrder });
   } catch (err) {
