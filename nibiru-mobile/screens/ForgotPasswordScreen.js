@@ -11,8 +11,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import axios from "axios";
 import colors from "../theme/colors";
-
-const API = "http://192.168.1.86:3000";
+import API from "../config/api";
 
 export default function ForgotPasswordScreen({ navigation }) {
   const [phone, setPhone] = useState("");
