@@ -23,15 +23,15 @@
     <main class="home-content">
       <section class="home-hero">
         <div class="eyebrow">Panel principal</div>
-        <h1>Todo lo necesario para operar el restaurante, sin ruido.</h1>
-        <p>MealOps organiza ventas, mesas, servicio, cocina, menú y productos para que cada rol trabaje desde la pantalla que necesita.</p>
+        <h1>Todo lo necesario para operar el servicio, sin ruido.</h1>
+        <p>MealOps organiza ventas, mesas, servicio, cocina, menú, combos y productos para que cada rol trabaje desde la pantalla que necesita.</p>
       </section>
 
       <section class="module-grid" aria-label="Módulos de MealOps">
         <article class="module-card" onclick="go('index.html')" tabindex="0">
           <div class="module-icon">🧾</div>
           <h2>Ventas</h2>
-          <p>Registra pedidos del menú disponible y consulta el historial reciente.</p>
+          <p>Local, para llevar, recolección con folio y venta rápida desde el mismo punto.</p>
           <div class="module-link">Abrir punto de venta →</div>
         </article>
 
@@ -45,22 +45,29 @@
         <article class="module-card" id="kds-card" onclick="go('kds.html')" tabindex="0">
           <div class="module-icon">🍳</div>
           <h2>Cocina</h2>
-          <p>Recibe pedidos en tiempo real y actualiza su estado durante la preparación.</p>
+          <p>Recibe solamente lo que necesita preparación y trabaja por folio o mesa.</p>
           <div class="module-link">Abrir KDS →</div>
         </article>
 
         <article class="module-card" id="menu-card" onclick="go('menu.html')" tabindex="0">
           <div class="module-icon">📅</div>
           <h2>Menú</h2>
-          <p>Define qué productos estarán disponibles cada día de la semana.</p>
+          <p>Define qué productos y comidas estarán disponibles cada día de la semana.</p>
           <div class="module-link">Configurar menú →</div>
         </article>
 
         <article class="module-card" id="products-card" onclick="go('products.html')" tabindex="0">
           <div class="module-icon">📦</div>
           <h2>Productos</h2>
-          <p>Crea platillos, actualiza disponibilidad y administra precios.</p>
+          <p>Crea platillos, bebidas y artículos de venta rápida; administra precios y disponibilidad.</p>
           <div class="module-link">Gestionar productos →</div>
+        </article>
+
+        <article class="module-card" id="combos-card" onclick="go('combos.html')" tabindex="0">
+          <div class="module-icon">🍲</div>
+          <h2>Combos</h2>
+          <p>Configura comida corrida, tiempos, guisados elegibles y suplementos de precio.</p>
+          <div class="module-link">Configurar combos →</div>
         </article>
 
         <article class="module-card" id="tables-card" onclick="go('tables.html')" tabindex="0">
@@ -92,6 +99,7 @@
       if (user.role !== 'admin') {
         document.getElementById('menu-card').classList.add('hidden');
         document.getElementById('products-card').classList.add('hidden');
+        document.getElementById('combos-card').classList.add('hidden');
         document.getElementById('tables-card').classList.add('hidden');
       }
     }
