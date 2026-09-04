@@ -90,7 +90,6 @@ router.post("/", auth, adminOnly, async (req, res) => {
   try {
     const name = String(req.body.name || "").trim();
     const price = Number(req.body.price);
-    const kitchenRequired = req.body.kitchen_required !== false;
 
     if (!name || !Number.isFinite(price) || price <= 0) {
       return res.status(400).json({ message: "Nombre y precio válido son requeridos" });
@@ -99,9 +98,9 @@ router.post("/", auth, adminOnly, async (req, res) => {
     await client.query("BEGIN");
     const result = await client.query(`
       INSERT INTO products (name, price, image, available, kitchen_required, product_kind)
-      VALUES ($1, $2, NULL, TRUE, $3, 'combo')
+      VALUES ($1, $2, NULL, TRUE, TRUE, 'combo')
       RETURNING *
-    `, [name, price, kitchenRequired]);
+    `, [name, price]);
     await client.query("COMMIT");
 
     res.status(201).json(await getCombo(result.rows[0].id));
