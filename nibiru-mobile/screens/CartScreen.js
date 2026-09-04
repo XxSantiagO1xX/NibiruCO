@@ -16,8 +16,7 @@ import axios from "axios";
 
 import { AppContext } from "../context/AppContext";
 import colors from "../theme/colors";
-
-const API = "http://192.168.1.86:3000";
+import API from "../config/api";
 
 const serviceOptions = [
   { id: "local", label: "Local", icon: "restaurant-outline" },
