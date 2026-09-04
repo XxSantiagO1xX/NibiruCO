@@ -20,8 +20,26 @@ function getTodayKey() {
 
 function normalizeServiceType(value) {
   const normalized = String(value || "local").toLowerCase();
+  const aliases = {
+    pickup: "llevar",
+    delivery: "domicilio"
+  };
+  const canonical = aliases[normalized] || normalized;
   const allowed = ["local", "llevar", "recoger", "domicilio"];
-  return allowed.includes(normalized) ? normalized : "local";
+  return allowed.includes(canonical) ? canonical : "local";
+}
+
+function normalizePaymentMethod(value) {
+  if (value === null || value === undefined || value === "") return null;
+  const normalized = String(value).toLowerCase();
+  const aliases = {
+    cash: "efectivo",
+    card: "tarjeta"
+  };
+  const canonical = aliases[normalized] || normalized;
+  return ["efectivo", "tarjeta", "transferencia", "otro"].includes(canonical)
+    ? canonical
+    : null;
 }
 
 async function validateComboChoices(client, comboProduct, rawChoices) {
@@ -40,7 +58,10 @@ async function validateComboChoices(client, comboProduct, rawChoices) {
   for (const group of groupsResult.rows) {
     const selected = choices.filter((choice) => Number(choice.group_id) === Number(group.id));
     if (selected.length < Number(group.min_select) || selected.length > Number(group.max_select)) {
-      throw Object.assign(new Error(`Selecciona ${group.min_select === group.max_select ? group.min_select : `${group.min_select}-${group.max_select}`} opción(es) en ${group.name}`), { status: 400 });
+      throw Object.assign(
+        new Error(`Selecciona ${group.min_select === group.max_select ? group.min_select : `${group.min_select}-${group.max_select}`} opción(es) en ${group.name}`),
+        { status: 400 }
+      );
     }
 
     for (const choice of selected) {
@@ -123,8 +144,20 @@ router.get(
                   JOIN products op ON op.id = occ.option_product_id
                   WHERE occ.order_item_id = oi.id
                 ), '[]'::json)
-              )
-            ) FILTER (WHERE oi.id IS NOT NULL AND p.kitchen_required = TRUE),
+              ) ORDER BY oi.id
+            ) FILTER (
+              WHERE oi.id IS NOT NULL
+                AND (
+                  p.kitchen_required = TRUE
+                  OR EXISTS (
+                    SELECT 1
+                    FROM order_item_combo_choices occ2
+                    JOIN products op2 ON op2.id = occ2.option_product_id
+                    WHERE occ2.order_item_id = oi.id
+                      AND op2.kitchen_required = TRUE
+                  )
+                )
+            ),
             '[]'
           ) AS items
         FROM orders o
@@ -137,7 +170,16 @@ router.get(
           FROM order_items koi
           JOIN products kp ON kp.id = koi.product_id
           WHERE koi.order_id = o.id
-            AND kp.kitchen_required = TRUE
+            AND (
+              kp.kitchen_required = TRUE
+              OR EXISTS (
+                SELECT 1
+                FROM order_item_combo_choices kocc
+                JOIN products kop ON kop.id = kocc.option_product_id
+                WHERE kocc.order_item_id = koi.id
+                  AND kop.kitchen_required = TRUE
+              )
+            )
         )
         GROUP BY o.id, u.id, ua.id
         ORDER BY o.created_at DESC
@@ -169,11 +211,15 @@ router.post("/", auth, async (req, res) => {
 
     const userId = req.user.id;
     const today = getTodayKey();
+    const staffCanCollect = ["mesero", "admin"].includes(req.user.role);
     let effectiveType = type || "local";
     let serviceType = normalizeServiceType(service_type || type);
     let tableSessionId = null;
     let customerName = customer_name ? String(customer_name).trim().slice(0, 120) : null;
     let pickupAt = pickup_at || null;
+    let addressId = address_id === null || address_id === undefined || address_id === ""
+      ? null
+      : Number(address_id);
 
     if (!Array.isArray(items) || items.length === 0) {
       return res.status(400).json({ message: "No hay productos en el pedido" });
@@ -181,6 +227,22 @@ router.post("/", auth, async (req, res) => {
 
     if (pickupAt && Number.isNaN(new Date(pickupAt).getTime())) {
       return res.status(400).json({ message: "Hora de recolección inválida" });
+    }
+
+    const paymentMethod = normalizePaymentMethod(payment_method);
+    if (payment_method && !paymentMethod) {
+      return res.status(400).json({ message: "Método de pago inválido" });
+    }
+
+    if (mark_paid && !staffCanCollect) {
+      return res.status(403).json({ message: "Solo el personal puede confirmar un pedido como pagado" });
+    }
+    if (mark_paid && !paymentMethod) {
+      return res.status(400).json({ message: "Selecciona la forma de pago antes de marcar como pagado" });
+    }
+
+    if (addressId !== null && !Number.isInteger(addressId)) {
+      return res.status(400).json({ message: "Dirección inválida" });
     }
 
     if (table_session_id !== null && table_session_id !== undefined) {
@@ -210,6 +272,23 @@ router.post("/", auth, async (req, res) => {
       effectiveType = session.name;
       customerName = null;
       pickupAt = null;
+      addressId = null;
+    } else {
+      effectiveType = serviceType;
+
+      if (serviceType !== "domicilio") {
+        addressId = null;
+      } else if (addressId !== null) {
+        const addressResult = await client.query(
+          "SELECT id FROM user_addresses WHERE id = $1 AND user_id = $2",
+          [addressId, userId]
+        );
+        if (!addressResult.rows.length) {
+          return res.status(404).json({ message: "La dirección no pertenece a esta cuenta" });
+        }
+      } else if (!staffCanCollect) {
+        return res.status(400).json({ message: "Selecciona una dirección para el pedido a domicilio" });
+      }
     }
 
     const menuResult = await client.query(
@@ -262,7 +341,8 @@ router.post("/", auth, async (req, res) => {
         return res.status(400).json({ message: `${product.name} no acepta opciones de combo` });
       }
 
-      total += (Number(product.price) + extraTotal) * quantity;
+      const unitPrice = Number(product.price) + extraTotal;
+      total += unitPrice * quantity;
       requiresKitchen = requiresKitchen || Boolean(product.kitchen_required) || optionNeedsKitchen;
       normalizedItems.push({ product_id: productId, quantity, choices });
     }
@@ -283,8 +363,15 @@ router.post("/", auth, async (req, res) => {
       serviceDate = folioResult.rows[0].day;
     }
 
-    const orderStatus = requiresKitchen ? "pendiente" : "entregado";
     const paid = Boolean(mark_paid);
+    const immediateInternalSale = !requiresKitchen && !tableSessionId && paid && staffCanCollect;
+    const orderStatus = requiresKitchen
+      ? "pendiente"
+      : tableSessionId
+        ? "entregado"
+        : immediateInternalSale
+          ? "entregado"
+          : "listo";
 
     const orderResult = await client.query(
       `
@@ -300,8 +387,8 @@ router.post("/", auth, async (req, res) => {
         effectiveType,
         total,
         orderStatus,
-        payment_method,
-        address_id,
+        paymentMethod,
+        addressId,
         tableSessionId,
         serviceType,
         customerName,
@@ -340,6 +427,7 @@ router.post("/", auth, async (req, res) => {
     if (io) {
       if (requiresKitchen) io.emit("new-order", order);
       io.emit("orders-updated", order);
+      if (orderStatus === "listo") io.emit("counter-updated", order);
       if (tableSessionId) io.emit("tables-updated");
     }
 
@@ -395,19 +483,32 @@ router.patch(
   roles(["cocina", "admin"]),
   async (req, res) => {
     try {
-      const { id } = req.params;
-      const { status } = req.body;
-      const allowed = [
-        "pendiente",
-        "aceptado",
-        "preparando",
-        "listo",
-        "entregado",
-        "cancelado"
-      ];
+      const id = Number(req.params.id);
+      const status = String(req.body.status || "").toLowerCase();
+      if (!Number.isInteger(id)) return res.status(400).json({ message: "Pedido inválido" });
 
-      if (!allowed.includes(status)) {
-        return res.status(400).json({ message: "Estado inválido" });
+      const currentResult = await pool.query(
+        "SELECT id, status, table_session_id FROM orders WHERE id = $1",
+        [id]
+      );
+      const current = currentResult.rows[0];
+      if (!current) return res.status(404).json({ message: "Pedido no encontrado" });
+
+      const transitions = {
+        pendiente: ["aceptado", "cancelado"],
+        aceptado: ["preparando", "cancelado"],
+        preparando: ["listo"],
+        listo: ["entregado"],
+        entregado: [],
+        cancelado: []
+      };
+
+      if (!(transitions[current.status] || []).includes(status)) {
+        return res.status(409).json({ message: `No se puede pasar de ${current.status} a ${status}` });
+      }
+
+      if (current.status === "listo" && status === "entregado" && !current.table_session_id) {
+        return res.status(409).json({ message: "Los pedidos de mostrador se entregan desde el módulo Mostrador" });
       }
 
       const result = await pool.query(
@@ -415,14 +516,12 @@ router.patch(
         [status, id]
       );
 
-      if (!result.rows.length) {
-        return res.status(404).json({ message: "Pedido no encontrado" });
-      }
-
       const updatedOrder = result.rows[0];
       const io = req.app.get("io");
       if (io) {
         io.emit("order-updated", updatedOrder);
+        io.emit("orders-updated", updatedOrder);
+        io.emit("counter-updated", updatedOrder);
         if (updatedOrder.table_session_id) io.emit("tables-updated");
       }
 
@@ -459,6 +558,8 @@ router.patch("/:id/cancel", auth, async (req, res) => {
     const io = req.app.get("io");
     if (io) {
       io.emit("order-updated", updatedOrder);
+      io.emit("orders-updated", updatedOrder);
+      io.emit("counter-updated", updatedOrder);
       if (updatedOrder.table_session_id) io.emit("tables-updated");
     }
 
