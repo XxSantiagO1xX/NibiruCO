@@ -47,6 +47,21 @@ async function ensureOperationalSchema() {
     CREATE INDEX IF NOT EXISTS idx_table_payments_session
       ON table_payments(table_session_id);
   `);
+
+  const tableCount = await pool.query("SELECT COUNT(*)::int AS count FROM restaurant_tables");
+  if (tableCount.rows[0].count === 0) {
+    const values = [];
+    const params = [];
+    for (let index = 1; index <= 16; index += 1) {
+      const offset = params.length;
+      values.push(`($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4})`);
+      params.push(`Mesa ${String(index).padStart(2, "0")}`, "Salón", 4, index);
+    }
+    await pool.query(`
+      INSERT INTO restaurant_tables (name, zone, capacity, sort_order)
+      VALUES ${values.join(", ")}
+    `, params);
+  }
 }
 
 module.exports = ensureOperationalSchema;
