@@ -1,279 +1,229 @@
 <!DOCTYPE html>
 <html lang="es">
-
 <head>
-    <meta charset="UTF-8">
-    <title>NibiruCO Ventas</title>
-    <link rel="stylesheet" href="../css/styles.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MealOps · Ventas</title>
+  <link rel="stylesheet" href="../css/styles.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 </head>
-
 <body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-mark">M</div>
+        <div class="brand-copy"><strong>MealOps</strong><span>Restaurant operations</span></div>
+      </div>
+      <nav class="nav">
+        <a href="home.html">Panel</a>
+        <a href="index.html" class="active">Ventas</a>
+        <a href="kds.html" id="nav-kds">Cocina KDS</a>
+        <a href="menu.html" id="nav-menu">Menú</a>
+        <a href="products.html" id="nav-products">Productos</a>
+      </nav>
+      <div class="sidebar-footer">
+        <div class="sidebar-user"><strong id="sidebar-name">Usuario</strong><span id="sidebar-role"></span></div>
+        <button class="btn btn-ghost" onclick="logout()">Cerrar sesión</button>
+      </div>
+    </aside>
 
-<header class="hero">
-    <h1>NibiruCO</h1>
-    <p>Ventas</p>
+    <main class="main">
+      <header class="page-header">
+        <div>
+          <h1>Ventas</h1>
+          <p>Selecciona productos del menú de hoy y crea el pedido.</p>
+        </div>
+        <div class="header-actions">
+          <button class="btn btn-secondary" onclick="loadProducts(); loadOrders();">Actualizar</button>
+        </div>
+      </header>
 
-   
+      <div class="pos-layout">
+        <section>
+          <div class="toolbar">
+            <input class="search" id="search" placeholder="Buscar producto..." oninput="renderProducts()">
+          </div>
+          <div id="products" class="products-grid"></div>
 
-    <div class="header-wave">
-        <svg viewBox="0 0 1440 320" preserveAspectRatio="none">
-            <path fill="#FDBA74"
-                d="M0,160L60,170C120,180,240,200,360,192C480,184,600,148,720,144C840,140,960,168,1080,170C1200,172,1320,148,1380,136L1440,128V0H0Z">
-            </path>
-        </svg>
-    </div>
-</header>
+          <div class="spacer-24"></div>
+          <h2 class="section-title">Mis pedidos recientes</h2>
+          <div id="orders" class="list"></div>
+        </section>
 
-<div class="container">
+        <aside class="card cart-panel">
+          <h2>Pedido actual</h2>
+          <div class="cart-subtitle">Los precios se validan nuevamente en el servidor.</div>
+          <div id="cart" class="cart-list"></div>
+          <div class="total-row"><span>Total</span><strong id="total">$0.00</strong></div>
+          <div class="field">
+            <label for="type">Tipo de pedido</label>
+            <select id="type">
+              <option value="local">Local</option>
+              <option value="llevar">Para llevar</option>
+              <option value="domicilio">Domicilio</option>
+            </select>
+          </div>
+          <div class="spacer-16"></div>
+          <div class="cart-actions">
+            <button class="btn btn-primary" id="create-order" onclick="createOrder()">Crear pedido</button>
+            <button class="btn btn-secondary" onclick="clearCart()">Vaciar carrito</button>
+          </div>
+        </aside>
+      </div>
+    </main>
+  </div>
 
-    <!-- TOAST -->
-    <div id="toast-container"></div>
+  <div id="toast-container"></div>
+  <script src="app.js"></script>
+  <script>
+    const currentUser = requireAuth();
+    let products = [];
+    let cart = {};
+    let loading = false;
 
-    <h1>Ventas</h1>
+    if (currentUser) {
+      document.getElementById('sidebar-name').textContent = currentUser.name || currentUser.phone || 'Usuario';
+      document.getElementById('sidebar-role').textContent = currentUser.role || '';
+      if (!['admin', 'cocina'].includes(currentUser.role)) document.getElementById('nav-kds').classList.add('hidden');
+      if (currentUser.role !== 'admin') {
+        document.getElementById('nav-menu').classList.add('hidden');
+        document.getElementById('nav-products').classList.add('hidden');
+      }
+    }
 
-    <h2>Productos</h2>
-    <div id="products" class="products"></div>
+    async function loadProducts() {
+      try {
+        products = await apiFetch('/products');
+        renderProducts();
+      } catch (error) {
+        showToast(error.message, 'error');
+      }
+    }
 
-    <!-- CARRITO -->
-    <div class="card cart">
-        <h2>Carrito</h2>
-        <div id="cart"></div>
+    function renderProducts() {
+      const query = document.getElementById('search').value.trim().toLowerCase();
+      const filtered = products.filter((product) => product.name.toLowerCase().includes(query));
+      const container = document.getElementById('products');
 
-        <h3>Total: $<span id="total">0</span></h3>
+      if (!filtered.length) {
+        container.innerHTML = '<div class="card card-pad muted">No hay productos disponibles en el menú de hoy.</div>';
+        return;
+      }
 
-        <select id="type">
-            <option value="llevar">Llevar</option>
-            <option value="local">Local</option>
-            <option value="domicilio">Domicilio</option>
-        </select>
+      container.innerHTML = filtered.map((product) => `
+        <article class="card product-card">
+          <h3>${escapeHtml(product.name)}</h3>
+          <p>Disponible hoy</p>
+          <div class="price">${formatCurrency(product.price)}</div>
+          <button class="btn btn-secondary" onclick='addToCart(${JSON.stringify(Number(product.id))})'>Agregar</button>
+        </article>
+      `).join('');
+    }
 
-        <br><br>
+    function addToCart(id) {
+      const product = products.find((item) => Number(item.id) === Number(id));
+      if (!product) return;
+      if (!cart[id]) cart[id] = { id: Number(product.id), name: product.name, price: Number(product.price), quantity: 0 };
+      cart[id].quantity += 1;
+      renderCart();
+      showToast(`${product.name} agregado`, 'success');
+    }
 
-        <button class="btn-success" onclick="createOrder()">Crear Pedido</button>
-        <button class="btn-danger" onclick="clearCart()">Vaciar carrito</button>
-    </div>
-     <button onclick="logout()" class="btn-danger">Cerrar sesión</button>
-    <h2>Pedidos</h2>
-    <div id="orders"></div>
+    function decrease(id) {
+      if (!cart[id]) return;
+      cart[id].quantity -= 1;
+      if (cart[id].quantity <= 0) delete cart[id];
+      renderCart();
+    }
 
-</div>
+    function increase(id) {
+      if (!cart[id]) return;
+      cart[id].quantity += 1;
+      renderCart();
+    }
 
-<script>
+    function clearCart() {
+      cart = {};
+      renderCart();
+    }
 
-let TOKEN = localStorage.getItem("token");
+    function renderCart() {
+      const items = Object.values(cart);
+      const container = document.getElementById('cart');
+      const total = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+      document.getElementById('total').textContent = formatCurrency(total);
 
-if (!TOKEN) {
-    window.location.href = "login.html";
-}
+      if (!items.length) {
+        container.innerHTML = '<div class="cart-empty">Aún no agregas productos.</div>';
+        return;
+      }
 
-function logout() {
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
-    window.location.href = "login.html";
-}
+      container.innerHTML = items.map((item) => `
+        <div class="cart-item">
+          <div>
+            <strong>${escapeHtml(item.name)}</strong>
+            <small>${formatCurrency(item.price)} × ${item.quantity}</small>
+          </div>
+          <div class="qty-controls">
+            <button class="qty-btn" onclick="decrease(${item.id})">−</button>
+            <span>${item.quantity}</span>
+            <button class="qty-btn" onclick="increase(${item.id})">+</button>
+          </div>
+        </div>
+      `).join('');
+    }
 
-const API = "http://localhost:3000";
+    async function createOrder() {
+      if (loading) return;
+      const items = Object.values(cart).map((item) => ({ product_id: item.id, quantity: item.quantity }));
+      if (!items.length) return showToast('Agrega productos al carrito.', 'error');
 
-let cart = {};
-let loading = false;
+      loading = true;
+      const button = document.getElementById('create-order');
+      button.disabled = true;
 
-// TOAST
-function showToast(message, type = "info") {
-    const container = document.getElementById("toast-container");
-
-    const toast = document.createElement("div");
-    toast.className = `toast ${type}`;
-    toast.textContent = message;
-
-    container.appendChild(toast);
-
-    setTimeout(() => toast.remove(), 3000);
-}
-
-
-// CARGAR PRODUCTOS
-async function loadProducts() {
-    try {
-        const res = await fetch("http://localhost:3000/products");
-        const products = await res.json();
-
-        console.log("PRODUCTS:", products);
-
-        const container = document.getElementById("products");
-        container.innerHTML = "";
-
-        products.forEach(p => {
-            const div = document.createElement("div");
-            div.innerHTML = `
-    <div class="card">
-        <h3>${p.name}</h3>
-        <p>$${p.price}</p>
-        <button onclick="addToCart(${p.id}, '${p.name}', ${p.price})">
-            Agregar
-        </button>
-    </div>
-`;
-            container.appendChild(div);
+      try {
+        await apiFetch('/orders', {
+          method: 'POST',
+          body: JSON.stringify({ items, type: document.getElementById('type').value })
         });
-
-    } catch (err) {
-        console.error("ERROR PRODUCTS:", err);
-    }
-}
-
-
-// AGREGAR
-function addToCart(id, name, price) {
-    if (!cart[id]) {
-        cart[id] = { id, name, price, quantity: 1 };
-    } else {
-        cart[id].quantity++;
-    }
-
-    showToast(`${name} agregado`, "success");
-    renderCart();
-}
-
-
-// DISMINUIR
-function decrease(id) {
-    if (cart[id]) {
-        cart[id].quantity--;
-        if (cart[id].quantity <= 0) delete cart[id];
-    }
-    renderCart();
-}
-
-
-// AUMENTAR
-function increase(id) {
-    cart[id].quantity++;
-    renderCart();
-}
-
-
-// LIMPIAR
-function clearCart() {
-    cart = {};
-    renderCart();
-}
-
-
-// RENDER CARRITO
-function renderCart() {
-    const container = document.getElementById("cart");
-    const totalEl = document.getElementById("total");
-
-    container.innerHTML = "";
-
-    let total = 0;
-
-    Object.values(cart).forEach(item => {
-        total += item.price * item.quantity;
-
-        const div = document.createElement("div");
-        div.className = "cart-item";
-
-        div.innerHTML = `
-            <div>
-                <strong>${item.name}</strong><br>
-                $${item.price} x ${item.quantity} = $${item.price * item.quantity}
-            </div>
-
-            <div class="qty-controls">
-                <button class="qty-btn" onclick="decrease(${item.id})">-</button>
-                <span>${item.quantity}</span>
-                <button class="qty-btn" onclick="increase(${item.id})">+</button>
-            </div>
-        `;
-
-        container.appendChild(div);
-    });
-
-    totalEl.textContent = total;
-}
-
-
-// CREAR PEDIDO
-async function createOrder() {
-    if (loading) return;
-    loading = true;
-
-    const items = Object.values(cart).map(i => ({
-        product_id: i.id,
-        quantity: i.quantity
-    }));
-
-    if (!items.length) {
-        showToast("Agrega productos al carrito", "error");
+        clearCart();
+        await loadOrders();
+        showToast('Pedido creado correctamente.', 'success');
+      } catch (error) {
+        showToast(error.message, 'error');
+      } finally {
         loading = false;
-        return;
+        button.disabled = false;
+      }
     }
 
-    const type = document.getElementById("type").value;
-
-    const res = await fetch(`${API}/orders`, {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json",
-            "Authorization": "Bearer " + TOKEN
-        },
-        body: JSON.stringify({ items, type })
-    });
-
-    const data = await res.json();
-
-    if (!res.ok) {
-        showToast(data.message, "error");
-        loading = false;
-        return;
-    }
-
-    cart = {};
-    renderCart();
-    loadOrders();
-
-    showToast("Pedido creado correctamente", "success");
-
-    loading = false;
-}
-
-
-// PEDIDOS
-async function loadOrders() {
-    const res = await fetch(`${API}/orders`, {
-        headers: {
-            "Authorization": "Bearer " + TOKEN
+    async function loadOrders() {
+      try {
+        const data = await apiFetch('/orders');
+        const container = document.getElementById('orders');
+        if (!data.length) {
+          container.innerHTML = '<div class="card card-pad muted">Todavía no tienes pedidos registrados.</div>';
+          return;
         }
-    });
 
-    const data = await res.json();
+        container.innerHTML = data.slice(0, 8).map((order) => `
+          <div class="list-row">
+            <div class="list-main">
+              <strong>Pedido #${order.id}</strong>
+              <small>${escapeHtml(order.type || 'local')} · ${formatCurrency(order.total)}</small>
+            </div>
+            <span class="badge ${order.status === 'cancelado' ? 'badge-danger' : order.status === 'entregado' ? 'badge-success' : 'badge-warning'}">${escapeHtml(order.status)}</span>
+          </div>
+        `).join('');
+      } catch (error) {
+        showToast(error.message, 'error');
+      }
+    }
 
-    const container = document.getElementById("orders");
-    container.innerHTML = "";
-
-    data.forEach(o => {
-        const div = document.createElement("div");
-        div.className = "card";
-
-        div.innerHTML = `
-            <strong>Pedido #${o.id}</strong><br>
-            Tipo: ${o.type}<br>
-            Total: $${o.total}<br>
-            <span class="badge">${o.status}</span>
-        `;
-
-        container.appendChild(div);
-    });
-}
-
-
-// INIT
-loadProducts();
-loadOrders();
-
-</script>
-
+    renderCart();
+    loadProducts();
+    loadOrders();
+  </script>
 </body>
 </html>
