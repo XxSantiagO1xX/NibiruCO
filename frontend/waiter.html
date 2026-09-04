@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>MealOps · Mesero</title>
+  <link rel="stylesheet" href="../css/styles.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div class="waiter-shell">
+    <header class="waiter-topbar">
+      <div class="home-brand">
+        <div class="brand-mark">M</div>
+        <div>
+          <strong>MealOps Mesero</strong>
+          <span class="waiter-topbar-subtitle">Toma de comandas</span>
+        </div>
+      </div>
+      <div class="header-actions">
+        <span id="waiter-name" class="muted"></span>
+        <button class="btn btn-secondary" onclick="window.location.href='home.html'">Panel</button>
+        <button class="btn btn-secondary" onclick="logout()">Salir</button>
+      </div>
+    </header>
+
+    <main class="waiter-main">
+      <section class="waiter-stage">
+        <div class="waiter-heading">
+          <div>
+            <div class="eyebrow">Servicio en mesa</div>
+            <h1>Selecciona una mesa y levanta la comanda.</h1>
+            <p>El pedido se envía directamente a cocina y aparecerá en el KDS en tiempo real.</p>
+          </div>
+          <div class="waiter-status" id="selected-table-label">Sin mesa seleccionada</div>
+        </div>
+
+        <section aria-labelledby="tables-title">
+          <div class="waiter-section-head">
+            <div>
+              <h2 id="tables-title">Mesas</h2>
+              <p>Selecciona dónde se está tomando la orden.</p>
+            </div>
+          </div>
+          <div id="tables" class="table-grid"></div>
+        </section>
+
+        <section class="waiter-menu" aria-labelledby="menu-title">
+          <div class="waiter-section-head">
+            <div>
+              <h2 id="menu-title">Menú de hoy</h2>
+              <p>Únicamente se muestran productos disponibles.</p>
+            </div>
+            <input id="waiter-search" class="waiter-search" placeholder="Buscar producto..." oninput="renderProducts()">
+          </div>
+          <div id="waiter-products" class="waiter-products"></div>
+        </section>
+      </section>
+
+      <aside class="waiter-order card" aria-label="Comanda actual">
+        <div class="waiter-order-head">
+          <div>
+            <div class="eyebrow">Comanda actual</div>
+            <h2 id="order-table">Selecciona una mesa</h2>
+          </div>
+          <button class="btn btn-ghost btn-sm" onclick="clearCart()">Limpiar</button>
+        </div>
+
+        <div id="waiter-cart" class="cart-list"></div>
+
+        <div class="waiter-summary">
+          <div class="total-row"><span>Total</span><strong id="waiter-total">$0.00</strong></div>
+          <button class="btn btn-primary waiter-send" id="send-order" onclick="sendOrder()" disabled>Enviar a cocina</button>
+          <div class="waiter-hint">La cocina recibe la mesa, productos y cantidades en cuanto se crea el pedido.</div>
+        </div>
+      </aside>
+    </main>
+  </div>
+
+  <div id="toast-container"></div>
+  <script src="app.js"></script>
+  <script>
+    const currentUser = requireAuth(['mesero', 'admin']);
+    const TABLE_COUNT = 16;
+    let selectedTable = null;
+    let products = [];
+    let cart = {};
+    let sending = false;
+
+    if (currentUser) {
+      document.getElementById('waiter-name').textContent = currentUser.name || currentUser.phone || currentUser.role || 'Mesero';
+    }
+
+    function renderTables() {
+      const container = document.getElementById('tables');
+      container.innerHTML = Array.from({ length: TABLE_COUNT }, (_, index) => {
+        const table = index + 1;
+        const active = table === selectedTable ? ' active' : '';
+        return `<button class="table-tile${active}" onclick="selectTable(${table})">
+          <span class="table-number">${String(table).padStart(2, '0')}</span>
+          <span>Mesa ${table}</span>
+        </button>`;
+      }).join('');
+    }
+
+    function selectTable(table) {
+      selectedTable = Number(table);
+      const label = `Mesa ${String(selectedTable).padStart(2, '0')}`;
+      document.getElementById('selected-table-label').textContent = label;
+      document.getElementById('order-table').textContent = label;
+      renderTables();
+      updateSendState();
+    }
+
+    async function loadProducts() {
+      try {
+        products = await apiFetch('/products');
+        renderProducts();
+      } catch (error) {
+        showToast(error.message, 'error');
+      }
+    }
+
+    function renderProducts() {
+      const query = document.getElementById('waiter-search').value.trim().toLowerCase();
+      const filtered = products.filter((product) => product.name.toLowerCase().includes(query));
+      const container = document.getElementById('waiter-products');
+
+      if (!filtered.length) {
+        container.innerHTML = '<div class="card card-pad muted">No hay productos disponibles para hoy.</div>';
+        return;
+      }
+
+      container.innerHTML = filtered.map((product) => `
+        <button class="waiter-product card" onclick="addToCart(${Number(product.id)})">
+          <span class="waiter-product-copy">
+            <strong>${escapeHtml(product.name)}</strong>
+            <small>Disponible hoy</small>
+          </span>
+          <span class="waiter-product-price">${formatCurrency(product.price)}</span>
+          <span class="waiter-add">+</span>
+        </button>
+      `).join('');
+    }
+
+    function addToCart(id) {
+      const product = products.find((item) => Number(item.id) === Number(id));
+      if (!product) return;
+      if (!cart[id]) {
+        cart[id] = {
+          id: Number(product.id),
+          name: product.name,
+          price: Number(product.price),
+          quantity: 0
+        };
+      }
+      cart[id].quantity += 1;
+      renderCart();
+    }
+
+    function decrease(id) {
+      if (!cart[id]) return;
+      cart[id].quantity -= 1;
+      if (cart[id].quantity <= 0) delete cart[id];
+      renderCart();
+    }
+
+    function increase(id) {
+      if (!cart[id]) return;
+      cart[id].quantity += 1;
+      renderCart();
+    }
+
+    function clearCart() {
+      cart = {};
+      renderCart();
+    }
+
+    function renderCart() {
+      const items = Object.values(cart);
+      const container = document.getElementById('waiter-cart');
+      const total = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+      document.getElementById('waiter-total').textContent = formatCurrency(total);
+
+      if (!items.length) {
+        container.innerHTML = '<div class="cart-empty">Agrega productos para comenzar la comanda.</div>';
+      } else {
+        container.innerHTML = items.map((item) => `
+          <div class="cart-item">
+            <div>
+              <strong>${escapeHtml(item.name)}</strong>
+              <small>${formatCurrency(item.price)} × ${item.quantity}</small>
+            </div>
+            <div class="qty-controls">
+              <button class="qty-btn" onclick="decrease(${item.id})">−</button>
+              <span>${item.quantity}</span>
+              <button class="qty-btn" onclick="increase(${item.id})">+</button>
+            </div>
+          </div>
+        `).join('');
+      }
+
+      updateSendState();
+    }
+
+    function updateSendState() {
+      document.getElementById('send-order').disabled = sending || !selectedTable || !Object.keys(cart).length;
+    }
+
+    async function sendOrder() {
+      if (sending || !selectedTable) return;
+      const items = Object.values(cart).map((item) => ({
+        product_id: item.id,
+        quantity: item.quantity
+      }));
+      if (!items.length) return showToast('Agrega al menos un producto.', 'error');
+
+      sending = true;
+      updateSendState();
+      try {
+        const tableLabel = `Mesa ${String(selectedTable).padStart(2, '0')}`;
+        const order = await apiFetch('/orders', {
+          method: 'POST',
+          body: JSON.stringify({
+            items,
+            type: tableLabel,
+            payment_method: 'pendiente'
+          })
+        });
+
+        clearCart();
+        showToast(`Pedido #${order.id} enviado a cocina · ${tableLabel}`, 'success');
+      } catch (error) {
+        showToast(error.message, 'error');
+      } finally {
+        sending = false;
+        updateSendState();
+      }
+    }
+
+    renderTables();
+    renderCart();
+    loadProducts();
+  </script>
+</body>
+</html>
