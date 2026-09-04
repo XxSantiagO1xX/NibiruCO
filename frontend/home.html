@@ -2,80 +2,165 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>MealOps · Panel principal</title>
   <link rel="stylesheet" href="../css/styles.css">
+  <link rel="stylesheet" href="../css/theme.css" data-mealops-theme="true">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 </head>
 <body>
   <div class="home-shell">
     <header class="home-topbar">
       <div class="home-brand">
-        <div class="brand-mark">M</div>
-        <span>MealOps</span>
+        <div class="brand-mark" aria-hidden="true">
+          <svg class="ui-icon" viewBox="0 0 32 32"><use href="assets/icons.svg#logo"></use></svg>
+        </div>
+        <div class="home-brand-copy">
+          <strong>MealOps</strong>
+          <small>Operación de cocina</small>
+        </div>
       </div>
-      <div class="header-actions">
+
+      <div class="home-topbar-actions">
+        <div class="role-pill"><span class="role-dot"></span><span id="role-label">Usuario</span></div>
         <span id="user-label" class="muted"></span>
         <button class="btn btn-secondary" onclick="logout()">Cerrar sesión</button>
       </div>
     </header>
 
     <main class="home-content">
-      <section class="home-hero">
-        <div class="eyebrow">Panel principal</div>
-        <h1>Todo lo necesario para operar el servicio, sin ruido.</h1>
-        <p>MealOps organiza ventas, mesas, servicio, cocina, menú, combos y productos para que cada rol trabaje desde la pantalla que necesita.</p>
+      <section class="home-hero-pro">
+        <div class="hero-copy">
+          <div class="eyebrow">Panel principal</div>
+          <h1>La operación de hoy, clara desde el primer vistazo.</h1>
+          <p>MealOps conecta venta, servicio, cocina y entrega en un mismo flujo. Cada rol entra únicamente a las herramientas que necesita y trabaja sobre la misma información.</p>
+          <div class="hero-meta" aria-label="Flujo operativo">
+            <span>Ventas</span>
+            <span>Mesas</span>
+            <span>Cocina KDS</span>
+            <span>Mostrador</span>
+            <span>Comida corrida</span>
+          </div>
+        </div>
+
+        <div class="hero-visual" aria-label="Flujo visual de MealOps">
+          <div class="workflow-card">
+            <div class="workflow-head">
+              <strong>Flujo operativo</strong>
+              <span>Una sola orden, un solo seguimiento</span>
+            </div>
+            <div class="workflow-path">
+              <div class="flow-node">
+                <div class="flow-node-icon"><svg class="ui-icon"><use href="assets/icons.svg#sales"></use></svg></div>
+                <div><strong>Venta y servicio</strong><small>POS, mesero, para llevar y recoger</small></div>
+                <svg class="flow-arrow"><use href="assets/icons.svg#arrow"></use></svg>
+              </div>
+              <div class="flow-node">
+                <div class="flow-node-icon"><svg class="ui-icon"><use href="assets/icons.svg#kitchen"></use></svg></div>
+                <div><strong>Preparación</strong><small>KDS con comandas y opciones de combos</small></div>
+                <svg class="flow-arrow"><use href="assets/icons.svg#arrow"></use></svg>
+              </div>
+              <div class="flow-node">
+                <div class="flow-node-icon"><svg class="ui-icon"><use href="assets/icons.svg#counter"></use></svg></div>
+                <div><strong>Entrega</strong><small>Folio, nombre y pedidos listos en mostrador</small></div>
+                <svg class="flow-arrow"><use href="assets/icons.svg#check"></use></svg>
+              </div>
+            </div>
+            <div class="workflow-note">La ilustración representa el flujo real del sistema; no muestra métricas ni datos simulados.</div>
+          </div>
+        </div>
       </section>
 
-      <section class="module-grid" aria-label="Módulos de MealOps">
-        <article class="module-card" onclick="go('index.html')" tabindex="0">
-          <div class="module-icon">🧾</div>
-          <h2>Ventas</h2>
-          <p>Local, para llevar, recolección con folio y venta rápida desde el mismo punto.</p>
-          <div class="module-link">Abrir punto de venta →</div>
-        </article>
+      <section class="home-section" id="operations-section">
+        <div class="home-section-head">
+          <div>
+            <h2>Operación</h2>
+            <p>Herramientas del día a día para atención, preparación y entrega.</p>
+          </div>
+        </div>
 
-        <article class="module-card" id="waiter-card" onclick="go('waiter.html')" tabindex="0">
-          <div class="module-icon">🍽️</div>
-          <h2>Mesero</h2>
-          <p>Selecciona mesa, levanta comandas, consulta la cuenta y registra el pago.</p>
-          <div class="module-link">Abrir modo mesero →</div>
-        </article>
+        <div class="module-grid" aria-label="Módulos operativos de MealOps">
+          <article class="module-card" data-roles="admin,mesero" onclick="go('index.html')" tabindex="0">
+            <span class="module-tag">Operación</span>
+            <div class="module-icon"><svg class="ui-icon"><use href="assets/icons.svg#sales"></use></svg></div>
+            <h2>Ventas</h2>
+            <p>Registra pedidos, venta rápida, comida corrida, para llevar y recolecciones con folio.</p>
+            <div class="module-link">Abrir punto de venta <svg><use href="assets/icons.svg#arrow"></use></svg></div>
+          </article>
 
-        <article class="module-card" id="kds-card" onclick="go('kds.html')" tabindex="0">
-          <div class="module-icon">🍳</div>
-          <h2>Cocina</h2>
-          <p>Recibe solamente lo que necesita preparación y trabaja por folio o mesa.</p>
-          <div class="module-link">Abrir KDS →</div>
-        </article>
+          <article class="module-card" data-roles="admin,mesero" onclick="go('waiter.html')" tabindex="0">
+            <span class="module-tag">Tablet / móvil</span>
+            <div class="module-icon"><svg class="ui-icon"><use href="assets/icons.svg#waiter"></use></svg></div>
+            <h2>Mesero</h2>
+            <p>Selecciona mesa, levanta varias comandas, consulta la cuenta y registra pagos.</p>
+            <div class="module-link">Abrir modo mesero <svg><use href="assets/icons.svg#arrow"></use></svg></div>
+          </article>
 
-        <article class="module-card" id="menu-card" onclick="go('menu.html')" tabindex="0">
-          <div class="module-icon">📅</div>
-          <h2>Menú</h2>
-          <p>Define qué productos y comidas estarán disponibles cada día de la semana.</p>
-          <div class="module-link">Configurar menú →</div>
-        </article>
+          <article class="module-card" data-roles="admin,cocina" onclick="go('kds.html')" tabindex="0">
+            <span class="module-tag">Tiempo real</span>
+            <div class="module-icon"><svg class="ui-icon"><use href="assets/icons.svg#kitchen"></use></svg></div>
+            <h2>Cocina KDS</h2>
+            <p>Recibe comandas, ve opciones de combos y avanza cada pedido durante la preparación.</p>
+            <div class="module-link">Abrir cocina <svg><use href="assets/icons.svg#arrow"></use></svg></div>
+          </article>
 
-        <article class="module-card" id="products-card" onclick="go('products.html')" tabindex="0">
-          <div class="module-icon">📦</div>
-          <h2>Productos</h2>
-          <p>Crea platillos, bebidas y artículos de venta rápida; administra precios y disponibilidad.</p>
-          <div class="module-link">Gestionar productos →</div>
-        </article>
+          <article class="module-card" data-roles="admin,mesero,cocina" onclick="go('counter.html')" tabindex="0">
+            <span class="module-tag">Entrega</span>
+            <div class="module-icon"><svg class="ui-icon"><use href="assets/icons.svg#counter"></use></svg></div>
+            <h2>Mostrador</h2>
+            <p>Separa pedidos en preparación de los que ya están listos y confirma su entrega por folio.</p>
+            <div class="module-link">Abrir mostrador <svg><use href="assets/icons.svg#arrow"></use></svg></div>
+          </article>
+        </div>
+      </section>
 
-        <article class="module-card" id="combos-card" onclick="go('combos.html')" tabindex="0">
-          <div class="module-icon">🍲</div>
-          <h2>Combos</h2>
-          <p>Configura comida corrida, tiempos, guisados elegibles y suplementos de precio.</p>
-          <div class="module-link">Configurar combos →</div>
-        </article>
+      <section class="home-section" id="admin-section">
+        <div class="home-section-head">
+          <div>
+            <h2>Configuración</h2>
+            <p>Catálogo, menú y estructura operativa administrados sin tocar código.</p>
+          </div>
+        </div>
 
-        <article class="module-card" id="tables-card" onclick="go('tables.html')" tabindex="0">
-          <div class="module-icon">🪑</div>
-          <h2>Mesas</h2>
-          <p>Crea mesas, organiza zonas, define capacidad y activa o desactiva espacios.</p>
-          <div class="module-link">Administrar mesas →</div>
-        </article>
+        <div class="module-grid" aria-label="Módulos administrativos de MealOps">
+          <article class="module-card" data-roles="admin" onclick="go('menu.html')" tabindex="0">
+            <span class="module-tag">Admin</span>
+            <div class="module-icon"><svg class="ui-icon"><use href="assets/icons.svg#calendar"></use></svg></div>
+            <h2>Menú</h2>
+            <p>Define qué productos estarán disponibles cada día de la semana.</p>
+            <div class="module-link">Configurar menú <svg><use href="assets/icons.svg#arrow"></use></svg></div>
+          </article>
+
+          <article class="module-card" data-roles="admin" onclick="go('products.html')" tabindex="0">
+            <span class="module-tag">Admin</span>
+            <div class="module-icon"><svg class="ui-icon"><use href="assets/icons.svg#products"></use></svg></div>
+            <h2>Productos</h2>
+            <p>Crea platillos, administra precios y distingue preparación de cocina y venta rápida.</p>
+            <div class="module-link">Gestionar productos <svg><use href="assets/icons.svg#arrow"></use></svg></div>
+          </article>
+
+          <article class="module-card" data-roles="admin" onclick="go('tables.html')" tabindex="0">
+            <span class="module-tag">Admin</span>
+            <div class="module-icon"><svg class="ui-icon"><use href="assets/icons.svg#tables"></use></svg></div>
+            <h2>Mesas</h2>
+            <p>Crea mesas, organiza zonas, define capacidad y activa o desactiva espacios.</p>
+            <div class="module-link">Administrar mesas <svg><use href="assets/icons.svg#arrow"></use></svg></div>
+          </article>
+
+          <article class="module-card" data-roles="admin" onclick="go('combos.html')" tabindex="0">
+            <span class="module-tag">Admin</span>
+            <div class="module-icon"><svg class="ui-icon"><use href="assets/icons.svg#combo"></use></svg></div>
+            <h2>Comida corrida</h2>
+            <p>Configura combos, tiempos, opciones elegibles y suplementos de precio.</p>
+            <div class="module-link">Configurar combos <svg><use href="assets/icons.svg#arrow"></use></svg></div>
+          </article>
+        </div>
+      </section>
+
+      <section class="customer-handoff" id="customer-handoff">
+        <div class="eyebrow">Cuenta de cliente</div>
+        <h2>Tu cuenta pertenece al lado cliente de MealOps.</h2>
+        <p>El repositorio conserva una aplicación móvil independiente para consultar el menú, armar pedidos, gestionar direcciones y revisar el historial. El panel web está reservado para la operación interna.</p>
       </section>
     </main>
   </div>
@@ -84,23 +169,28 @@
   <script src="app.js"></script>
   <script>
     const user = requireAuth();
+    const staffRoles = ['admin', 'mesero', 'cocina'];
+    const roleLabels = {
+      admin: 'Administrador',
+      mesero: 'Mesero',
+      cocina: 'Cocina'
+    };
 
     if (user) {
-      document.getElementById("user-label").textContent = user.name || user.phone || user.role || "Usuario";
+      document.getElementById('user-label').textContent = user.name || user.phone || 'Usuario';
+      document.getElementById('role-label').textContent = roleLabels[user.role] || 'Cliente';
 
-      if (!['admin', 'mesero'].includes(user.role)) {
-        document.getElementById('waiter-card').classList.add('hidden');
-      }
+      document.querySelectorAll('[data-roles]').forEach((card) => {
+        const allowed = card.dataset.roles.split(',');
+        if (!allowed.includes(user.role)) card.classList.add('hidden');
+      });
 
-      if (!['admin', 'cocina'].includes(user.role)) {
-        document.getElementById('kds-card').classList.add('hidden');
-      }
-
-      if (user.role !== 'admin') {
-        document.getElementById('menu-card').classList.add('hidden');
-        document.getElementById('products-card').classList.add('hidden');
-        document.getElementById('combos-card').classList.add('hidden');
-        document.getElementById('tables-card').classList.add('hidden');
+      if (!staffRoles.includes(user.role)) {
+        document.getElementById('operations-section').classList.add('hidden');
+        document.getElementById('admin-section').classList.add('hidden');
+        document.getElementById('customer-handoff').style.display = 'block';
+      } else if (user.role !== 'admin') {
+        document.getElementById('admin-section').classList.add('hidden');
       }
     }
 
@@ -110,7 +200,10 @@
 
     document.querySelectorAll('.module-card').forEach((card) => {
       card.addEventListener('keydown', (event) => {
-        if (event.key === 'Enter' || event.key === ' ') card.click();
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          card.click();
+        }
       });
     });
   </script>
