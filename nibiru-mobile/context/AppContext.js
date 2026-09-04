@@ -1,35 +1,30 @@
-import {
-  createContext,
-  useState
-} from "react";
+import { createContext, useState } from "react";
 
 export const AppContext = createContext();
 
-export default function AppProvider({
-  children
-}) {
+function buildCartKey(productId, choices = []) {
+  const choiceKey = choices
+    .map((choice) => `${choice.group_id}:${choice.option_product_id}`)
+    .sort()
+    .join("|");
+  return `${productId}:${choiceKey || "base"}`;
+}
 
+export default function AppProvider({ children }) {
   const [cart, setCart] = useState([]);
 
-  /* AGREGAR */
-  const addToCart = (product) => {
+  const addToCart = (product, choices = []) => {
+    const normalizedChoices = Array.isArray(choices) ? choices : [];
+    const cartKey = buildCartKey(product.id, normalizedChoices);
+    const extra = normalizedChoices.reduce((sum, choice) => sum + Number(choice.extra_price || 0), 0);
+    const unitPrice = Number(product.price) + extra;
 
-    setCart(prev => {
-
-      const existing = prev.find(
-        item =>
-          item.product_id === product.id
-      );
-
+    setCart((prev) => {
+      const existing = prev.find((item) => item.cart_key === cartKey);
       if (existing) {
-
-        return prev.map(item =>
-
-          item.product_id === product.id
-            ? {
-                ...item,
-                quantity: item.quantity + 1
-              }
+        return prev.map((item) =>
+          item.cart_key === cartKey
+            ? { ...item, quantity: item.quantity + 1 }
             : item
         );
       }
@@ -37,39 +32,35 @@ export default function AppProvider({
       return [
         ...prev,
         {
-          product_id: product.id,
+          cart_key: cartKey,
+          product_id: Number(product.id),
           name: product.name,
-          price: product.price,
-          quantity: 1
+          price: unitPrice,
+          base_price: Number(product.price),
+          quantity: 1,
+          product_kind: product.product_kind || "regular",
+          choices: normalizedChoices
         }
       ];
     });
   };
 
-  /* ELIMINAR */
-  const removeFromCart = (id) => {
-
-    setCart(prev =>
-      prev.filter(
-        item => item.product_id !== id
-      )
+  const updateQuantity = (cartKey, delta) => {
+    setCart((prev) =>
+      prev
+        .map((item) => item.cart_key === cartKey ? { ...item, quantity: item.quantity + delta } : item)
+        .filter((item) => item.quantity > 0)
     );
   };
 
-  /* LIMPIAR */
-  const clearCart = () => {
-    setCart([]);
+  const removeFromCart = (cartKey) => {
+    setCart((prev) => prev.filter((item) => item.cart_key !== cartKey));
   };
 
+  const clearCart = () => setCart([]);
+
   return (
-    <AppContext.Provider
-      value={{
-        cart,
-        addToCart,
-        removeFromCart,
-        clearCart
-      }}
-    >
+    <AppContext.Provider value={{ cart, addToCart, updateQuantity, removeFromCart, clearCart }}>
       {children}
     </AppContext.Provider>
   );
