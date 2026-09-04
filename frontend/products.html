@@ -17,6 +17,7 @@
         <a href="kds.html">Cocina KDS</a>
         <a href="menu.html">Menú</a>
         <a href="products.html" class="active">Productos</a>
+        <a href="combos.html">Combos</a>
       </nav>
       <div class="sidebar-footer"><button class="btn btn-ghost" onclick="logout()">Cerrar sesión</button></div>
     </aside>
@@ -25,17 +26,23 @@
       <header class="page-header">
         <div>
           <h1>Productos</h1>
-          <p>Administra platillos, precios y disponibilidad.</p>
+          <p>Administra platillos, precios, disponibilidad y si requieren preparación en cocina.</p>
         </div>
       </header>
 
       <section class="card card-pad">
         <h2 class="section-title">Nuevo producto</h2>
         <div class="form-grid">
-          <div class="field"><label for="name">Nombre</label><input id="name" placeholder="Ej. Hamburguesa clásica"></div>
+          <div class="field"><label for="name">Nombre</label><input id="name" placeholder="Ej. Agua de jamaica"></div>
           <div class="field"><label for="price">Precio</label><input id="price" type="number" min="0" step="0.01" placeholder="0.00"></div>
           <div class="field"><label for="image">URL de imagen opcional</label><input id="image" type="url" placeholder="https://..."></div>
         </div>
+        <div class="spacer-16"></div>
+        <label style="display:flex;align-items:center;gap:10px;font-size:13px;font-weight:700">
+          <input id="kitchen-required" type="checkbox" checked style="width:auto">
+          Enviar este producto a Cocina KDS
+        </label>
+        <p class="muted" style="margin:7px 0 0;font-size:11px">Desactívalo para refrescos, postres empacados u otros artículos de entrega inmediata.</p>
         <div class="spacer-16"></div>
         <button class="btn btn-primary" id="create-button" onclick="createProduct()">Agregar producto</button>
       </section>
@@ -78,9 +85,10 @@
         <div class="list-row">
           <div class="list-main">
             <strong>${escapeHtml(product.name)}</strong>
-            <small>${formatCurrency(product.price)} · ID ${product.id}</small>
+            <small>${formatCurrency(product.price)} · ID ${product.id} · ${product.product_kind === 'combo' ? 'Combo' : (product.kitchen_required ? 'Cocina' : 'Venta rápida')}</small>
           </div>
           <div class="list-actions">
+            ${product.product_kind !== 'combo' ? `<button class="btn btn-sm btn-secondary" onclick="toggleKitchen(${product.id}, ${product.kitchen_required ? 'false' : 'true'})">${product.kitchen_required ? 'Hacer venta rápida' : 'Enviar a cocina'}</button>` : ''}
             <span class="badge ${product.available ? 'badge-success' : 'badge-danger'}">${product.available ? 'Disponible' : 'Agotado'}</span>
             <button class="btn btn-sm ${product.available ? 'btn-secondary' : 'btn-primary'}" onclick="toggleProduct(${product.id})">${product.available ? 'Marcar agotado' : 'Activar'}</button>
           </div>
@@ -92,6 +100,7 @@
       const name = document.getElementById('name').value.trim();
       const price = Number(document.getElementById('price').value);
       const image = document.getElementById('image').value.trim();
+      const kitchenRequired = document.getElementById('kitchen-required').checked;
 
       if (!name || !Number.isFinite(price) || price <= 0) {
         return showToast('Ingresa un nombre y un precio válido.', 'error');
@@ -102,11 +111,12 @@
       try {
         await apiFetch('/products', {
           method: 'POST',
-          body: JSON.stringify({ name, price, image: image || null })
+          body: JSON.stringify({ name, price, image: image || null, kitchen_required: kitchenRequired })
         });
         document.getElementById('name').value = '';
         document.getElementById('price').value = '';
         document.getElementById('image').value = '';
+        document.getElementById('kitchen-required').checked = true;
         await loadProducts();
         showToast('Producto creado.', 'success');
       } catch (error) {
@@ -120,6 +130,19 @@
       try {
         await apiFetch(`/products/${id}`, { method: 'PATCH' });
         await loadProducts();
+      } catch (error) {
+        showToast(error.message, 'error');
+      }
+    }
+
+    async function toggleKitchen(id, kitchenRequired) {
+      try {
+        await apiFetch(`/products/${id}/settings`, {
+          method: 'PATCH',
+          body: JSON.stringify({ kitchen_required: kitchenRequired })
+        });
+        await loadProducts();
+        showToast(kitchenRequired ? 'El producto volverá a Cocina KDS.' : 'Producto configurado como venta rápida.', 'success');
       } catch (error) {
         showToast(error.message, 'error');
       }
