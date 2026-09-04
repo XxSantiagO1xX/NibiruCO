@@ -7,6 +7,9 @@
   <link rel="stylesheet" href="../css/styles.css">
   <link rel="stylesheet" href="../css/waiter.css">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    .combo-modal{position:fixed;inset:0;z-index:100;background:rgba(15,23,42,.58);display:grid;place-items:center;padding:16px}.combo-modal.hidden{display:none}.combo-dialog{width:min(600px,100%);max-height:88vh;overflow:auto;background:var(--surface);border-radius:22px;padding:20px;box-shadow:var(--shadow-lg)}.combo-group{padding:14px 0;border-top:1px solid var(--border)}.combo-option{display:flex;gap:10px;align-items:center;padding:8px 0}.combo-option input{width:auto}
+  </style>
 </head>
 <body>
   <div class="waiter-shell">
@@ -51,7 +54,7 @@
           <div class="waiter-section-head">
             <div>
               <h2 id="menu-title">Menú de hoy</h2>
-              <p>Únicamente se muestran productos disponibles.</p>
+              <p>Incluye platillos, combos y artículos de entrega inmediata.</p>
             </div>
             <input id="waiter-search" class="waiter-search" placeholder="Buscar producto..." oninput="renderProducts()">
           </div>
@@ -73,13 +76,13 @@
 
         <div class="waiter-summary">
           <div class="total-row"><span>Comanda</span><strong id="waiter-total">$0.00</strong></div>
-          <button class="btn btn-primary waiter-send" id="send-order" onclick="sendOrder()" disabled>Enviar a cocina</button>
+          <button class="btn btn-primary waiter-send" id="send-order" onclick="sendOrder()" disabled>Registrar comanda</button>
           <div class="waiter-account-actions">
             <button class="btn btn-secondary" id="view-account" onclick="loadAccount(true)" disabled>Ver cuenta</button>
             <button class="btn btn-secondary" id="request-account" onclick="requestAccount()" disabled>Solicitar cuenta</button>
           </div>
           <button class="btn btn-soft hidden" id="reopen-account" onclick="reopenAccount()">Reabrir mesa</button>
-          <div class="waiter-hint">Puedes enviar varias comandas a la misma mesa. La cuenta suma todos los pedidos no cancelados.</div>
+          <div class="waiter-hint">Lo que requiere preparación llega al KDS. Bebidas o artículos de entrega inmediata se suman a la cuenta sin crear una tarea de cocina.</div>
         </div>
       </aside>
     </main>
@@ -120,6 +123,18 @@
     </section>
   </div>
 
+  <div id="combo-modal" class="combo-modal hidden" role="dialog" aria-modal="true">
+    <section class="combo-dialog">
+      <div class="page-header" style="margin-bottom:8px">
+        <div><div class="eyebrow">Configurar comida</div><h2 id="combo-title" style="margin:5px 0 0"></h2></div>
+        <button class="btn btn-secondary" onclick="closeCombo()">Cerrar</button>
+      </div>
+      <div id="combo-groups"></div>
+      <div class="total-row"><span>Precio</span><strong id="combo-price">$0.00</strong></div>
+      <button class="btn btn-primary" style="width:100%;margin-top:12px" onclick="confirmCombo()">Agregar a la comanda</button>
+    </section>
+  </div>
+
   <div id="toast-container"></div>
   <script src="app.js"></script>
   <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
@@ -132,8 +147,10 @@
     let activeSessionStatus = null;
     let currentAccount = null;
     let products = [];
-    let cart = {};
+    let combos = [];
+    let cart = [];
     let sending = false;
+    let comboEditing = null;
 
     const socket = io(API, { transports: ['websocket', 'polling'] });
     socket.on('tables-updated', loadTables);
@@ -244,7 +261,7 @@
 
     async function loadProducts() {
       try {
-        products = await apiFetch('/products');
+        [products, combos] = await Promise.all([apiFetch('/products'), apiFetch('/combos')]);
         renderProducts();
       } catch (error) {
         showToast(error.message, 'error');
@@ -261,7 +278,7 @@
       }
       container.innerHTML = filtered.map((product) => `
         <button class="waiter-product card" onclick="addToCart(${Number(product.id)})" ${activeSessionStatus === 'account_requested' ? 'disabled' : ''}>
-          <span class="waiter-product-copy"><strong>${escapeHtml(product.name)}</strong><small>Disponible hoy</small></span>
+          <span class="waiter-product-copy"><strong>${escapeHtml(product.name)}</strong><small>${product.product_kind === 'combo' ? 'Elegir opciones' : (product.kitchen_required ? 'Preparación en cocina' : 'Entrega inmediata')}</small></span>
           <span class="waiter-product-price">${formatCurrency(product.price)}</span>
           <span class="waiter-add">+</span>
         </button>
@@ -272,37 +289,126 @@
       if (activeSessionStatus === 'account_requested') return showToast('Reabre la mesa antes de agregar productos.', 'error');
       const product = products.find((item) => Number(item.id) === Number(id));
       if (!product) return;
-      if (!cart[id]) cart[id] = { id: Number(product.id), name: product.name, price: Number(product.price), quantity: 0 };
-      cart[id].quantity += 1;
+      if (product.product_kind === 'combo') return openCombo(id);
+      addCartItem(product, []);
+    }
+
+    function addCartItem(product, choices) {
+      const signature = choices.map((choice) => `${choice.group_id}:${choice.option_product_id}`).sort().join('|');
+      const key = `${product.id}:${signature}`;
+      const extra = choices.reduce((sum, choice) => sum + Number(choice.extra_price || 0), 0);
+      const existing = cart.find((item) => item.key === key);
+      if (existing) existing.quantity += 1;
+      else cart.push({ key, id: Number(product.id), name: product.name, price: Number(product.price), extra, quantity: 1, choices });
       renderCart();
     }
 
-    function decrease(id) { if (!cart[id]) return; cart[id].quantity -= 1; if (cart[id].quantity <= 0) delete cart[id]; renderCart(); }
-    function increase(id) { if (!cart[id]) return; cart[id].quantity += 1; renderCart(); }
-    function clearCart() { cart = {}; renderCart(); }
+    function decrease(key) {
+      const item = cart.find((entry) => entry.key === key);
+      if (!item) return;
+      item.quantity -= 1;
+      if (item.quantity <= 0) cart = cart.filter((entry) => entry.key !== key);
+      renderCart();
+    }
+
+    function increase(key) {
+      const item = cart.find((entry) => entry.key === key);
+      if (!item) return;
+      item.quantity += 1;
+      renderCart();
+    }
+
+    function clearCart() { cart = []; renderCart(); }
 
     function renderCart() {
-      const items = Object.values(cart);
-      const total = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+      const total = cart.reduce((sum, item) => sum + (item.price + item.extra) * item.quantity, 0);
       document.getElementById('waiter-total').textContent = formatCurrency(total);
-      document.getElementById('waiter-cart').innerHTML = items.length ? items.map((item) => `
+      document.getElementById('waiter-cart').innerHTML = cart.length ? cart.map((item) => `
         <div class="cart-item">
-          <div><strong>${escapeHtml(item.name)}</strong><small>${formatCurrency(item.price)} × ${item.quantity}</small></div>
+          <div>
+            <strong>${escapeHtml(item.name)}</strong>
+            <small>${formatCurrency(item.price + item.extra)} × ${item.quantity}</small>
+            ${item.choices.length ? `<small style="display:block;margin-top:3px">${item.choices.map((choice) => escapeHtml(choice.option_name)).join(' · ')}</small>` : ''}
+          </div>
           <div class="qty-controls">
-            <button class="qty-btn" onclick="decrease(${item.id})">−</button><span>${item.quantity}</span><button class="qty-btn" onclick="increase(${item.id})">+</button>
+            <button class="qty-btn" onclick='decrease(${JSON.stringify(item.key)})'>−</button><span>${item.quantity}</span><button class="qty-btn" onclick='increase(${JSON.stringify(item.key)})'>+</button>
           </div>
         </div>
       `).join('') : '<div class="cart-empty">Agrega productos para comenzar la comanda.</div>';
       updateSendState();
     }
 
+    function openCombo(productId) {
+      const combo = combos.find((item) => Number(item.id) === Number(productId));
+      if (!combo) return showToast('Este combo todavía no está configurado.', 'error');
+      comboEditing = combo;
+      document.getElementById('combo-title').textContent = combo.name;
+      document.getElementById('combo-groups').innerHTML = combo.groups.map((group) => {
+        const type = Number(group.max_select) === 1 ? 'radio' : 'checkbox';
+        const options = (group.options || []).filter((option) => option.active && option.available);
+        return `<div class="combo-group">
+          <strong>${escapeHtml(group.name)}</strong>
+          <div class="muted" style="font-size:11px;margin-top:3px">Elige ${group.min_select === group.max_select ? group.min_select : `${group.min_select}–${group.max_select}`}</div>
+          ${options.map((option) => `<label class="combo-option"><input type="${type}" name="waiter-combo-${group.id}" value="${option.option_product_id}" onchange="updateComboPrice()"><span>${escapeHtml(option.name)}${Number(option.extra_price) > 0 ? ` <small class="muted">(+${formatCurrency(option.extra_price)})</small>` : ''}</span></label>`).join('') || '<div class="muted" style="margin-top:8px">Sin opciones disponibles.</div>'}
+        </div>`;
+      }).join('');
+      updateComboPrice();
+      document.getElementById('combo-modal').classList.remove('hidden');
+    }
+
+    function selectedComboChoices() {
+      if (!comboEditing) return [];
+      const choices = [];
+      comboEditing.groups.forEach((group) => {
+        document.querySelectorAll(`input[name="waiter-combo-${group.id}"]:checked`).forEach((input) => {
+          const option = (group.options || []).find((candidate) => Number(candidate.option_product_id) === Number(input.value));
+          if (option) choices.push({
+            group_id: Number(group.id),
+            group_name: group.name,
+            option_product_id: Number(option.option_product_id),
+            option_name: option.name,
+            extra_price: Number(option.extra_price || 0)
+          });
+        });
+      });
+      return choices;
+    }
+
+    function updateComboPrice() {
+      if (!comboEditing) return;
+      const extra = selectedComboChoices().reduce((sum, choice) => sum + choice.extra_price, 0);
+      document.getElementById('combo-price').textContent = formatCurrency(Number(comboEditing.price) + extra);
+    }
+
+    function confirmCombo() {
+      if (!comboEditing) return;
+      const choices = selectedComboChoices();
+      for (const group of comboEditing.groups) {
+        const count = choices.filter((choice) => Number(choice.group_id) === Number(group.id)).length;
+        if (count < Number(group.min_select) || count > Number(group.max_select)) return showToast(`Revisa ${group.name}.`, 'error');
+      }
+      const product = products.find((item) => Number(item.id) === Number(comboEditing.id));
+      if (!product) return;
+      addCartItem(product, choices);
+      closeCombo();
+    }
+
+    function closeCombo() {
+      comboEditing = null;
+      document.getElementById('combo-modal').classList.add('hidden');
+    }
+
     function updateSendState() {
-      document.getElementById('send-order').disabled = sending || !selectedTable || !Object.keys(cart).length || activeSessionStatus === 'account_requested';
+      document.getElementById('send-order').disabled = sending || !selectedTable || !cart.length || activeSessionStatus === 'account_requested';
     }
 
     async function sendOrder() {
       if (sending || !selectedTable) return;
-      const items = Object.values(cart).map((item) => ({ product_id: item.id, quantity: item.quantity }));
+      const items = cart.map((item) => ({
+        product_id: item.id,
+        quantity: item.quantity,
+        choices: item.choices.map((choice) => ({ group_id: choice.group_id, option_product_id: choice.option_product_id }))
+      }));
       if (!items.length) return showToast('Agrega al menos un producto.', 'error');
       sending = true;
       updateSendState();
@@ -314,7 +420,7 @@
         });
         clearCart();
         await loadTables();
-        showToast(`Pedido #${order.id} enviado a cocina · ${selectedTable.name}`, 'success');
+        showToast(order.requires_kitchen ? `Comanda #${order.id} enviada a cocina · ${selectedTable.name}` : `Consumo #${order.id} agregado a ${selectedTable.name}`, 'success');
       } catch (error) {
         showToast(error.message, 'error');
       } finally {
