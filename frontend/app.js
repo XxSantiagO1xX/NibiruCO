@@ -16,29 +16,34 @@
   document.querySelectorAll('.brand-mark').forEach((mark) => {
     if (!mark.querySelector('svg')) {
       mark.textContent = '';
-      mark.innerHTML = '<svg class="ui-icon" viewBox="0 0 32 32" aria-hidden="true"><use href="assets/icons.svg#logo"></use></svg>';
+      mark.innerHTML = '<svg class="ui-icon" width="24" height="24" viewBox="0 0 32 32" aria-hidden="true"><use href="assets/icons.svg#logo"></use></svg>';
     }
   });
 
-  const navIcons = {
-    'home.html': 'logo',
-    'index.html': 'sales',
-    'waiter.html': 'waiter',
-    'kds.html': 'kitchen',
-    'counter.html': 'counter',
-    'menu.html': 'calendar',
-    'products.html': 'products',
-    'tables.html': 'tables',
-    'combos.html': 'combo'
-  };
+  let role = null;
+  try {
+    role = JSON.parse(localStorage.getItem('user') || 'null')?.role || null;
+  } catch (_) {}
 
-  document.querySelectorAll('.nav a').forEach((link) => {
-    if (link.querySelector('.nav-icon')) return;
-    const href = (link.getAttribute('href') || '').split('/').pop();
-    const icon = navIcons[href];
-    if (!icon) return;
-    link.insertAdjacentHTML('afterbegin', `<svg class="nav-icon" aria-hidden="true"><use href="assets/icons.svg#${icon}"></use></svg>`);
-  });
+  const nav = document.querySelector('.nav');
+  if (nav && role) {
+    const definitions = [
+      { href: 'home.html', label: 'Panel', icon: 'logo', roles: ['admin', 'mesero', 'cocina'] },
+      { href: 'index.html', label: 'Ventas', icon: 'sales', roles: ['admin', 'mesero'] },
+      { href: 'waiter.html', label: 'Mesero', icon: 'waiter', roles: ['admin', 'mesero'] },
+      { href: 'kds.html', label: 'Cocina KDS', icon: 'kitchen', roles: ['admin', 'cocina'] },
+      { href: 'counter.html', label: 'Mostrador', icon: 'counter', roles: ['admin', 'mesero', 'cocina'] },
+      { href: 'menu.html', label: 'Menú', icon: 'calendar', roles: ['admin'] },
+      { href: 'products.html', label: 'Productos', icon: 'products', roles: ['admin'] },
+      { href: 'tables.html', label: 'Mesas', icon: 'tables', roles: ['admin'] },
+      { href: 'combos.html', label: 'Comida corrida', icon: 'combo', roles: ['admin'] }
+    ];
+    const current = window.location.pathname.split('/').pop() || 'home.html';
+    nav.innerHTML = definitions
+      .filter((item) => item.roles.includes(role))
+      .map((item) => `<a href="${item.href}" class="${current === item.href ? 'active' : ''}"><svg class="nav-icon" width="17" height="17" viewBox="0 0 24 24" aria-hidden="true" style="vertical-align:-3px;margin-right:9px;opacity:.88"><use href="assets/icons.svg#${item.icon}"></use></svg>${item.label}</a>`)
+      .join('');
+  }
 })();
 
 const API = window.MEALOPS_API_URL || localStorage.getItem("mealops_api_url") || "http://localhost:3000";
