@@ -12,8 +12,8 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import axios from "axios";
 import { io } from "socket.io-client";
 import colors from "../theme/colors";
+import API from "../config/api";
 
-const API = "http://192.168.1.86:3000";
 const socket = io(API);
 
 const nextStatus = {
