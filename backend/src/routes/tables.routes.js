@@ -47,7 +47,21 @@ async function getSessionSummary(sessionId, client = pool) {
             'product_id', oi.product_id,
             'name', p.name,
             'quantity', oi.quantity,
-            'price', p.price
+            'price', p.price,
+            'product_kind', p.product_kind,
+            'choices', COALESCE((
+              SELECT json_agg(
+                json_build_object(
+                  'option_product_id', occ.option_product_id,
+                  'name', op.name,
+                  'quantity', occ.quantity,
+                  'extra_price', occ.extra_price
+                ) ORDER BY occ.id
+              )
+              FROM order_item_combo_choices occ
+              JOIN products op ON op.id = occ.option_product_id
+              WHERE occ.order_item_id = oi.id
+            ), '[]'::json)
           ) ORDER BY oi.id
         ) FILTER (WHERE oi.id IS NOT NULL),
         '[]'
@@ -351,6 +365,11 @@ router.post("/sessions/:sessionId/payments", auth, waiterRoles, async (req, res)
         UPDATE table_sessions
         SET status = 'closed', closed_at = NOW()
         WHERE id = $1
+      `, [sessionId]);
+      await client.query(`
+        UPDATE orders
+        SET payment_status = 'paid', paid_at = COALESCE(paid_at, NOW())
+        WHERE table_session_id = $1 AND status <> 'cancelado'
       `, [sessionId]);
     } else if (session.status === "open") {
       await client.query(`
