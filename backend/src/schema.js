@@ -50,6 +50,9 @@ async function ensureOperationalSchema() {
       ADD COLUMN IF NOT EXISTS folio INTEGER;
 
     ALTER TABLE orders
+      ADD COLUMN IF NOT EXISTS service_date DATE NOT NULL DEFAULT CURRENT_DATE;
+
+    ALTER TABLE orders
       ADD COLUMN IF NOT EXISTS payment_status VARCHAR(20) NOT NULL DEFAULT 'pending';
 
     ALTER TABLE orders
@@ -59,7 +62,7 @@ async function ensureOperationalSchema() {
       ON orders(table_session_id);
 
     CREATE UNIQUE INDEX IF NOT EXISTS uq_orders_daily_folio
-      ON orders((created_at::date), folio)
+      ON orders(service_date, folio)
       WHERE folio IS NOT NULL;
 
     CREATE TABLE IF NOT EXISTS daily_folio_counters (
