@@ -1,81 +1,91 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="UTF-8">
-<title>MealOps Panel</title>
-<link rel="stylesheet" href="../css/styles.css">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MealOps · Panel principal</title>
+  <link rel="stylesheet" href="../css/styles.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 </head>
-
 <body>
+  <div class="home-shell">
+    <header class="home-topbar">
+      <div class="home-brand">
+        <div class="brand-mark">M</div>
+        <span>MealOps</span>
+      </div>
+      <div class="header-actions">
+        <span id="user-label" class="muted"></span>
+        <button class="btn btn-secondary" onclick="logout()">Cerrar sesión</button>
+      </div>
+    </header>
 
+    <main class="home-content">
+      <section class="home-hero">
+        <div class="eyebrow">Panel principal</div>
+        <h1>Todo lo necesario para operar el restaurante, sin ruido.</h1>
+        <p>MealOps mantiene las mismas funciones que ya usabas, pero ahora están organizadas para trabajar más rápido y con menos errores.</p>
+      </section>
 
-<header class="hero">
+      <section class="module-grid" aria-label="Módulos de MealOps">
+        <article class="module-card" onclick="go('index.html')" tabindex="0">
+          <div class="module-icon">🧾</div>
+          <h2>Ventas</h2>
+          <p>Registra pedidos del menú disponible y consulta el historial reciente.</p>
+          <div class="module-link">Abrir punto de venta →</div>
+        </article>
 
-    <h1>MealOps</h1>
-    <p>Panel principal</p>
+        <article class="module-card" id="kds-card" onclick="go('kds.html')" tabindex="0">
+          <div class="module-icon">🍳</div>
+          <h2>Cocina</h2>
+          <p>Recibe pedidos en tiempo real y actualiza su estado durante la preparación.</p>
+          <div class="module-link">Abrir KDS →</div>
+        </article>
 
-    <div class="header-wave">
-        <svg viewBox="0 0 1440 320" preserveAspectRatio="none">
-            <path fill="#FDBA74"
-            d="M0,160L60,170C120,180,240,200,360,192C480,184,600,148,720,144C840,140,960,168,1080,170C1200,172,1320,148,1380,136L1440,128V0H0Z">
-            </path>
-        </svg>
-    </div>
+        <article class="module-card" id="menu-card" onclick="go('menu.html')" tabindex="0">
+          <div class="module-icon">📅</div>
+          <h2>Menú</h2>
+          <p>Define qué productos estarán disponibles cada día de la semana.</p>
+          <div class="module-link">Configurar menú →</div>
+        </article>
 
-</header>
-
-<div class="container">
-
-
-
-<div class="grid">
-
-  <div class="card card-menu" onclick="go('index.html')">
-    <div class="title">🧾 Ventas</div>
-    <div class="desc">Registrar pedidos</div>
+        <article class="module-card" id="products-card" onclick="go('products.html')" tabindex="0">
+          <div class="module-icon">📦</div>
+          <h2>Productos</h2>
+          <p>Crea platillos, actualiza disponibilidad y administra precios.</p>
+          <div class="module-link">Gestionar productos →</div>
+        </article>
+      </section>
+    </main>
   </div>
 
-  <div class="card card-menu" onclick="go('kds.html')">
-    <div class="title">🍳 Cocina</div>
-    <div class="desc">Pantalla de pedidos</div>
-  </div>
+  <div id="toast-container"></div>
+  <script src="app.js"></script>
+  <script>
+    const user = requireAuth();
 
-  <div class="card card-menu" onclick="go('menu.html')">
-    <div class="title">📅 Menú</div>
-    <div class="desc">Configurar menú diario</div>
-  </div>
+    if (user) {
+      document.getElementById("user-label").textContent = user.name || user.phone || user.role || "Usuario";
 
-  <div class="card card-menu" onclick="go('products.html')">
-    <div class="title">📦 Productos</div>
-    <div class="desc">Gestionar platillos</div>
-  </div>
+      if (!['admin', 'cocina'].includes(user.role)) {
+        document.getElementById('kds-card').classList.add('hidden');
+      }
 
-</div>
+      if (user.role !== 'admin') {
+        document.getElementById('menu-card').classList.add('hidden');
+        document.getElementById('products-card').classList.add('hidden');
+      }
+    }
 
-</div>
+    function go(page) {
+      window.location.href = page;
+    }
 
-<script>
-function showToast(message, type = "info") {
-    const container = document.getElementById("toast-container");
-
-    const toast = document.createElement("div");
-    toast.className = `toast ${type}`;
-    toast.textContent = message;
-
-    container.appendChild(toast);
-
-    setTimeout(() => {
-        toast.remove();
-    }, 3000);
-}
-
-function go(page) {
-  window.location.href = page;
-}
-</script>
-
-<div id="toast-container"></div>
-
+    document.querySelectorAll('.module-card').forEach((card) => {
+      card.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter' || event.key === ' ') card.click();
+      });
+    });
+  </script>
 </body>
 </html>
