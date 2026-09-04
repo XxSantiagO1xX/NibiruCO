@@ -15,7 +15,7 @@
         <div class="brand-mark">M</div>
         <div>
           <strong>MealOps Mesero</strong>
-          <span class="waiter-topbar-subtitle">Toma de comandas</span>
+          <span class="waiter-topbar-subtitle">Mesas, comandas y cuenta</span>
         </div>
       </div>
       <div class="header-actions">
@@ -31,7 +31,7 @@
           <div>
             <div class="eyebrow">Servicio en mesa</div>
             <h1>Selecciona una mesa y levanta la comanda.</h1>
-            <p>El pedido se envía directamente a cocina y aparecerá en el KDS en tiempo real.</p>
+            <p>Las mesas se cargan desde MealOps. Cada comanda se acumula en la cuenta de la mesa hasta que se registre el pago.</p>
           </div>
           <div class="waiter-status" id="selected-table-label">Sin mesa seleccionada</div>
         </div>
@@ -40,8 +40,9 @@
           <div class="waiter-section-head">
             <div>
               <h2 id="tables-title">Mesas</h2>
-              <p>Selecciona dónde se está tomando la orden.</p>
+              <p>Libre, ocupada o con cuenta solicitada.</p>
             </div>
+            <div id="zone-filters" class="zone-filters"></div>
           </div>
           <div id="tables" class="table-grid"></div>
         </section>
@@ -58,11 +59,12 @@
         </section>
       </section>
 
-      <aside class="waiter-order card" aria-label="Comanda actual">
+      <aside class="waiter-order card" aria-label="Comanda y cuenta actual">
         <div class="waiter-order-head">
           <div>
-            <div class="eyebrow">Comanda actual</div>
+            <div class="eyebrow">Mesa actual</div>
             <h2 id="order-table">Selecciona una mesa</h2>
+            <small id="session-state" class="waiter-session-state">Sin cuenta abierta</small>
           </div>
           <button class="btn btn-ghost btn-sm" onclick="clearCart()">Limpiar</button>
         </div>
@@ -70,47 +72,174 @@
         <div id="waiter-cart" class="cart-list"></div>
 
         <div class="waiter-summary">
-          <div class="total-row"><span>Total</span><strong id="waiter-total">$0.00</strong></div>
+          <div class="total-row"><span>Comanda</span><strong id="waiter-total">$0.00</strong></div>
           <button class="btn btn-primary waiter-send" id="send-order" onclick="sendOrder()" disabled>Enviar a cocina</button>
-          <div class="waiter-hint">La cocina recibe la mesa, productos y cantidades en cuanto se crea el pedido.</div>
+          <div class="waiter-account-actions">
+            <button class="btn btn-secondary" id="view-account" onclick="loadAccount(true)" disabled>Ver cuenta</button>
+            <button class="btn btn-secondary" id="request-account" onclick="requestAccount()" disabled>Solicitar cuenta</button>
+          </div>
+          <button class="btn btn-soft hidden" id="reopen-account" onclick="reopenAccount()">Reabrir mesa</button>
+          <div class="waiter-hint">Puedes enviar varias comandas a la misma mesa. La cuenta suma todos los pedidos no cancelados.</div>
         </div>
       </aside>
     </main>
   </div>
 
+  <div class="account-modal hidden" id="account-modal" onclick="closeAccountModal(event)">
+    <section class="account-sheet card" onclick="event.stopPropagation()">
+      <div class="account-sheet-head">
+        <div>
+          <div class="eyebrow">Cuenta de mesa</div>
+          <h2 id="account-title">Cuenta</h2>
+        </div>
+        <button class="btn btn-ghost" onclick="hideAccount()">Cerrar</button>
+      </div>
+      <div id="account-orders" class="account-orders"></div>
+      <div class="account-totals">
+        <div><span>Total</span><strong id="account-total">$0.00</strong></div>
+        <div><span>Pagado</span><strong id="account-paid">$0.00</strong></div>
+        <div class="account-balance"><span>Saldo</span><strong id="account-balance">$0.00</strong></div>
+      </div>
+      <div id="payment-block" class="payment-block">
+        <div class="field">
+          <label for="payment-method">Forma de pago</label>
+          <select id="payment-method">
+            <option value="efectivo">Efectivo</option>
+            <option value="tarjeta">Tarjeta</option>
+            <option value="transferencia">Transferencia</option>
+            <option value="otro">Otro</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="payment-amount">Monto</label>
+          <input id="payment-amount" type="number" min="0.01" step="0.01">
+        </div>
+        <button class="btn btn-success" onclick="registerPayment()">Registrar pago</button>
+      </div>
+      <div id="payments-list" class="payments-list"></div>
+    </section>
+  </div>
+
   <div id="toast-container"></div>
   <script src="app.js"></script>
+  <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
   <script>
     const currentUser = requireAuth(['mesero', 'admin']);
-    const TABLE_COUNT = 16;
+    let tables = [];
     let selectedTable = null;
+    let selectedZone = 'Todas';
+    let activeSessionId = null;
+    let activeSessionStatus = null;
+    let currentAccount = null;
     let products = [];
     let cart = {};
     let sending = false;
+
+    const socket = io(API, { transports: ['websocket', 'polling'] });
+    socket.on('tables-updated', loadTables);
 
     if (currentUser) {
       document.getElementById('waiter-name').textContent = currentUser.name || currentUser.phone || currentUser.role || 'Mesero';
     }
 
+    async function loadTables() {
+      try {
+        tables = await apiFetch('/tables');
+        if (selectedTable) {
+          const fresh = tables.find((table) => Number(table.id) === Number(selectedTable.id));
+          if (fresh) {
+            selectedTable = fresh;
+            activeSessionId = fresh.session_id ? Number(fresh.session_id) : null;
+            activeSessionStatus = fresh.session_status || null;
+          } else {
+            resetSelection();
+          }
+        }
+        renderZoneFilters();
+        renderTables();
+        syncSelectionUI();
+      } catch (error) {
+        showToast(error.message, 'error');
+      }
+    }
+
+    function renderZoneFilters() {
+      const zones = ['Todas', ...new Set(tables.map((table) => table.zone || 'Sin zona'))];
+      if (!zones.includes(selectedZone)) selectedZone = 'Todas';
+      document.getElementById('zone-filters').innerHTML = zones.map((zone) => `
+        <button class="zone-chip ${zone === selectedZone ? 'active' : ''}" onclick='setZone(${JSON.stringify(zone)})'>${escapeHtml(zone)}</button>
+      `).join('');
+    }
+
+    function setZone(zone) {
+      selectedZone = zone;
+      renderZoneFilters();
+      renderTables();
+    }
+
     function renderTables() {
+      const filtered = selectedZone === 'Todas'
+        ? tables
+        : tables.filter((table) => (table.zone || 'Sin zona') === selectedZone);
+
       const container = document.getElementById('tables');
-      container.innerHTML = Array.from({ length: TABLE_COUNT }, (_, index) => {
-        const table = index + 1;
-        const active = table === selectedTable ? ' active' : '';
-        return `<button class="table-tile${active}" onclick="selectTable(${table})">
-          <span class="table-number">${String(table).padStart(2, '0')}</span>
-          <span>Mesa ${table}</span>
+      if (!filtered.length) {
+        container.innerHTML = '<div class="card card-pad muted">No hay mesas activas en esta zona.</div>';
+        return;
+      }
+
+      container.innerHTML = filtered.map((table) => {
+        const selected = selectedTable && Number(table.id) === Number(selectedTable.id);
+        const state = table.session_status === 'account_requested' ? 'Cuenta' : table.session_status === 'open' ? 'Ocupada' : 'Libre';
+        const stateClass = table.session_status === 'account_requested' ? 'account' : table.session_status === 'open' ? 'occupied' : 'free';
+        return `<button class="table-tile ${selected ? 'active' : ''} ${stateClass}" onclick="selectTable(${Number(table.id)})">
+          <span class="table-number">${escapeHtml(table.name)}</span>
+          <span>${escapeHtml(table.zone || 'Sin zona')}</span>
+          <span class="table-state">${state}${Number(table.running_total) > 0 ? ` · ${formatCurrency(table.running_total)}` : ''}</span>
         </button>`;
       }).join('');
     }
 
-    function selectTable(table) {
-      selectedTable = Number(table);
-      const label = `Mesa ${String(selectedTable).padStart(2, '0')}`;
-      document.getElementById('selected-table-label').textContent = label;
-      document.getElementById('order-table').textContent = label;
+    function selectTable(id) {
+      selectedTable = tables.find((table) => Number(table.id) === Number(id)) || null;
+      activeSessionId = selectedTable?.session_id ? Number(selectedTable.session_id) : null;
+      activeSessionStatus = selectedTable?.session_status || null;
+      currentAccount = null;
+      clearCart();
       renderTables();
+      syncSelectionUI();
+    }
+
+    function resetSelection() {
+      selectedTable = null;
+      activeSessionId = null;
+      activeSessionStatus = null;
+      currentAccount = null;
+    }
+
+    function syncSelectionUI() {
+      const hasTable = Boolean(selectedTable);
+      const label = hasTable ? selectedTable.name : 'Sin mesa seleccionada';
+      document.getElementById('selected-table-label').textContent = label;
+      document.getElementById('order-table').textContent = hasTable ? label : 'Selecciona una mesa';
+      document.getElementById('session-state').textContent = activeSessionStatus === 'account_requested'
+        ? 'Cuenta solicitada'
+        : activeSessionStatus === 'open'
+          ? 'Mesa ocupada'
+          : 'Mesa libre';
+      document.getElementById('view-account').disabled = !activeSessionId;
+      document.getElementById('request-account').disabled = !activeSessionId || activeSessionStatus !== 'open';
+      document.getElementById('reopen-account').classList.toggle('hidden', activeSessionStatus !== 'account_requested');
       updateSendState();
+    }
+
+    async function ensureSession() {
+      if (!selectedTable) throw new Error('Selecciona una mesa.');
+      if (activeSessionId) return activeSessionId;
+      const session = await apiFetch(`/tables/${selectedTable.id}/open`, { method: 'POST' });
+      activeSessionId = Number(session.id);
+      activeSessionStatus = session.status;
+      return activeSessionId;
     }
 
     async function loadProducts() {
@@ -126,18 +255,13 @@
       const query = document.getElementById('waiter-search').value.trim().toLowerCase();
       const filtered = products.filter((product) => product.name.toLowerCase().includes(query));
       const container = document.getElementById('waiter-products');
-
       if (!filtered.length) {
         container.innerHTML = '<div class="card card-pad muted">No hay productos disponibles para hoy.</div>';
         return;
       }
-
       container.innerHTML = filtered.map((product) => `
-        <button class="waiter-product card" onclick="addToCart(${Number(product.id)})">
-          <span class="waiter-product-copy">
-            <strong>${escapeHtml(product.name)}</strong>
-            <small>Disponible hoy</small>
-          </span>
+        <button class="waiter-product card" onclick="addToCart(${Number(product.id)})" ${activeSessionStatus === 'account_requested' ? 'disabled' : ''}>
+          <span class="waiter-product-copy"><strong>${escapeHtml(product.name)}</strong><small>Disponible hoy</small></span>
           <span class="waiter-product-price">${formatCurrency(product.price)}</span>
           <span class="waiter-add">+</span>
         </button>
@@ -145,92 +269,52 @@
     }
 
     function addToCart(id) {
+      if (activeSessionStatus === 'account_requested') return showToast('Reabre la mesa antes de agregar productos.', 'error');
       const product = products.find((item) => Number(item.id) === Number(id));
       if (!product) return;
-      if (!cart[id]) {
-        cart[id] = {
-          id: Number(product.id),
-          name: product.name,
-          price: Number(product.price),
-          quantity: 0
-        };
-      }
+      if (!cart[id]) cart[id] = { id: Number(product.id), name: product.name, price: Number(product.price), quantity: 0 };
       cart[id].quantity += 1;
       renderCart();
     }
 
-    function decrease(id) {
-      if (!cart[id]) return;
-      cart[id].quantity -= 1;
-      if (cart[id].quantity <= 0) delete cart[id];
-      renderCart();
-    }
-
-    function increase(id) {
-      if (!cart[id]) return;
-      cart[id].quantity += 1;
-      renderCart();
-    }
-
-    function clearCart() {
-      cart = {};
-      renderCart();
-    }
+    function decrease(id) { if (!cart[id]) return; cart[id].quantity -= 1; if (cart[id].quantity <= 0) delete cart[id]; renderCart(); }
+    function increase(id) { if (!cart[id]) return; cart[id].quantity += 1; renderCart(); }
+    function clearCart() { cart = {}; renderCart(); }
 
     function renderCart() {
       const items = Object.values(cart);
-      const container = document.getElementById('waiter-cart');
       const total = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
       document.getElementById('waiter-total').textContent = formatCurrency(total);
-
-      if (!items.length) {
-        container.innerHTML = '<div class="cart-empty">Agrega productos para comenzar la comanda.</div>';
-      } else {
-        container.innerHTML = items.map((item) => `
-          <div class="cart-item">
-            <div>
-              <strong>${escapeHtml(item.name)}</strong>
-              <small>${formatCurrency(item.price)} × ${item.quantity}</small>
-            </div>
-            <div class="qty-controls">
-              <button class="qty-btn" onclick="decrease(${item.id})">−</button>
-              <span>${item.quantity}</span>
-              <button class="qty-btn" onclick="increase(${item.id})">+</button>
-            </div>
+      document.getElementById('waiter-cart').innerHTML = items.length ? items.map((item) => `
+        <div class="cart-item">
+          <div><strong>${escapeHtml(item.name)}</strong><small>${formatCurrency(item.price)} × ${item.quantity}</small></div>
+          <div class="qty-controls">
+            <button class="qty-btn" onclick="decrease(${item.id})">−</button><span>${item.quantity}</span><button class="qty-btn" onclick="increase(${item.id})">+</button>
           </div>
-        `).join('');
-      }
-
+        </div>
+      `).join('') : '<div class="cart-empty">Agrega productos para comenzar la comanda.</div>';
       updateSendState();
     }
 
     function updateSendState() {
-      document.getElementById('send-order').disabled = sending || !selectedTable || !Object.keys(cart).length;
+      document.getElementById('send-order').disabled = sending || !selectedTable || !Object.keys(cart).length || activeSessionStatus === 'account_requested';
     }
 
     async function sendOrder() {
       if (sending || !selectedTable) return;
-      const items = Object.values(cart).map((item) => ({
-        product_id: item.id,
-        quantity: item.quantity
-      }));
+      const items = Object.values(cart).map((item) => ({ product_id: item.id, quantity: item.quantity }));
       if (!items.length) return showToast('Agrega al menos un producto.', 'error');
-
       sending = true;
       updateSendState();
       try {
-        const tableLabel = `Mesa ${String(selectedTable).padStart(2, '0')}`;
+        const sessionId = await ensureSession();
         const order = await apiFetch('/orders', {
           method: 'POST',
-          body: JSON.stringify({
-            items,
-            type: tableLabel,
-            payment_method: 'pendiente'
-          })
+          body: JSON.stringify({ items, table_session_id: sessionId, payment_method: null })
         });
-
         clearCart();
-        showToast(`Pedido #${order.id} enviado a cocina · ${tableLabel}`, 'success');
+        await loadTables();
+        showToast(`Pedido #${order.id} enviado a cocina · ${selectedTable.name}`, 'success');
       } catch (error) {
         showToast(error.message, 'error');
       } finally {
@@ -239,8 +323,98 @@
       }
     }
 
-    renderTables();
+    async function loadAccount(show = false) {
+      if (!activeSessionId) return;
+      try {
+        currentAccount = await apiFetch(`/tables/sessions/${activeSessionId}/check`);
+        activeSessionStatus = currentAccount.status;
+        renderAccount();
+        syncSelectionUI();
+        if (show) document.getElementById('account-modal').classList.remove('hidden');
+      } catch (error) {
+        showToast(error.message, 'error');
+      }
+    }
+
+    function renderAccount() {
+      if (!currentAccount) return;
+      document.getElementById('account-title').textContent = currentAccount.table_name;
+      document.getElementById('account-total').textContent = formatCurrency(currentAccount.total);
+      document.getElementById('account-paid').textContent = formatCurrency(currentAccount.paid);
+      document.getElementById('account-balance').textContent = formatCurrency(currentAccount.balance);
+      document.getElementById('payment-amount').value = currentAccount.balance.toFixed(2);
+      document.getElementById('payment-block').classList.toggle('hidden', currentAccount.status === 'closed' || currentAccount.balance <= 0);
+      document.getElementById('account-orders').innerHTML = currentAccount.orders.length ? currentAccount.orders.map((order) => `
+        <div class="account-order">
+          <div class="account-order-head"><strong>Comanda #${order.id}</strong><span>${formatCurrency(order.total)}</span></div>
+          ${order.items.map((item) => `<div class="account-line"><span>${Number(item.quantity)} × ${escapeHtml(item.name || `Producto ${item.product_id}`)}</span><span>${formatCurrency(Number(item.price) * Number(item.quantity))}</span></div>`).join('')}
+        </div>
+      `).join('') : '<div class="muted">Sin consumos registrados.</div>';
+      document.getElementById('payments-list').innerHTML = currentAccount.payments.length ? `<h3>Pagos registrados</h3>${currentAccount.payments.map((payment) => `<div class="payment-row"><span>${escapeHtml(payment.method)}</span><strong>${formatCurrency(payment.amount)}</strong></div>`).join('')}` : '';
+    }
+
+    async function requestAccount() {
+      if (!activeSessionId) return;
+      try {
+        currentAccount = await apiFetch(`/tables/sessions/${activeSessionId}/request-account`, { method: 'POST' });
+        activeSessionStatus = currentAccount.status;
+        await loadTables();
+        renderProducts();
+        renderAccount();
+        syncSelectionUI();
+        document.getElementById('account-modal').classList.remove('hidden');
+        showToast('Cuenta solicitada.', 'success');
+      } catch (error) {
+        showToast(error.message, 'error');
+      }
+    }
+
+    async function reopenAccount() {
+      if (!activeSessionId) return;
+      try {
+        currentAccount = await apiFetch(`/tables/sessions/${activeSessionId}/reopen`, { method: 'POST' });
+        activeSessionStatus = currentAccount.status;
+        await loadTables();
+        renderProducts();
+        syncSelectionUI();
+        showToast('Mesa reabierta para nuevas comandas.', 'success');
+      } catch (error) {
+        showToast(error.message, 'error');
+      }
+    }
+
+    async function registerPayment() {
+      if (!activeSessionId || !currentAccount) return;
+      const amount = Number(document.getElementById('payment-amount').value);
+      const method = document.getElementById('payment-method').value;
+      try {
+        currentAccount = await apiFetch(`/tables/sessions/${activeSessionId}/payments`, {
+          method: 'POST',
+          body: JSON.stringify({ amount, method })
+        });
+        renderAccount();
+        if (currentAccount.status === 'closed') {
+          showToast('Cuenta pagada. Mesa liberada.', 'success');
+          hideAccount();
+          resetSelection();
+          clearCart();
+          await loadTables();
+        } else {
+          activeSessionStatus = currentAccount.status;
+          await loadTables();
+          syncSelectionUI();
+          showToast('Pago parcial registrado.', 'success');
+        }
+      } catch (error) {
+        showToast(error.message, 'error');
+      }
+    }
+
+    function hideAccount() { document.getElementById('account-modal').classList.add('hidden'); }
+    function closeAccountModal(event) { if (event.target.id === 'account-modal') hideAccount(); }
+
     renderCart();
+    loadTables();
     loadProducts();
   </script>
 </body>
