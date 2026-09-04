@@ -4,12 +4,14 @@ const pool = require("../db");
 const auth = require("../middleware/auth");
 const roles = require("../middleware/roles");
 
+const adminOnly = roles(["admin"]);
+
 function getTodayKey() {
   const days = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
   return days[new Date().getDay()];
 }
 
-router.get("/all", async (req, res) => {
+router.get("/all", auth, adminOnly, async (req, res) => {
   try {
     const result = await pool.query("SELECT * FROM products ORDER BY id");
     res.json(result.rows);
@@ -39,7 +41,7 @@ router.get("/", async (req, res) => {
   }
 });
 
-router.post("/", auth, roles(["admin"]), async (req, res) => {
+router.post("/", auth, adminOnly, async (req, res) => {
   try {
     const name = String(req.body.name || "").trim();
     const price = Number(req.body.price);
@@ -66,7 +68,7 @@ router.post("/", auth, roles(["admin"]), async (req, res) => {
   }
 });
 
-router.patch("/:id", auth, roles(["admin"]), async (req, res) => {
+router.patch("/:id", auth, adminOnly, async (req, res) => {
   try {
     const id = Number(req.params.id);
     if (!Number.isInteger(id)) {
@@ -89,7 +91,7 @@ router.patch("/:id", auth, roles(["admin"]), async (req, res) => {
   }
 });
 
-router.patch("/:id/settings", auth, roles(["admin"]), async (req, res) => {
+router.patch("/:id/settings", auth, adminOnly, async (req, res) => {
   try {
     const id = Number(req.params.id);
     if (!Number.isInteger(id)) return res.status(400).json({ message: "ID inválido" });
