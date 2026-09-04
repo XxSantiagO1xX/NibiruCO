@@ -15,8 +15,7 @@ import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import axios from "axios";
 import colors from "../theme/colors";
-
-const API = "http://192.168.1.86:3000";
+import API from "../config/api";
 
 const serviceLabel = {
   local: "Local",
