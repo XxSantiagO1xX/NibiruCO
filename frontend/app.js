@@ -25,6 +25,23 @@
     role = JSON.parse(localStorage.getItem('user') || 'null')?.role || null;
   } catch (_) {}
 
+  const current = window.location.pathname.split('/').pop() || 'home.html';
+  const routeRoles = {
+    'index.html': ['admin', 'mesero'],
+    'waiter.html': ['admin', 'mesero'],
+    'kds.html': ['admin', 'cocina'],
+    'counter.html': ['admin', 'mesero', 'cocina'],
+    'menu.html': ['admin'],
+    'products.html': ['admin'],
+    'tables.html': ['admin'],
+    'combos.html': ['admin']
+  };
+
+  if (role && routeRoles[current] && !routeRoles[current].includes(role)) {
+    window.location.replace('home.html');
+    return;
+  }
+
   const nav = document.querySelector('.nav');
   if (nav && role) {
     const definitions = [
@@ -38,7 +55,6 @@
       { href: 'tables.html', label: 'Mesas', icon: 'tables', roles: ['admin'] },
       { href: 'combos.html', label: 'Comida corrida', icon: 'combo', roles: ['admin'] }
     ];
-    const current = window.location.pathname.split('/').pop() || 'home.html';
     nav.innerHTML = definitions
       .filter((item) => item.roles.includes(role))
       .map((item) => `<a href="${item.href}" class="${current === item.href ? 'active' : ''}"><svg class="nav-icon" width="17" height="17" viewBox="0 0 24 24" aria-hidden="true" style="vertical-align:-3px;margin-right:9px;opacity:.88"><use href="assets/icons.svg#${item.icon}"></use></svg>${item.label}</a>`)
