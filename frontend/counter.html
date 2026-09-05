@@ -16,7 +16,7 @@
           <div class="counter-title-icon"><svg class="ui-icon"><use href="assets/icons.svg#counter"></use></svg></div>
           <div>
             <h1>Mostrador</h1>
-            <p>Seguimiento de pedidos para local, para llevar y recoger.</p>
+            <p>Seguimiento de pedidos para local, para llevar, recoger y domicilio.</p>
           </div>
         </div>
         <div class="header-actions">
@@ -45,7 +45,7 @@
           <div class="counter-lane-head">
             <div>
               <h2>Listos para entregar</h2>
-              <div class="muted" style="font-size:10px;margin-top:4px">Confirma la entrega cuando el cliente recibe su pedido.</div>
+              <div class="muted" style="font-size:10px;margin-top:4px">Confirma la entrega o salida a domicilio cuando el pedido deja mostrador.</div>
             </div>
             <span id="ready-count">0</span>
           </div>
@@ -84,6 +84,7 @@
       const type = order.service_type || 'local';
       if (type === 'llevar') return 'Para llevar';
       if (type === 'recoger') return 'Recoger';
+      if (type === 'domicilio') return 'Domicilio';
       return 'Local';
     }
 
@@ -119,14 +120,21 @@
       }).join('');
     }
 
+    function renderDeliveryAddress(order) {
+      if (order.service_type !== 'domicilio' || !order.address) return '';
+      const details = order.details ? ` · ${escapeHtml(order.details)}` : '';
+      return `<div class="counter-delivery-address"><strong>Domicilio</strong><span>${escapeHtml(order.address)}${details}</span></div>`;
+    }
+
     function renderOrder(order, ready) {
       const pickup = pickupLabel(order);
       const payment = order.payment_status === 'paid' ? 'Pagado' : 'Pago pendiente';
+      const action = order.service_type === 'domicilio' ? 'Confirmar salida / entrega' : 'Marcar como entregado';
       return `<article class="counter-order ${ready ? 'ready' : ''}">
         <div class="counter-order-head">
           <div>
             <div class="counter-folio">${folioLabel(order)}</div>
-            <div class="counter-customer">${escapeHtml(order.customer_name || 'Cliente de mostrador')}</div>
+            <div class="counter-customer">${escapeHtml(order.customer_name || (order.service_type === 'domicilio' ? 'Pedido a domicilio' : 'Cliente de mostrador'))}</div>
           </div>
           <span class="counter-status ${ready ? 'ready' : 'prep'}">${escapeHtml(statusLabel(order.status))}</span>
         </div>
@@ -136,8 +144,9 @@
           <span>${escapeHtml(payment)}</span>
           <span>${formatCurrency(order.total)}</span>
         </div>
+        ${renderDeliveryAddress(order)}
         <div class="counter-items">${renderItems(order) || '<div class="muted">Sin detalle de productos.</div>'}</div>
-        ${ready ? `<button class="btn btn-success counter-deliver" onclick="deliver(${Number(order.id)})">Marcar como entregado</button>` : ''}
+        ${ready ? `<button class="btn btn-success counter-deliver" onclick="deliver(${Number(order.id)})">${action}</button>` : ''}
       </article>`;
     }
 
