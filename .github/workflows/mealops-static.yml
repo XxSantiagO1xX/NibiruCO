@@ -1,0 +1,35 @@
+name: MealOps static checks
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            backend/package-lock.json
+            nibiru-mobile/package-lock.json
+
+      - name: Validate backend and web without PostgreSQL
+        run: node backend/scripts/smoke.js
+
+      - name: Install mobile dependencies
+        working-directory: nibiru-mobile
+        run: npm ci
+
+      - name: Bundle mobile app
+        working-directory: nibiru-mobile
+        env:
+          CI: "1"
+          EXPO_NO_TELEMETRY: "1"
+          EXPO_PUBLIC_API_URL: http://127.0.0.1:3000
+        run: npx expo export --platform android --output-dir /tmp/mealops-mobile-export
