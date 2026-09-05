@@ -1,105 +1,116 @@
 const path = require("path");
 
-/* CARGAR VARIABLES DE ENTORNO */
 require("dotenv").config({
   path: path.resolve(__dirname, "../.env")
 });
-
-console.log("JWT_SECRET:", process.env.JWT_SECRET);
 
 const express = require("express");
 const cors = require("cors");
 const http = require("http");
 const { Server } = require("socket.io");
 
-/* APP */
 const app = express();
-
-/* DB */
 require("./db");
+const ensureOperationalSchema = require("./schema");
 
-/* MIDDLEWARES */
+const allowedOrigins = (process.env.CORS_ORIGINS || "")
+  .split(",")
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
 app.use(cors({
-  origin: "*",
+  origin(origin, callback) {
+    if (!origin || allowedOrigins.length === 0 || allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+    return callback(new Error("Origen no permitido por CORS"));
+  },
   methods: ["GET", "POST", "PATCH", "DELETE"],
   allowedHeaders: ["Content-Type", "Authorization"]
 }));
 
-app.use(express.json());
+app.use(express.json({ limit: "1mb" }));
 
-/* RUTAS */
 const authRoutes = require("./middleware/auth.routes");
 const productRoutes = require("./routes/products.routes");
 const orderRoutes = require("./routes/orders.routes");
 const menuRoutes = require("./routes/menu.routes");
 const usersRoutes = require("./routes/users.routes");
+const tableRoutes = require("./routes/tables.routes");
+const comboRoutes = require("./routes/combos.routes");
+const counterRoutes = require("./routes/counter.routes");
 
-/* VALIDACIÓN CRÍTICA (NO BORRAR) */
-if (!authRoutes || typeof authRoutes !== "function") {
-  throw new Error("authRoutes NO es válido");
+const routes = [
+  authRoutes,
+  productRoutes,
+  orderRoutes,
+  menuRoutes,
+  usersRoutes,
+  tableRoutes,
+  comboRoutes,
+  counterRoutes
+];
+if (routes.some((route) => typeof route !== "function")) {
+  throw new Error("Una o más rutas de MealOps no son válidas");
 }
-if (!productRoutes || typeof productRoutes !== "function") {
-  throw new Error("productRoutes NO es válido");
-}
-if (!orderRoutes || typeof orderRoutes !== "function") {
-  throw new Error("orderRoutes NO es válido");
-}
-if (!menuRoutes || typeof menuRoutes !== "function") {
-  throw new Error("menuRoutes NO es válido");
-}
-if (!usersRoutes || typeof usersRoutes !== "function") {
-  throw new Error("usersRoutes NO es válido");
-}
-
-/* USO */
-app.use("/auth", authRoutes);
-app.use("/products", productRoutes);
-app.use("/orders", orderRoutes);
-app.use("/menu", menuRoutes);
-app.use("/users", usersRoutes);
 
 app.use("/auth", authRoutes);
 app.use("/products", productRoutes);
 app.use("/orders", orderRoutes);
 app.use("/menu", menuRoutes);
 app.use("/users", usersRoutes);
+app.use("/tables", tableRoutes);
+app.use("/combos", comboRoutes);
+app.use("/counter", counterRoutes);
 
-/* RUTAS BASE */
+const projectRoot = path.resolve(__dirname, "../..");
+app.use("/css", express.static(path.join(projectRoot, "css")));
+app.use(express.static(path.join(projectRoot, "frontend")));
+
+app.get("/health", (req, res) => {
+  res.json({ ok: true, service: "MealOps API" });
+});
+
 app.get("/", (req, res) => {
-  res.send("MealOps API funcionando");
+  res.sendFile(path.join(projectRoot, "frontend", "login.html"));
 });
 
-app.get("/test", (req, res) => {
-  res.send("test ok");
+app.use((err, req, res, next) => {
+  console.error(err);
+  if (err.message === "Origen no permitido por CORS") {
+    return res.status(403).json({ message: err.message });
+  }
+  return res.status(500).json({ message: "Error interno del servidor" });
 });
 
-/* SERVER HTTP */
 const server = http.createServer(app);
 
-/* SOCKET.IO */
 const io = new Server(server, {
   cors: {
-    origin: "*",
-    methods: ["GET", "POST"]
+    origin: allowedOrigins.length ? allowedOrigins : true,
+    methods: ["GET", "POST", "PATCH"]
   }
 });
 
-/* DISPONIBLE EN TODAS LAS RUTAS */
 app.set("io", io);
 
-/* EVENTOS SOCKET */
 io.on("connection", (socket) => {
   console.log("Cliente conectado:", socket.id);
-
   socket.on("disconnect", () => {
     console.log("Cliente desconectado:", socket.id);
   });
 });
 
-/* PUERTO */
-const PORT = process.env.PORT || 3000;
+const PORT = Number(process.env.PORT) || 3000;
 
-/* START */
-server.listen(PORT, () => {
-  console.log(`Servidor corriendo en http://localhost:${PORT}`);
+async function start() {
+  await ensureOperationalSchema();
+  server.listen(PORT, () => {
+    console.log(`MealOps disponible en http://localhost:${PORT}`);
+  });
+}
+
+start().catch((error) => {
+  console.error("No se pudo iniciar MealOps:", error);
+  process.exit(1);
 });

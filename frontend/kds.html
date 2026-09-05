@@ -1,194 +1,196 @@
 <!DOCTYPE html>
 <html lang="es">
-
 <head>
-<meta charset="UTF-8">
-<title>MealOps Cocina</title>
-
-<link rel="stylesheet" href="../css/styles.css">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MealOps · Cocina KDS</title>
+  <link rel="stylesheet" href="../css/styles.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 </head>
-
 <body>
+  <main class="kds-page">
+    <header class="kds-header">
+      <div>
+        <h1>MealOps KDS</h1>
+        <p>Cocina · pedidos en tiempo real</p>
+      </div>
+      <div class="header-actions">
+        <span id="kds-stats" class="kds-stats">Conectando...</span>
+        <button class="btn btn-secondary" onclick="window.location.href='home.html'">Panel</button>
+        <button class="btn btn-secondary" onclick="logout()">Salir</button>
+      </div>
+    </header>
 
-    <header class="hero">
+    <section id="board" class="kds-board"></section>
+  </main>
 
-    <h1>MealOps</h1>
-    <p>Pedidos</p>
+  <div id="toast-container"></div>
+  <script src="app.js"></script>
+  <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+  <script>
+    requireAuth(['cocina', 'admin']);
 
-    <div class="header-wave">
-        <svg viewBox="0 0 1440 320" preserveAspectRatio="none">
-            <path fill="#FDBA74"
-            d="M0,160L60,170C120,180,240,200,360,192C480,184,600,148,720,144C840,140,960,168,1080,170C1200,172,1320,148,1380,136L1440,128V0H0Z">
-            </path>
-        </svg>
-    </div>
+    let orders = [];
+    let refreshTimer;
 
-</header>
+    const nextStatus = {
+      pendiente: 'aceptado',
+      aceptado: 'preparando',
+      preparando: 'listo'
+    };
 
+    const actionLabel = {
+      pendiente: 'Aceptar pedido',
+      aceptado: 'Comenzar preparación',
+      preparando: 'Marcar como listo'
+    };
 
-<div class="container">
+    const serviceLabels = {
+      mesa: 'Mesa',
+      local: 'Local',
+      llevar: 'Para llevar',
+      recoger: 'Recoger',
+      domicilio: 'Domicilio'
+    };
 
-<h1>MealOps Cocina</h1>
-
-<div class="board">
-
-    <div class="column">
-        <h2>🟡 Pendientes</h2>
-        <div id="pending"></div>
-    </div>
-
-    <div class="column">
-        <h2>🟢 Entregados</h2>
-        <div id="done"></div>
-    </div>
-
-</div>
-
-</div>
-
-<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
-<script>
-const socket = io("http://localhost:3000");
-
-socket.on("connect", () => {
-  console.log("Conectado a WebSocket");
-});
-
-// Cuando llega nuevo pedido
-socket.on("new-order", (order) => {
-  console.log("Nuevo pedido:", order);
-  loadOrders(); // recarga UI
-});
-
-// Cuando se actualiza pedido
-socket.on("order-updated", (order) => {
-  console.log("Pedido actualizado:", order);
-  loadOrders();
-});
-const API = "http://localhost:3000";
-const token = localStorage.getItem("token");
-
-if (!token) {
-    window.location.href = "login.html";
-}
-
-// 🔐 VALIDAR ROL
-const user = JSON.parse(atob(token.split('.')[1]));
-
-if (user.role !== "cocina" && user.role !== "admin") {
-    alert("Acceso denegado");
-    window.location.href = "index.html";
-}
-
-let productsMap = {};
-let previousOrderIds = [];
-
-// 🔥 CARGAR PRODUCTOS (USAMOS /all PARA EVITAR PROBLEMAS DE MENÚ)
-async function loadProducts() {
-    const res = await fetch(`${API}/products/all`);
-    const products = await res.json();
-
-    productsMap = {};
-    products.forEach(p => productsMap[p.id] = p.name);
-}
-
-
-// 🔥 CARGAR PEDIDOS (IMPORTANTE: /orders/all)
-async function loadOrders() {
-    const res = await fetch(`${API}/orders/all`, {
-        headers: {
-            "Authorization": "Bearer " + token
-        }
+    const socket = io(API, { transports: ['websocket', 'polling'] });
+    socket.on('connect', () => {
+      document.getElementById('kds-stats').textContent = '● Sincronizado';
     });
+    socket.on('disconnect', () => {
+      document.getElementById('kds-stats').textContent = 'Reconectando...';
+    });
+    socket.on('new-order', scheduleRefresh);
+    socket.on('order-updated', scheduleRefresh);
+    socket.on('orders-updated', scheduleRefresh);
 
-    const orders = await res.json();
+    function scheduleRefresh() {
+      clearTimeout(refreshTimer);
+      refreshTimer = setTimeout(loadOrders, 180);
+    }
 
-    const pending = document.getElementById("pending");
-    const done = document.getElementById("done");
+    async function loadOrders() {
+      try {
+        orders = await apiFetch('/orders/admin/all');
+        renderOrders();
+      } catch (error) {
+        showToast(error.message, 'error');
+      }
+    }
 
-    pending.innerHTML = "";
-    done.innerHTML = "";
+    function ageInMinutes(createdAt) {
+      if (!createdAt) return 0;
+      const timestamp = new Date(createdAt).getTime();
+      return Math.max(0, Math.floor((Date.now() - timestamp) / 60000));
+    }
 
-    const currentIds = orders.map(o => o.id);
+    function formatPickup(value) {
+      if (!value) return '';
+      const date = new Date(value);
+      if (Number.isNaN(date.getTime())) return '';
+      return date.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
+    }
 
-    orders.forEach(order => {
-        const div = document.createElement("div");
+    function orderLabel(order) {
+      if (order.service_type === 'mesa') return order.type || 'Mesa';
+      const service = serviceLabels[order.service_type] || order.type || 'Pedido';
+      const folio = order.folio ? ` · F${String(order.folio).padStart(3, '0')}` : '';
+      return `${service}${folio}`;
+    }
 
-        const isNew = !previousOrderIds.includes(order.id);
+    function renderKitchenAction(order) {
+      const next = nextStatus[order.status];
+      if (next) {
+        return `<button class="btn btn-primary" onclick="advanceOrder(${Number(order.id)}, '${order.status}')">${actionLabel[order.status]}</button>`;
+      }
 
-        div.className = "card " + (order.status === "pendiente" ? "pending" : "done");
+      if (order.status === 'listo' && order.service_type === 'mesa') {
+        return `<button class="btn btn-success" onclick="deliverTable(${Number(order.id)})">Entregado en mesa</button>`;
+      }
 
-        if (isNew) div.classList.add("new");
+      if (order.status === 'listo') {
+        return '<div class="order-meta" style="padding:10px 0">Listo · esperando entrega en Mostrador</div>';
+      }
 
-        div.innerHTML = `
-            <div class="order-id">Pedido #${order.id}</div>
+      return '';
+    }
 
-            <div class="meta">
-                ${order.type} • $${order.total}
+    function renderOrders() {
+      const active = orders.filter((order) => !['entregado', 'cancelado'].includes(order.status));
+      document.getElementById('kds-stats').textContent = `${socket.connected ? '● ' : ''}${active.length} pedidos activos`;
+
+      const board = document.getElementById('board');
+      if (!active.length) {
+        board.innerHTML = '<div class="order-card"><strong>Sin pedidos activos</strong><div class="order-meta">La cocina está al día.</div></div>';
+        return;
+      }
+
+      board.innerHTML = active.map((order) => {
+        const age = ageInMinutes(order.created_at);
+        const cssState = age >= 15 ? 'urgent' : order.status === 'preparando' ? 'preparing' : order.status === 'listo' ? 'ready' : 'pending';
+        const items = Array.isArray(order.items) ? order.items : [];
+        const pickup = formatPickup(order.pickup_at);
+        return `
+          <article class="order-card ${cssState}">
+            <div class="order-head">
+              <div>
+                <strong>${escapeHtml(orderLabel(order))}</strong>
+                <div class="order-meta">${escapeHtml(order.customer_name || order.name || order.phone || 'Cliente')}${pickup ? ` · ${escapeHtml(pickup)}` : ''}</div>
+              </div>
+              <div class="order-meta">${age} min</div>
             </div>
 
-            <div class="items">
-                ${order.items.map(i => {
-                    const name = productsMap[i.product_id] || `Producto ${i.product_id}`;
-                    return `
-                        <div class="item">
-                            <span>${name}</span>
-                            <span class="badge">x${i.quantity}</span>
-                        </div>
-                    `;
-                }).join("")}
+            <div class="order-items">
+              ${items.map((item) => `
+                <div class="order-item" style="align-items:flex-start">
+                  <span>
+                    ${escapeHtml(item.name || `Producto ${item.product_id}`)}
+                    ${(Array.isArray(item.choices) && item.choices.length) ? `<small style="display:block;margin-top:4px;color:#aaa">${item.choices.map((choice) => escapeHtml(choice.name)).join(' · ')}</small>` : ''}
+                  </span>
+                  <strong>×${Number(item.quantity) || 1}</strong>
+                </div>
+              `).join('') || '<div class="order-meta">Sin detalle de productos</div>'}
             </div>
 
-            <div class="meta">
-                <span class="badge">${order.status}</span>
-            </div>
-
-            ${
-                order.status === "pendiente"
-                ? `<button class="btn-success" onclick="completeOrder(${order.id})">
-                    Entregar
-                   </button>`
-                : ""
-            }
+            <div class="order-meta">Estado: ${escapeHtml(order.status)}</div>
+            <div class="order-actions">${renderKitchenAction(order)}</div>
+          </article>
         `;
+      }).join('');
+    }
 
-        if (order.status === "pendiente") {
-            pending.appendChild(div);
-        } else {
-            done.appendChild(div);
-        }
-    });
+    async function advanceOrder(id, status) {
+      const next = nextStatus[status];
+      if (!next) return;
+      try {
+        await apiFetch(`/orders/${id}/status`, {
+          method: 'PATCH',
+          body: JSON.stringify({ status: next })
+        });
+        await loadOrders();
+      } catch (error) {
+        showToast(error.message, 'error');
+      }
+    }
 
-    previousOrderIds = currentIds;
-}
+    async function deliverTable(id) {
+      try {
+        await apiFetch(`/orders/${id}/status`, {
+          method: 'PATCH',
+          body: JSON.stringify({ status: 'entregado' })
+        });
+        await loadOrders();
+      } catch (error) {
+        showToast(error.message, 'error');
+      }
+    }
 
+    async function init() {
+      await loadOrders();
+      setInterval(loadOrders, 10000);
+    }
 
-// 🔥 COMPLETAR PEDIDO (CON TOKEN)
-async function completeOrder(id) {
-    await fetch(`${API}/orders/${id}`, {
-        method: "PATCH",
-        headers: {
-            "Authorization": "Bearer " + token
-        }
-    });
-
-    loadOrders();
-}
-
-
-// INIT
-async function init() {
-    await loadProducts();
-    loadOrders();
-
-    setInterval(loadOrders, 3000);
-    setInterval(loadProducts, 10000);
-}
-
-init();
-
-</script>
-<div id="toast-container"></div>
+    init();
+  </script>
 </body>
 </html>

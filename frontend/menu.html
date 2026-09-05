@@ -1,135 +1,136 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="UTF-8">
-<title>Menú por día</title>
-<link rel="stylesheet" href="../css/styles.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MealOps · Menú</title>
+  <link rel="stylesheet" href="../css/styles.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 </head>
-
 <body>
-<header class="hero">
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand"><div class="brand-mark">M</div><div class="brand-copy"><strong>MealOps</strong><span>Restaurant operations</span></div></div>
+      <nav class="nav">
+        <a href="home.html">Panel</a>
+        <a href="index.html">Ventas</a>
+        <a href="kds.html">Cocina KDS</a>
+        <a href="menu.html" class="active">Menú</a>
+        <a href="products.html">Productos</a>
+      </nav>
+      <div class="sidebar-footer"><button class="btn btn-ghost" onclick="logout()">Cerrar sesión</button></div>
+    </aside>
 
-    <h1>MealOps</h1>
-    <p>Configurar Menú</p>
+    <main class="main">
+      <header class="page-header">
+        <div>
+          <h1>Menú semanal</h1>
+          <p>Selecciona los productos que estarán disponibles cada día.</p>
+        </div>
+        <div class="header-actions"><button class="btn btn-primary" id="save-button" onclick="saveMenu()">Guardar día</button></div>
+      </header>
 
-    <div class="header-wave">
-        <svg viewBox="0 0 1440 320" preserveAspectRatio="none">
-            <path fill="#FDBA74"
-            d="M0,160L60,170C120,180,240,200,360,192C480,184,600,148,720,144C840,140,960,168,1080,170C1200,172,1320,148,1380,136L1440,128V0H0Z">
-            </path>
-        </svg>
-    </div>
-
-</header>
-<div class="container">
-
-<select id="daySelect">
-  <option>Lunes</option>
-  <option>Martes</option>
-  <option>Miércoles</option>
-  <option>Jueves</option>
-  <option>Viernes</option>
-  <option>Sábado</option>
-  <option>Domingo</option>
-</select>
-
-<div id="products" style="margin-top:20px;"></div>
-
-<br>
-
-<button class="btn-primary" onclick="saveMenu()">Guardar este día</button>
-
-</div>
-
-<script>
-function showToast(message, type = "info") {
-    const container = document.getElementById("toast-container");
-
-    const toast = document.createElement("div");
-    toast.className = `toast ${type}`;
-    toast.textContent = message;
-
-    container.appendChild(toast);
-
-    setTimeout(() => {
-        toast.remove();
-    }, 3000);
-}
-
-const API = "http://localhost:3000";
-
-const selected = new Set();
-
-// 🔥 Mapear días
-const dayMap = {
-  "Lunes": "monday",
-  "Martes": "tuesday",
-  "Miércoles": "wednesday",
-  "Jueves": "thursday",
-  "Viernes": "friday",
-  "Sábado": "saturday",
-  "Domingo": "sunday"
-};
-
-// 🔥 CARGAR PRODUCTOS
-async function loadProducts() {
-  const res = await fetch(`${API}/products/all`);
-  const data = await res.json();
-
-  const container = document.getElementById("products");
-  container.innerHTML = "";
-
-  data.forEach(p => {
-    const div = document.createElement("div");
-    div.className = "card product";
-
-    div.innerHTML = `
-      <div>
-        <strong>${p.name}</strong><br>
-        <span class="badge">$${p.price}</span>
+      <div class="card card-pad">
+        <div class="field" style="max-width:260px">
+          <label for="daySelect">Día</label>
+          <select id="daySelect" onchange="loadDay()">
+            <option value="monday">Lunes</option>
+            <option value="tuesday">Martes</option>
+            <option value="wednesday">Miércoles</option>
+            <option value="thursday">Jueves</option>
+            <option value="friday">Viernes</option>
+            <option value="saturday">Sábado</option>
+            <option value="sunday">Domingo</option>
+          </select>
+        </div>
       </div>
 
-      <input type="checkbox" onchange="toggle(${p.id})">
-    `;
+      <div class="spacer-24"></div>
+      <h2 class="section-title">Productos disponibles</h2>
+      <div id="products" class="list"></div>
+    </main>
+  </div>
 
-    container.appendChild(div);
-  });
-}
+  <div id="toast-container"></div>
+  <script src="app.js"></script>
+  <script>
+    requireAuth(['admin']);
+    let products = [];
+    let selected = new Set();
 
-// 🔁 TOGGLE
-function toggle(id) {
-  if (selected.has(id)) selected.delete(id);
-  else selected.add(id);
-}
+    async function loadProducts() {
+      products = await apiFetch('/products/all');
+    }
 
-// 💾 GUARDAR
-async function saveMenu() {
-  const select = document.getElementById("daySelect");
-  const daySpanish = select.value;
-  const day = dayMap[daySpanish];
+    async function loadDay() {
+      try {
+        const day = document.getElementById('daySelect').value;
+        const menu = await apiFetch(`/menu/${day}`);
+        selected = new Set((menu.products || []).map(Number));
+        renderProducts();
+      } catch (error) {
+        showToast(error.message, 'error');
+      }
+    }
 
-  if (!day) {
-    showToast("Día inválido", "error");
-    return;
-  }
+    function toggleProduct(id) {
+      id = Number(id);
+      if (selected.has(id)) selected.delete(id);
+      else selected.add(id);
+      renderProducts();
+    }
 
-  await fetch(`${API}/menu/day`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
-      day,
-      products: Array.from(selected)
-    })
-  });
+    function renderProducts() {
+      const container = document.getElementById('products');
+      if (!products.length) {
+        container.innerHTML = '<div class="card card-pad muted">No hay productos creados todavía.</div>';
+        return;
+      }
 
- showToast("Menú guardado", "success");
-}
+      container.innerHTML = products.map((product) => {
+        const active = selected.has(Number(product.id));
+        return `
+          <div class="list-row">
+            <div class="list-main">
+              <strong>${escapeHtml(product.name)}</strong>
+              <small>${formatCurrency(product.price)} · ${product.available ? 'Disponible' : 'Agotado'}</small>
+            </div>
+            <div class="list-actions">
+              <span class="badge ${active ? 'badge-success' : 'badge-neutral'}">${active ? 'En el menú' : 'Fuera del menú'}</span>
+              <button class="btn btn-sm ${active ? 'btn-secondary' : 'btn-primary'}" onclick="toggleProduct(${product.id})">${active ? 'Quitar' : 'Agregar'}</button>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
 
-// INIT
-loadProducts();
-</script>
-<div id="toast-container"></div>
+    async function saveMenu() {
+      const button = document.getElementById('save-button');
+      button.disabled = true;
+      try {
+        const day = document.getElementById('daySelect').value;
+        await apiFetch('/menu/day', {
+          method: 'POST',
+          body: JSON.stringify({ day, products: Array.from(selected) })
+        });
+        showToast('Menú guardado correctamente.', 'success');
+      } catch (error) {
+        showToast(error.message, 'error');
+      } finally {
+        button.disabled = false;
+      }
+    }
+
+    async function init() {
+      try {
+        await loadProducts();
+        await loadDay();
+      } catch (error) {
+        showToast(error.message, 'error');
+      }
+    }
+
+    init();
+  </script>
 </body>
 </html>

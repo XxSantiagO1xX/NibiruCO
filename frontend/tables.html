@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MealOps · Mesas</title>
+  <link rel="stylesheet" href="../css/styles.css">
+  <link rel="stylesheet" href="../css/tables.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-mark">M</div>
+        <div class="brand-copy"><strong>MealOps</strong><span>Restaurant operations</span></div>
+      </div>
+      <nav class="nav">
+        <a href="home.html">Panel</a>
+        <a href="index.html">Ventas</a>
+        <a href="waiter.html">Mesero</a>
+        <a href="kds.html">Cocina KDS</a>
+        <a href="menu.html">Menú</a>
+        <a href="products.html">Productos</a>
+        <a href="tables.html" class="active">Mesas</a>
+      </nav>
+      <div class="sidebar-footer">
+        <div class="sidebar-user"><strong id="sidebar-name">Admin</strong><span>Administración</span></div>
+        <button class="btn btn-ghost" onclick="logout()">Cerrar sesión</button>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="page-header">
+        <div>
+          <h1>Mesas</h1>
+          <p>Crea, organiza por zona y activa o desactiva mesas sin tocar el código.</p>
+        </div>
+      </header>
+
+      <section class="card card-pad table-admin-form">
+        <div class="field">
+          <label for="table-name">Nombre</label>
+          <input id="table-name" placeholder="Mesa 01">
+        </div>
+        <div class="field">
+          <label for="table-zone">Zona</label>
+          <input id="table-zone" placeholder="Salón, Terraza, Barra...">
+        </div>
+        <div class="field">
+          <label for="table-capacity">Capacidad</label>
+          <input id="table-capacity" type="number" min="1" placeholder="4">
+        </div>
+        <div class="field">
+          <label for="table-order">Orden</label>
+          <input id="table-order" type="number" value="0">
+        </div>
+        <button class="btn btn-primary" onclick="createTable()">+ Nueva mesa</button>
+      </section>
+
+      <div class="spacer-24"></div>
+      <div class="table-admin-head">
+        <h2 class="section-title">Mesas configuradas</h2>
+        <button class="btn btn-secondary btn-sm" onclick="loadTables()">Actualizar</button>
+      </div>
+      <section id="table-admin-list" class="table-admin-list"></section>
+    </main>
+  </div>
+
+  <div id="toast-container"></div>
+  <script src="app.js"></script>
+  <script>
+    const currentUser = requireAuth(['admin']);
+    let tables = [];
+
+    if (currentUser) {
+      document.getElementById('sidebar-name').textContent = currentUser.name || currentUser.phone || 'Admin';
+    }
+
+    async function loadTables() {
+      try {
+        tables = await apiFetch('/tables/admin/all');
+        renderTables();
+      } catch (error) {
+        showToast(error.message, 'error');
+      }
+    }
+
+    function renderTables() {
+      const container = document.getElementById('table-admin-list');
+      if (!tables.length) {
+        container.innerHTML = '<div class="card card-pad muted">Todavía no hay mesas. Crea la primera arriba.</div>';
+        return;
+      }
+
+      container.innerHTML = tables.map((table) => `
+        <article class="card table-admin-row ${table.active ? '' : 'is-inactive'}">
+          <div class="table-admin-title">
+            <strong>${escapeHtml(table.name)}</strong>
+            <small>${escapeHtml(table.zone || 'Sin zona')} · ${table.capacity ? `${table.capacity} personas` : 'Capacidad no definida'}</small>
+          </div>
+          <div class="table-admin-state">
+            <span class="badge ${table.session_status === 'account_requested' ? 'badge-warning' : table.session_status === 'open' ? 'badge-success' : 'badge-neutral'}">
+              ${table.session_status === 'account_requested' ? 'Cuenta solicitada' : table.session_status === 'open' ? 'Ocupada' : table.active ? 'Libre' : 'Inactiva'}
+            </span>
+          </div>
+          <div class="table-admin-actions">
+            <button class="btn btn-secondary btn-sm" onclick="editTable(${Number(table.id)})">Editar</button>
+            <button class="btn ${table.active ? 'btn-danger-soft' : 'btn-soft'} btn-sm" onclick="toggleTable(${Number(table.id)})">
+              ${table.active ? 'Desactivar' : 'Activar'}
+            </button>
+          </div>
+        </article>
+      `).join('');
+    }
+
+    async function createTable() {
+      const name = document.getElementById('table-name').value.trim();
+      const zone = document.getElementById('table-zone').value.trim();
+      const capacity = document.getElementById('table-capacity').value;
+      const sort_order = document.getElementById('table-order').value;
+
+      if (!name) return showToast('Escribe el nombre de la mesa.', 'error');
+
+      try {
+        await apiFetch('/tables', {
+          method: 'POST',
+          body: JSON.stringify({ name, zone, capacity, sort_order })
+        });
+        document.getElementById('table-name').value = '';
+        document.getElementById('table-zone').value = '';
+        document.getElementById('table-capacity').value = '';
+        document.getElementById('table-order').value = '0';
+        await loadTables();
+        showToast('Mesa creada.', 'success');
+      } catch (error) {
+        showToast(error.message, 'error');
+      }
+    }
+
+    async function editTable(id) {
+      const table = tables.find((item) => Number(item.id) === Number(id));
+      if (!table) return;
+
+      const name = prompt('Nombre de la mesa', table.name);
+      if (name === null) return;
+      const zone = prompt('Zona', table.zone || '');
+      if (zone === null) return;
+      const capacityValue = prompt('Capacidad (vacío = sin definir)', table.capacity || '');
+      if (capacityValue === null) return;
+      const sortOrder = prompt('Orden', table.sort_order || 0);
+      if (sortOrder === null) return;
+
+      try {
+        await apiFetch(`/tables/${id}`, {
+          method: 'PATCH',
+          body: JSON.stringify({
+            name: name.trim(),
+            zone: zone.trim(),
+            capacity: capacityValue,
+            sort_order: sortOrder
+          })
+        });
+        await loadTables();
+        showToast('Mesa actualizada.', 'success');
+      } catch (error) {
+        showToast(error.message, 'error');
+      }
+    }
+
+    async function toggleTable(id) {
+      const table = tables.find((item) => Number(item.id) === Number(id));
+      if (!table) return;
+      try {
+        await apiFetch(`/tables/${id}`, {
+          method: 'PATCH',
+          body: JSON.stringify({ active: !table.active })
+        });
+        await loadTables();
+        showToast(table.active ? 'Mesa desactivada.' : 'Mesa activada.', 'success');
+      } catch (error) {
+        showToast(error.message, 'error');
+      }
+    }
+
+    loadTables();
+  </script>
+</body>
+</html>

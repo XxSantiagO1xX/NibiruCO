@@ -1,0 +1,10 @@
+.table-admin-form{display:grid;grid-template-columns:1.2fr 1fr .7fr .6fr auto;gap:12px;align-items:end}
+.table-admin-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
+.table-admin-list{display:grid;gap:10px}
+.table-admin-row{padding:15px 16px;display:grid;grid-template-columns:minmax(0,1fr) auto auto;align-items:center;gap:16px}
+.table-admin-row.is-inactive{opacity:.62}
+.table-admin-title strong{display:block;font-size:14px}
+.table-admin-title small{display:block;margin-top:4px;color:var(--muted);font-size:11px}
+.table-admin-actions{display:flex;gap:8px;align-items:center}
+@media(max-width:1050px){.table-admin-form{grid-template-columns:repeat(2,minmax(0,1fr))}.table-admin-form>.btn{min-height:44px}.table-admin-row{grid-template-columns:minmax(0,1fr) auto}.table-admin-actions{grid-column:1/-1}}
+@media(max-width:640px){.table-admin-form{grid-template-columns:1fr}.table-admin-row{grid-template-columns:1fr}.table-admin-state,.table-admin-actions{grid-column:auto}.table-admin-actions{flex-wrap:wrap}.table-admin-actions .btn{flex:1}}

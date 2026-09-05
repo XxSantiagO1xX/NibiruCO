@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>MealOps · Mostrador</title>
+  <link rel="stylesheet" href="../css/styles.css">
+  <link rel="stylesheet" href="../css/theme.css" data-mealops-theme="true">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+  <main class="counter-page">
+    <div class="counter-shell">
+      <header class="counter-header">
+        <div class="counter-title">
+          <div class="counter-title-icon"><svg class="ui-icon"><use href="assets/icons.svg#counter"></use></svg></div>
+          <div>
+            <h1>Mostrador</h1>
+            <p>Seguimiento de pedidos para local, para llevar, recoger y domicilio.</p>
+          </div>
+        </div>
+        <div class="header-actions">
+          <div class="counter-summary">
+            <span id="counter-sync">Conectando…</span>
+            <span id="counter-total">0 pedidos activos</span>
+          </div>
+          <button class="btn btn-secondary" onclick="window.location.href='home.html'">Panel</button>
+          <button class="btn btn-secondary" onclick="logout()">Salir</button>
+        </div>
+      </header>
+
+      <section class="counter-grid">
+        <div class="counter-lane">
+          <div class="counter-lane-head">
+            <div>
+              <h2>En preparación</h2>
+              <div class="muted" style="font-size:10px;margin-top:4px">Pedidos que todavía están en cocina.</div>
+            </div>
+            <span id="preparing-count">0</span>
+          </div>
+          <div class="counter-list" id="preparing-list"></div>
+        </div>
+
+        <div class="counter-lane ready">
+          <div class="counter-lane-head">
+            <div>
+              <h2>Listos para entregar</h2>
+              <div class="muted" style="font-size:10px;margin-top:4px">Confirma la entrega o salida a domicilio cuando el pedido deja mostrador.</div>
+            </div>
+            <span id="ready-count">0</span>
+          </div>
+          <div class="counter-list" id="ready-list"></div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <div id="toast-container"></div>
+  <script src="app.js"></script>
+  <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+  <script>
+    requireAuth(['mesero', 'cocina', 'admin']);
+    let orders = [];
+    let refreshTimer;
+
+    const socket = io(API, { transports: ['websocket', 'polling'] });
+    socket.on('connect', () => {
+      document.getElementById('counter-sync').textContent = '● Sincronizado';
+    });
+    socket.on('disconnect', () => {
+      document.getElementById('counter-sync').textContent = 'Reconectando…';
+    });
+    socket.on('new-order', scheduleRefresh);
+    socket.on('order-updated', scheduleRefresh);
+    socket.on('orders-updated', scheduleRefresh);
+    socket.on('counter-updated', scheduleRefresh);
+
+    function scheduleRefresh() {
+      clearTimeout(refreshTimer);
+      refreshTimer = setTimeout(loadOrders, 160);
+    }
+
+    function serviceLabel(order) {
+      const type = order.service_type || 'local';
+      if (type === 'llevar') return 'Para llevar';
+      if (type === 'recoger') return 'Recoger';
+      if (type === 'domicilio') return 'Domicilio';
+      return 'Local';
+    }
+
+    function statusLabel(status) {
+      const labels = {
+        pendiente: 'Pendiente',
+        aceptado: 'Aceptado',
+        preparando: 'Preparando',
+        listo: 'Listo'
+      };
+      return labels[status] || status;
+    }
+
+    function folioLabel(order) {
+      return order.folio ? `F${String(order.folio).padStart(3, '0')}` : `#${order.id}`;
+    }
+
+    function pickupLabel(order) {
+      if (!order.pickup_at) return null;
+      const date = new Date(order.pickup_at);
+      if (Number.isNaN(date.getTime())) return null;
+      return date.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
+    }
+
+    function renderItems(order) {
+      const items = Array.isArray(order.items) ? order.items : [];
+      return items.map((item) => {
+        const choices = Array.isArray(item.choices) ? item.choices : [];
+        return `<div class="counter-item">
+          <span>${Number(item.quantity) || 1} × ${escapeHtml(item.name || `Producto ${item.product_id}`)}</span>
+          ${choices.length ? `<small>${choices.map((choice) => escapeHtml(choice.name)).join(' · ')}</small>` : ''}
+        </div>`;
+      }).join('');
+    }
+
+    function renderDeliveryAddress(order) {
+      if (order.service_type !== 'domicilio' || !order.address) return '';
+      const details = order.details ? ` · ${escapeHtml(order.details)}` : '';
+      return `<div class="counter-delivery-address"><strong>Domicilio</strong><span>${escapeHtml(order.address)}${details}</span></div>`;
+    }
+
+    function renderOrder(order, ready) {
+      const pickup = pickupLabel(order);
+      const payment = order.payment_status === 'paid' ? 'Pagado' : 'Pago pendiente';
+      const action = order.service_type === 'domicilio' ? 'Confirmar salida / entrega' : 'Marcar como entregado';
+      return `<article class="counter-order ${ready ? 'ready' : ''}">
+        <div class="counter-order-head">
+          <div>
+            <div class="counter-folio">${folioLabel(order)}</div>
+            <div class="counter-customer">${escapeHtml(order.customer_name || (order.service_type === 'domicilio' ? 'Pedido a domicilio' : 'Cliente de mostrador'))}</div>
+          </div>
+          <span class="counter-status ${ready ? 'ready' : 'prep'}">${escapeHtml(statusLabel(order.status))}</span>
+        </div>
+        <div class="counter-meta">
+          <span>${escapeHtml(serviceLabel(order))}</span>
+          ${pickup ? `<span><svg class="ui-icon" style="width:12px;height:12px"><use href="assets/icons.svg#clock"></use></svg>${pickup}</span>` : ''}
+          <span>${escapeHtml(payment)}</span>
+          <span>${formatCurrency(order.total)}</span>
+        </div>
+        ${renderDeliveryAddress(order)}
+        <div class="counter-items">${renderItems(order) || '<div class="muted">Sin detalle de productos.</div>'}</div>
+        ${ready ? `<button class="btn btn-success counter-deliver" onclick="deliver(${Number(order.id)})">${action}</button>` : ''}
+      </article>`;
+    }
+
+    function render() {
+      const preparing = orders.filter((order) => ['pendiente', 'aceptado', 'preparando'].includes(order.status));
+      const ready = orders.filter((order) => order.status === 'listo');
+
+      document.getElementById('preparing-count').textContent = preparing.length;
+      document.getElementById('ready-count').textContent = ready.length;
+      document.getElementById('counter-total').textContent = `${orders.length} pedido${orders.length === 1 ? '' : 's'} activo${orders.length === 1 ? '' : 's'}`;
+
+      document.getElementById('preparing-list').innerHTML = preparing.length
+        ? preparing.map((order) => renderOrder(order, false)).join('')
+        : '<div class="counter-empty"><div><strong>Sin pedidos en preparación</strong><br>Cuando entre una orden aparecerá aquí.</div></div>';
+
+      document.getElementById('ready-list').innerHTML = ready.length
+        ? ready.map((order) => renderOrder(order, true)).join('')
+        : '<div class="counter-empty"><div><strong>Nada esperando entrega</strong><br>Los pedidos listos aparecerán en esta columna.</div></div>';
+    }
+
+    async function loadOrders() {
+      try {
+        orders = await apiFetch('/counter/orders');
+        render();
+      } catch (error) {
+        showToast(error.message, 'error');
+      }
+    }
+
+    async function deliver(id) {
+      try {
+        await apiFetch(`/counter/orders/${id}/deliver`, { method: 'PATCH' });
+        showToast('Pedido entregado.', 'success');
+        await loadOrders();
+      } catch (error) {
+        showToast(error.message, 'error');
+      }
+    }
+
+    loadOrders();
+    setInterval(loadOrders, 10000);
+  </script>
+</body>
+</html>

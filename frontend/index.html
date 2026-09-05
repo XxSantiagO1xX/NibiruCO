@@ -1,279 +1,446 @@
 <!DOCTYPE html>
 <html lang="es">
-
 <head>
-    <meta charset="UTF-8">
-    <title>NibiruCO Ventas</title>
-    <link rel="stylesheet" href="../css/styles.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MealOps · Ventas</title>
+  <link rel="stylesheet" href="../css/styles.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    .quick-strip{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}.quick-card{padding:14px;text-align:left}.quick-card strong{display:block}.quick-card small{display:block;margin:5px 0 12px;color:var(--muted)}
+    .combo-modal{position:fixed;inset:0;z-index:100;background:rgba(15,23,42,.55);display:grid;place-items:center;padding:18px}.combo-modal.hidden{display:none}.combo-dialog{width:min(620px,100%);max-height:88vh;overflow:auto;background:var(--surface);border-radius:22px;padding:22px;box-shadow:var(--shadow-lg)}.combo-group{padding:15px 0;border-top:1px solid var(--border)}.combo-option{display:flex;align-items:center;gap:10px;padding:8px 0}.combo-option input{width:auto}.service-extra{display:grid;grid-template-columns:1fr 1fr;gap:10px}.service-extra.hidden{display:none}@media(max-width:640px){.service-extra{grid-template-columns:1fr}}
+  </style>
 </head>
-
 <body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-mark">M</div>
+        <div class="brand-copy"><strong>MealOps</strong><span>Restaurant operations</span></div>
+      </div>
+      <nav class="nav">
+        <a href="home.html">Panel</a>
+        <a href="index.html" class="active">Ventas</a>
+        <a href="kds.html" id="nav-kds">Cocina KDS</a>
+        <a href="menu.html" id="nav-menu">Menú</a>
+        <a href="products.html" id="nav-products">Productos</a>
+        <a href="combos.html" id="nav-combos">Combos</a>
+      </nav>
+      <div class="sidebar-footer">
+        <div class="sidebar-user"><strong id="sidebar-name">Usuario</strong><span id="sidebar-role"></span></div>
+        <button class="btn btn-ghost" onclick="logout()">Cerrar sesión</button>
+      </div>
+    </aside>
 
-<header class="hero">
-    <h1>NibiruCO</h1>
-    <p>Ventas</p>
+    <main class="main">
+      <header class="page-header">
+        <div>
+          <h1>Ventas</h1>
+          <p>Local, para llevar, recolección y venta rápida desde el mismo punto.</p>
+        </div>
+        <div class="header-actions">
+          <button class="btn btn-secondary" onclick="loadAll()">Actualizar</button>
+        </div>
+      </header>
 
-   
+      <section id="quick-section" class="card card-pad hidden" style="margin-bottom:22px">
+        <div class="page-header" style="margin-bottom:14px">
+          <div>
+            <h2 class="section-title" style="margin:0">Venta rápida</h2>
+            <p class="muted" style="margin:5px 0 0;font-size:11px">Entrega inmediata: se cobra y se cierra sin mandar una tarea al KDS.</p>
+          </div>
+          <div class="field" style="min-width:170px">
+            <label for="quick-payment">Cobro</label>
+            <select id="quick-payment">
+              <option value="efectivo">Efectivo</option>
+              <option value="tarjeta">Tarjeta</option>
+              <option value="transferencia">Transferencia</option>
+              <option value="otro">Otro</option>
+            </select>
+          </div>
+        </div>
+        <div id="quick-products" class="quick-strip"></div>
+      </section>
 
-    <div class="header-wave">
-        <svg viewBox="0 0 1440 320" preserveAspectRatio="none">
-            <path fill="#FDBA74"
-                d="M0,160L60,170C120,180,240,200,360,192C480,184,600,148,720,144C840,140,960,168,1080,170C1200,172,1320,148,1380,136L1440,128V0H0Z">
-            </path>
-        </svg>
+      <div class="pos-layout">
+        <section>
+          <div class="toolbar">
+            <input class="search" id="search" placeholder="Buscar producto o combo..." oninput="renderProducts()">
+          </div>
+          <div id="products" class="products-grid"></div>
+
+          <div class="spacer-24"></div>
+          <h2 class="section-title">Mis pedidos recientes</h2>
+          <div id="orders" class="list"></div>
+        </section>
+
+        <aside class="card cart-panel">
+          <h2>Pedido actual</h2>
+          <div class="cart-subtitle">Los precios y las opciones se validan nuevamente en el servidor.</div>
+          <div id="cart" class="cart-list"></div>
+          <div class="total-row"><span>Total</span><strong id="total">$0.00</strong></div>
+          <div class="field">
+            <label for="type">Tipo de pedido</label>
+            <select id="type" onchange="updateServiceFields()">
+              <option value="local">Local</option>
+              <option value="llevar">Para llevar</option>
+              <option value="recoger">Recoger después</option>
+              <option value="domicilio">Domicilio</option>
+            </select>
+          </div>
+          <div id="service-extra" class="service-extra hidden" style="margin-top:10px">
+            <div class="field"><label for="customer-name">Nombre / referencia</label><input id="customer-name" placeholder="Ej. Laura"></div>
+            <div class="field" id="pickup-field"><label for="pickup-at">Hora de recolección</label><input id="pickup-at" type="datetime-local"></div>
+          </div>
+          <div class="field" style="margin-top:10px">
+            <label for="payment-method">Forma de pago</label>
+            <select id="payment-method">
+              <option value="">Pendiente</option>
+              <option value="efectivo">Efectivo</option>
+              <option value="tarjeta">Tarjeta</option>
+              <option value="transferencia">Transferencia</option>
+              <option value="otro">Otro</option>
+            </select>
+          </div>
+          <label style="display:flex;align-items:center;gap:9px;margin-top:10px;font-size:12px;font-weight:700">
+            <input id="mark-paid" type="checkbox" style="width:auto"> Marcar como pagado al crear
+          </label>
+          <div class="spacer-16"></div>
+          <div class="cart-actions">
+            <button class="btn btn-primary" id="create-order" onclick="createOrder()">Crear pedido</button>
+            <button class="btn btn-secondary" onclick="clearCart()">Vaciar carrito</button>
+          </div>
+        </aside>
+      </div>
+    </main>
+  </div>
+
+  <div id="combo-modal" class="combo-modal hidden" role="dialog" aria-modal="true">
+    <div class="combo-dialog">
+      <div class="page-header" style="margin-bottom:10px">
+        <div><div class="eyebrow">Configurar comida</div><h2 id="combo-title" style="margin:5px 0 0"></h2></div>
+        <button class="btn btn-secondary" onclick="closeCombo()">Cerrar</button>
+      </div>
+      <div id="combo-groups"></div>
+      <div class="total-row"><span>Precio</span><strong id="combo-price">$0.00</strong></div>
+      <button class="btn btn-primary" style="width:100%;margin-top:12px" onclick="confirmCombo()">Agregar al pedido</button>
     </div>
-</header>
+  </div>
 
-<div class="container">
+  <div id="toast-container"></div>
+  <script src="app.js"></script>
+  <script>
+    const currentUser = requireAuth();
+    let products = [];
+    let combos = [];
+    let cart = [];
+    let loading = false;
+    let comboEditing = null;
 
-    <!-- TOAST -->
-    <div id="toast-container"></div>
+    if (currentUser) {
+      document.getElementById('sidebar-name').textContent = currentUser.name || currentUser.phone || 'Usuario';
+      document.getElementById('sidebar-role').textContent = currentUser.role || '';
+      if (!['admin', 'cocina'].includes(currentUser.role)) document.getElementById('nav-kds').classList.add('hidden');
+      if (currentUser.role !== 'admin') {
+        document.getElementById('nav-menu').classList.add('hidden');
+        document.getElementById('nav-products').classList.add('hidden');
+        document.getElementById('nav-combos').classList.add('hidden');
+      }
+    }
 
-    <h1>Ventas</h1>
+    async function loadAll() {
+      await Promise.all([loadProducts(), loadCombos(), loadOrders()]);
+      renderProducts();
+      renderQuickProducts();
+    }
 
-    <h2>Productos</h2>
-    <div id="products" class="products"></div>
+    async function loadProducts() {
+      try { products = await apiFetch('/products'); }
+      catch (error) { showToast(error.message, 'error'); }
+    }
 
-    <!-- CARRITO -->
-    <div class="card cart">
-        <h2>Carrito</h2>
-        <div id="cart"></div>
+    async function loadCombos() {
+      try { combos = await apiFetch('/combos'); }
+      catch (error) { showToast(error.message, 'error'); }
+    }
 
-        <h3>Total: $<span id="total">0</span></h3>
-
-        <select id="type">
-            <option value="llevar">Llevar</option>
-            <option value="local">Local</option>
-            <option value="domicilio">Domicilio</option>
-        </select>
-
-        <br><br>
-
-        <button class="btn-success" onclick="createOrder()">Crear Pedido</button>
-        <button class="btn-danger" onclick="clearCart()">Vaciar carrito</button>
-    </div>
-     <button onclick="logout()" class="btn-danger">Cerrar sesión</button>
-    <h2>Pedidos</h2>
-    <div id="orders"></div>
-
-</div>
-
-<script>
-
-let TOKEN = localStorage.getItem("token");
-
-if (!TOKEN) {
-    window.location.href = "login.html";
-}
-
-function logout() {
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
-    window.location.href = "login.html";
-}
-
-const API = "http://localhost:3000";
-
-let cart = {};
-let loading = false;
-
-// TOAST
-function showToast(message, type = "info") {
-    const container = document.getElementById("toast-container");
-
-    const toast = document.createElement("div");
-    toast.className = `toast ${type}`;
-    toast.textContent = message;
-
-    container.appendChild(toast);
-
-    setTimeout(() => toast.remove(), 3000);
-}
-
-
-// CARGAR PRODUCTOS
-async function loadProducts() {
-    try {
-        const res = await fetch("http://localhost:3000/products");
-        const products = await res.json();
-
-        console.log("PRODUCTS:", products);
-
-        const container = document.getElementById("products");
-        container.innerHTML = "";
-
-        products.forEach(p => {
-            const div = document.createElement("div");
-            div.innerHTML = `
-    <div class="card">
-        <h3>${p.name}</h3>
-        <p>$${p.price}</p>
-        <button onclick="addToCart(${p.id}, '${p.name}', ${p.price})">
-            Agregar
+    function renderQuickProducts() {
+      const quick = products.filter((product) => product.kitchen_required === false && product.product_kind !== 'combo');
+      const section = document.getElementById('quick-section');
+      if (!quick.length) {
+        section.classList.add('hidden');
+        return;
+      }
+      section.classList.remove('hidden');
+      document.getElementById('quick-products').innerHTML = quick.map((product) => `
+        <button class="card quick-card" onclick="quickSale(${product.id})">
+          <strong>${escapeHtml(product.name)}</strong>
+          <small>Entrega inmediata</small>
+          <span class="price">${formatCurrency(product.price)}</span>
         </button>
-    </div>
-`;
-            container.appendChild(div);
+      `).join('');
+    }
+
+    function renderProducts() {
+      const query = document.getElementById('search').value.trim().toLowerCase();
+      const filtered = products.filter((product) => product.name.toLowerCase().includes(query));
+      const container = document.getElementById('products');
+
+      if (!filtered.length) {
+        container.innerHTML = '<div class="card card-pad muted">No hay productos disponibles en el menú de hoy.</div>';
+        return;
+      }
+
+      container.innerHTML = filtered.map((product) => `
+        <article class="card product-card">
+          <h3>${escapeHtml(product.name)}</h3>
+          <p>${product.product_kind === 'combo' ? 'Comida / combo configurable' : (product.kitchen_required ? 'Preparación en cocina' : 'Entrega inmediata')}</p>
+          <div class="price">${formatCurrency(product.price)}</div>
+          <button class="btn btn-secondary" onclick="addProduct(${Number(product.id)})">${product.product_kind === 'combo' ? 'Elegir opciones' : 'Agregar'}</button>
+        </article>
+      `).join('');
+    }
+
+    function addProduct(id) {
+      const product = products.find((item) => Number(item.id) === Number(id));
+      if (!product) return;
+      if (product.product_kind === 'combo') return openCombo(id);
+      addCartItem(product, []);
+      showToast(`${product.name} agregado`, 'success');
+    }
+
+    function addCartItem(product, choices) {
+      const signature = choices.map((choice) => `${choice.group_id}:${choice.option_product_id}`).sort().join('|');
+      const key = `${product.id}:${signature}`;
+      const extra = choices.reduce((sum, choice) => sum + Number(choice.extra_price || 0), 0);
+      const existing = cart.find((item) => item.key === key);
+      if (existing) existing.quantity += 1;
+      else cart.push({ key, id: Number(product.id), name: product.name, price: Number(product.price), extra, quantity: 1, choices });
+      renderCart();
+    }
+
+    function decrease(key) {
+      const item = cart.find((entry) => entry.key === key);
+      if (!item) return;
+      item.quantity -= 1;
+      if (item.quantity <= 0) cart = cart.filter((entry) => entry.key !== key);
+      renderCart();
+    }
+
+    function increase(key) {
+      const item = cart.find((entry) => entry.key === key);
+      if (!item) return;
+      item.quantity += 1;
+      renderCart();
+    }
+
+    function clearCart() {
+      cart = [];
+      renderCart();
+    }
+
+    function renderCart() {
+      const container = document.getElementById('cart');
+      const total = cart.reduce((sum, item) => sum + (item.price + item.extra) * item.quantity, 0);
+      document.getElementById('total').textContent = formatCurrency(total);
+
+      if (!cart.length) {
+        container.innerHTML = '<div class="cart-empty">Aún no agregas productos.</div>';
+        return;
+      }
+
+      container.innerHTML = cart.map((item) => `
+        <div class="cart-item">
+          <div>
+            <strong>${escapeHtml(item.name)}</strong>
+            <small>${formatCurrency(item.price + item.extra)} × ${item.quantity}</small>
+            ${item.choices.length ? `<small style="display:block;margin-top:3px">${item.choices.map((choice) => escapeHtml(choice.option_name)).join(' · ')}</small>` : ''}
+          </div>
+          <div class="qty-controls">
+            <button class="qty-btn" onclick='decrease(${JSON.stringify(item.key)})'>−</button>
+            <span>${item.quantity}</span>
+            <button class="qty-btn" onclick='increase(${JSON.stringify(item.key)})'>+</button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function openCombo(productId) {
+      const combo = combos.find((item) => Number(item.id) === Number(productId));
+      if (!combo) return showToast('Este combo todavía no tiene configuración disponible.', 'error');
+      comboEditing = combo;
+      document.getElementById('combo-title').textContent = combo.name;
+      document.getElementById('combo-groups').innerHTML = combo.groups.map((group) => {
+        const inputType = Number(group.max_select) === 1 ? 'radio' : 'checkbox';
+        const options = (group.options || []).filter((option) => option.active && option.available);
+        return `
+          <div class="combo-group" data-group="${group.id}" data-min="${group.min_select}" data-max="${group.max_select}">
+            <strong>${escapeHtml(group.name)}</strong>
+            <div class="muted" style="font-size:11px;margin-top:3px">Elige ${group.min_select === group.max_select ? group.min_select : `${group.min_select}–${group.max_select}`}</div>
+            ${options.map((option) => `
+              <label class="combo-option">
+                <input type="${inputType}" name="combo-group-${group.id}" value="${option.option_product_id}" data-extra="${Number(option.extra_price || 0)}" data-name="${escapeHtml(option.name)}" onchange="updateComboPrice()">
+                <span>${escapeHtml(option.name)} ${Number(option.extra_price) > 0 ? `<small class="muted">(+${formatCurrency(option.extra_price)})</small>` : ''}</span>
+              </label>
+            `).join('') || '<div class="muted" style="margin-top:8px">No hay opciones disponibles.</div>'}
+          </div>
+        `;
+      }).join('');
+      updateComboPrice();
+      document.getElementById('combo-modal').classList.remove('hidden');
+    }
+
+    function closeCombo() {
+      comboEditing = null;
+      document.getElementById('combo-modal').classList.add('hidden');
+    }
+
+    function selectedComboChoices() {
+      if (!comboEditing) return [];
+      const choices = [];
+      comboEditing.groups.forEach((group) => {
+        document.querySelectorAll(`input[name="combo-group-${group.id}"]:checked`).forEach((input) => {
+          const option = (group.options || []).find((candidate) => Number(candidate.option_product_id) === Number(input.value));
+          if (option) choices.push({
+            group_id: Number(group.id),
+            group_name: group.name,
+            option_product_id: Number(option.option_product_id),
+            option_name: option.name,
+            extra_price: Number(option.extra_price || 0)
+          });
         });
-
-    } catch (err) {
-        console.error("ERROR PRODUCTS:", err);
-    }
-}
-
-
-// AGREGAR
-function addToCart(id, name, price) {
-    if (!cart[id]) {
-        cart[id] = { id, name, price, quantity: 1 };
-    } else {
-        cart[id].quantity++;
+      });
+      return choices;
     }
 
-    showToast(`${name} agregado`, "success");
-    renderCart();
-}
-
-
-// DISMINUIR
-function decrease(id) {
-    if (cart[id]) {
-        cart[id].quantity--;
-        if (cart[id].quantity <= 0) delete cart[id];
-    }
-    renderCart();
-}
-
-
-// AUMENTAR
-function increase(id) {
-    cart[id].quantity++;
-    renderCart();
-}
-
-
-// LIMPIAR
-function clearCart() {
-    cart = {};
-    renderCart();
-}
-
-
-// RENDER CARRITO
-function renderCart() {
-    const container = document.getElementById("cart");
-    const totalEl = document.getElementById("total");
-
-    container.innerHTML = "";
-
-    let total = 0;
-
-    Object.values(cart).forEach(item => {
-        total += item.price * item.quantity;
-
-        const div = document.createElement("div");
-        div.className = "cart-item";
-
-        div.innerHTML = `
-            <div>
-                <strong>${item.name}</strong><br>
-                $${item.price} x ${item.quantity} = $${item.price * item.quantity}
-            </div>
-
-            <div class="qty-controls">
-                <button class="qty-btn" onclick="decrease(${item.id})">-</button>
-                <span>${item.quantity}</span>
-                <button class="qty-btn" onclick="increase(${item.id})">+</button>
-            </div>
-        `;
-
-        container.appendChild(div);
-    });
-
-    totalEl.textContent = total;
-}
-
-
-// CREAR PEDIDO
-async function createOrder() {
-    if (loading) return;
-    loading = true;
-
-    const items = Object.values(cart).map(i => ({
-        product_id: i.id,
-        quantity: i.quantity
-    }));
-
-    if (!items.length) {
-        showToast("Agrega productos al carrito", "error");
-        loading = false;
-        return;
+    function updateComboPrice() {
+      if (!comboEditing) return;
+      const extra = selectedComboChoices().reduce((sum, choice) => sum + choice.extra_price, 0);
+      document.getElementById('combo-price').textContent = formatCurrency(Number(comboEditing.price) + extra);
     }
 
-    const type = document.getElementById("type").value;
-
-    const res = await fetch(`${API}/orders`, {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json",
-            "Authorization": "Bearer " + TOKEN
-        },
-        body: JSON.stringify({ items, type })
-    });
-
-    const data = await res.json();
-
-    if (!res.ok) {
-        showToast(data.message, "error");
-        loading = false;
-        return;
-    }
-
-    cart = {};
-    renderCart();
-    loadOrders();
-
-    showToast("Pedido creado correctamente", "success");
-
-    loading = false;
-}
-
-
-// PEDIDOS
-async function loadOrders() {
-    const res = await fetch(`${API}/orders`, {
-        headers: {
-            "Authorization": "Bearer " + TOKEN
+    function confirmCombo() {
+      if (!comboEditing) return;
+      const choices = selectedComboChoices();
+      for (const group of comboEditing.groups) {
+        const count = choices.filter((choice) => Number(choice.group_id) === Number(group.id)).length;
+        if (count < Number(group.min_select) || count > Number(group.max_select)) {
+          return showToast(`Revisa las opciones de ${group.name}.`, 'error');
         }
-    });
+      }
+      const product = products.find((item) => Number(item.id) === Number(comboEditing.id));
+      if (!product) return;
+      addCartItem(product, choices);
+      closeCombo();
+      showToast(`${product.name} agregado`, 'success');
+    }
 
-    const data = await res.json();
+    function updateServiceFields() {
+      const type = document.getElementById('type').value;
+      const extra = document.getElementById('service-extra');
+      const pickupField = document.getElementById('pickup-field');
+      if (['llevar', 'recoger'].includes(type)) extra.classList.remove('hidden');
+      else extra.classList.add('hidden');
+      pickupField.classList.toggle('hidden', type !== 'recoger');
+    }
 
-    const container = document.getElementById("orders");
-    container.innerHTML = "";
+    async function createOrder() {
+      if (loading) return;
+      const items = cart.map((item) => ({
+        product_id: item.id,
+        quantity: item.quantity,
+        choices: item.choices.map((choice) => ({ group_id: choice.group_id, option_product_id: choice.option_product_id }))
+      }));
+      if (!items.length) return showToast('Agrega productos al carrito.', 'error');
 
-    data.forEach(o => {
-        const div = document.createElement("div");
-        div.className = "card";
+      const serviceType = document.getElementById('type').value;
+      const customerName = document.getElementById('customer-name').value.trim();
+      const pickupValue = document.getElementById('pickup-at').value;
+      const paymentMethod = document.getElementById('payment-method').value || null;
+      const markPaid = document.getElementById('mark-paid').checked;
 
-        div.innerHTML = `
-            <strong>Pedido #${o.id}</strong><br>
-            Tipo: ${o.type}<br>
-            Total: $${o.total}<br>
-            <span class="badge">${o.status}</span>
-        `;
+      if (serviceType === 'recoger' && !customerName) return showToast('Agrega el nombre para el pedido a recoger.', 'error');
+      if (serviceType === 'recoger' && !pickupValue) return showToast('Indica la hora de recolección.', 'error');
+      if (markPaid && !paymentMethod) return showToast('Selecciona la forma de pago.', 'error');
 
-        container.appendChild(div);
-    });
-}
+      loading = true;
+      const button = document.getElementById('create-order');
+      button.disabled = true;
 
+      try {
+        const order = await apiFetch('/orders', {
+          method: 'POST',
+          body: JSON.stringify({
+            items,
+            type: serviceType,
+            service_type: serviceType,
+            customer_name: customerName || null,
+            pickup_at: pickupValue ? new Date(pickupValue).toISOString() : null,
+            payment_method: paymentMethod,
+            mark_paid: markPaid
+          })
+        });
+        clearCart();
+        document.getElementById('customer-name').value = '';
+        document.getElementById('pickup-at').value = '';
+        document.getElementById('mark-paid').checked = false;
+        await loadOrders();
+        showToast(`Pedido F${String(order.folio || order.id).padStart(3, '0')} creado correctamente.`, 'success');
+      } catch (error) {
+        showToast(error.message, 'error');
+      } finally {
+        loading = false;
+        button.disabled = false;
+      }
+    }
 
-// INIT
-loadProducts();
-loadOrders();
+    async function quickSale(productId) {
+      const product = products.find((item) => Number(item.id) === Number(productId));
+      if (!product) return;
+      try {
+        const order = await apiFetch('/orders', {
+          method: 'POST',
+          body: JSON.stringify({
+            items: [{ product_id: Number(product.id), quantity: 1 }],
+            type: 'Venta rápida',
+            service_type: 'local',
+            payment_method: document.getElementById('quick-payment').value,
+            mark_paid: true
+          })
+        });
+        await loadOrders();
+        showToast(`${product.name} · F${String(order.folio || order.id).padStart(3, '0')} cobrado.`, 'success');
+      } catch (error) {
+        showToast(error.message, 'error');
+      }
+    }
 
-</script>
+    async function loadOrders() {
+      try {
+        const data = await apiFetch('/orders');
+        const container = document.getElementById('orders');
+        if (!data.length) {
+          container.innerHTML = '<div class="card card-pad muted">Todavía no tienes pedidos registrados.</div>';
+          return;
+        }
 
+        container.innerHTML = data.slice(0, 10).map((order) => `
+          <div class="list-row">
+            <div class="list-main">
+              <strong>${order.folio ? `F${String(order.folio).padStart(3, '0')}` : `Pedido #${order.id}`}${order.customer_name ? ` · ${escapeHtml(order.customer_name)}` : ''}</strong>
+              <small>${escapeHtml(order.service_type || order.type || 'local')} · ${formatCurrency(order.total)} · ${order.payment_status === 'paid' ? 'Pagado' : 'Pago pendiente'}</small>
+            </div>
+            <span class="badge ${order.status === 'cancelado' ? 'badge-danger' : order.status === 'entregado' ? 'badge-success' : 'badge-warning'}">${escapeHtml(order.status)}</span>
+          </div>
+        `).join('');
+      } catch (error) {
+        showToast(error.message, 'error');
+      }
+    }
+
+    renderCart();
+    updateServiceFields();
+    loadAll();
+  </script>
 </body>
 </html>
