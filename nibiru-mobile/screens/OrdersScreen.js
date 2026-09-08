@@ -32,7 +32,7 @@ import {
     Alert
 } from "react-native";
 
-const API = "http://192.168.1.86:3000";
+const API = "http://192.168.1.78:3000";
 
 export default function OrdersScreen() {
 

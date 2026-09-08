@@ -19,7 +19,7 @@ import axios from "axios";
 
 import colors from "../theme/colors";
 
-const API = "http://192.168.1.86:3000";
+const API = "http://192.168.1.78:3000";
 
 export default function ForgotPasswordScreen({
   navigation
@@ -73,7 +73,11 @@ export default function ForgotPasswordScreen({
       );
 
       Alert.alert(
-        "Error recuperando contraseña"
+        "ERROR",
+        JSON.stringify(
+          err?.response?.data ||
+          err.message
+        )
       );
 
     } finally {
