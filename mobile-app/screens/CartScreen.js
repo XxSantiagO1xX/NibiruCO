@@ -19,12 +19,6 @@ import colors from "../theme/colors";
 
 const API = "http://192.168.1.86:3000";
 
-const token = await AsyncStorage.getItem(
-  "token"
-);
-
-console.log("TOKEN:", token);
-
 export default function CartScreen() {
 
   const {

@@ -7,8 +7,8 @@ import {
 } from "@react-navigation/bottom-tabs";
 
 import {
-  createStackNavigator
-} from "@react-navigation/stack";
+  createNativeStackNavigator
+} from "@react-navigation/native-stack";
 
 import { Ionicons } from "@expo/vector-icons";
 
