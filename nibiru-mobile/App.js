@@ -20,6 +20,7 @@ import ProfileScreen from "./screens/ProfileScreen";
 import ForgotPasswordScreen from "./screens/ForgotPasswordScreen";
 import ResetPasswordScreen from "./screens/ResetPasswordScreen";
 import AdminOrdersScreen from "./screens/AdminOrdersScreen";
+import AddressesScreen from "./screens/AddressesScreen";
 
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
@@ -117,6 +118,17 @@ export default function App() {
           <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
           <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} />
           <Stack.Screen name="Register" component={RegisterScreen} />
+          <Stack.Screen
+            name="Addresses"
+            component={AddressesScreen}
+            options={{
+              headerShown: true,
+              title: "Direcciones",
+              headerTintColor: colors.primary,
+              headerStyle: { backgroundColor: colors.surface },
+              headerShadowVisible: false
+            }}
+          />
           <Stack.Screen name="Tabs" component={Tabs} />
         </Stack.Navigator>
       </NavigationContainer>

@@ -81,8 +81,8 @@
       window.location.href = 'home.html';
     }
 
-    document.getElementById('switch-button').addEventListener('click', () => {
-      mode = mode === 'login' ? 'register' : 'login';
+    function setMode(nextMode) {
+      mode = nextMode;
       const registering = mode === 'register';
       document.getElementById('name-field').classList.toggle('hidden', !registering);
       document.getElementById('email-field').classList.toggle('hidden', !registering);
@@ -94,7 +94,15 @@
       document.getElementById('switch-copy').textContent = registering ? '¿Ya tienes una cuenta?' : '¿Aún no tienes una cuenta?';
       document.getElementById('switch-button').textContent = registering ? 'Iniciar sesión' : 'Registrarme';
       errorEl.textContent = '';
+    }
+
+    document.getElementById('switch-button').addEventListener('click', () => {
+      setMode(mode === 'login' ? 'register' : 'login');
     });
+
+    if (new URLSearchParams(window.location.search).get('mode') === 'register') {
+      setMode('register');
+    }
 
     form.addEventListener('submit', async (event) => {
       event.preventDefault();

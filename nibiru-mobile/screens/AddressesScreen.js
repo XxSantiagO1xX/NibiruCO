@@ -5,7 +5,8 @@ import {
   TouchableOpacity,
   TextInput,
   StyleSheet,
-  Alert
+  Alert,
+  ActivityIndicator
 } from "react-native";
 
 import {
@@ -22,8 +23,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import axios from "axios";
 
 import colors from "../theme/colors";
-
-const API = "http://192.168.1.86:3000";
+import API from "../config/api";
 
 export default function AddressesScreen() {
 
@@ -35,9 +35,18 @@ export default function AddressesScreen() {
 
   const [loading, setLoading] = useState(false);
 
+  const [fetching, setFetching] = useState(true);
+
+  const [addressesLoaded, setAddressesLoaded] = useState(false);
+
+  const [loadError, setLoadError] = useState(false);
+
   /* CARGAR */
 
   const loadAddresses = async () => {
+
+    setFetching(true);
+    setLoadError(false);
 
     try {
 
@@ -54,13 +63,25 @@ export default function AddressesScreen() {
         }
       );
 
-      setAddresses(res.data);
+      setAddresses(res.data || []);
+
+      setAddressesLoaded(true);
+
+      return true;
 
     } catch (err) {
 
       console.log(
         err?.response?.data || err.message
       );
+
+      setAddressesLoaded(false);
+      setLoadError(true);
+
+      return false;
+    } finally {
+
+      setFetching(false);
     }
   };
 
@@ -89,9 +110,9 @@ export default function AddressesScreen() {
         `${API}/users/addresses`,
         {
           label: "Casa",
-          address,
-          details,
-          is_default: addresses.length === 0
+          address: address.trim(),
+          details: details.trim() || undefined,
+          is_default: addressesLoaded && addresses.length === 0
         },
         {
           headers: {
@@ -104,7 +125,14 @@ export default function AddressesScreen() {
 
       setDetails("");
 
-      loadAddresses();
+      const refreshed = await loadAddresses();
+
+      Alert.alert(
+        "Dirección guardada",
+        refreshed
+          ? "Ya puedes seleccionarla en tus pedidos a domicilio."
+          : "Se guardó correctamente, pero no pudimos actualizar la lista."
+      );
 
     } catch (err) {
 
@@ -130,8 +158,12 @@ export default function AddressesScreen() {
 
     <SafeAreaView style={styles.container}>
 
-      <Text style={styles.title}>
-        Direcciones
+      <Text style={styles.eyebrow}>Cuenta MealOps</Text>
+
+      <Text style={styles.title}>Mis direcciones</Text>
+
+      <Text style={styles.subtitle}>
+        Guarda los lugares donde quieres recibir tus pedidos.
       </Text>
 
       {/* FORM */}
@@ -139,30 +171,35 @@ export default function AddressesScreen() {
       <View style={styles.form}>
 
         <TextInput
-          placeholder="Dirección"
-          placeholderTextColor="#999"
+          placeholder="Calle, número y colonia"
+          placeholderTextColor={colors.muted}
           value={address}
           onChangeText={setAddress}
           style={styles.input}
         />
 
         <TextInput
-          placeholder="Detalles (opcional)"
-          placeholderTextColor="#999"
+          placeholder="Referencias (opcional)"
+          placeholderTextColor={colors.muted}
           value={details}
           onChangeText={setDetails}
           style={styles.input}
         />
 
         <TouchableOpacity
-          style={styles.button}
+          style={[
+            styles.button,
+            (loading || fetching || !addressesLoaded) && styles.buttonDisabled
+          ]}
           onPress={createAddress}
-          disabled={loading}
+          disabled={loading || fetching || !addressesLoaded}
         >
 
-          <Text style={styles.buttonText}>
-            Guardar dirección
-          </Text>
+          {loading ? (
+            <ActivityIndicator color="#FFF" />
+          ) : (
+            <Text style={styles.buttonText}>Guardar dirección</Text>
+          )}
 
         </TouchableOpacity>
 
@@ -170,45 +207,50 @@ export default function AddressesScreen() {
 
       {/* LISTA */}
 
-      <FlatList
-        data={addresses}
-        keyExtractor={(item) =>
-          item.id.toString()
-        }
-        contentContainerStyle={{
-          paddingBottom: 40
-        }}
-        renderItem={({ item }) => (
+      <Text style={styles.sectionTitle}>Direcciones registradas</Text>
 
-          <View style={styles.card}>
+      {fetching ? (
+        <ActivityIndicator color={colors.primary} style={styles.loader} />
+      ) : loadError ? (
+        <View style={styles.empty}>
+          <Text style={styles.emptyTitle}>No pudimos cargar tus direcciones</Text>
+          <Text style={styles.emptyText}>Revisa tu conexión e inténtalo otra vez.</Text>
+          <TouchableOpacity style={styles.retryButton} onPress={loadAddresses}>
+            <Text style={styles.retryText}>Reintentar</Text>
+          </TouchableOpacity>
+        </View>
+      ) : (
+        <FlatList
+          data={addresses}
+          keyExtractor={(item) => item.id.toString()}
+          contentContainerStyle={styles.listContent}
+          ListEmptyComponent={(
+            <View style={styles.empty}>
+              <Text style={styles.emptyTitle}>Aún no tienes direcciones</Text>
+              <Text style={styles.emptyText}>La primera que agregues quedará como principal.</Text>
+            </View>
+          )}
+          renderItem={({ item }) => (
+            <View style={styles.card}>
+              <View style={styles.cardHeader}>
+                <Text style={styles.address}>{item.address}</Text>
 
-            <Text style={styles.address}>
-              {item.address}
-            </Text>
+                {item.is_default && (
+                  <View style={styles.defaultBadge}>
+                    <Text style={styles.defaultText}>Principal</Text>
+                  </View>
+                )}
+              </View>
 
-            {
-              item.details ? (
+              {item.details ? (
                 <Text style={styles.details}>
-                  {item.details}
+                  Referencia: {item.details}
                 </Text>
-              ) : null
-            }
-
-            {
-              item.is_default && (
-                <View style={styles.defaultBadge}>
-
-                  <Text style={styles.defaultText}>
-                    Principal
-                  </Text>
-
-                </View>
-              )
-            }
-
-          </View>
-        )}
-      />
+              ) : null}
+            </View>
+          )}
+        />
+      )}
 
     </SafeAreaView>
   );
@@ -219,70 +261,163 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
-    padding: 16
+    padding: 20
+  },
+
+  eyebrow: {
+    color: colors.primary,
+    fontSize: 9,
+    fontWeight: "800",
+    textTransform: "uppercase",
+    letterSpacing: 1
   },
 
   title: {
-    fontSize: 30,
-    fontWeight: "700",
-    marginBottom: 20,
+    marginTop: 4,
+    fontSize: 28,
+    fontWeight: "800",
+    letterSpacing: -0.8,
     color: colors.text
+  },
+
+  subtitle: {
+    marginTop: 7,
+    marginBottom: 20,
+    color: colors.muted,
+    fontSize: 12,
+    lineHeight: 18
   },
 
   form: {
-    marginBottom: 24
+    marginBottom: 24,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 20,
+    backgroundColor: colors.surface
   },
 
   input: {
-    backgroundColor: "#fff",
+    minHeight: 50,
     borderRadius: 14,
-    padding: 14,
+    paddingHorizontal: 14,
     marginBottom: 12,
-    color: colors.text
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surfaceMuted,
+    color: colors.text,
+    fontSize: 14
   },
 
   button: {
     backgroundColor: colors.primary,
-    padding: 16,
-    borderRadius: 16,
-    alignItems: "center"
+    minHeight: 50,
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center"
+  },
+
+  buttonDisabled: {
+    opacity: 0.6
   },
 
   buttonText: {
     color: "#fff",
     fontWeight: "700",
-    fontSize: 16
+    fontSize: 14
+  },
+
+  sectionTitle: {
+    marginBottom: 12,
+    color: colors.text,
+    fontSize: 14,
+    fontWeight: "800"
+  },
+
+  loader: {
+    marginTop: 24
+  },
+
+  listContent: {
+    paddingBottom: 40
   },
 
   card: {
-    backgroundColor: "#fff",
-    padding: 18,
-    borderRadius: 18,
-    marginBottom: 14
+    marginBottom: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 16,
+    backgroundColor: colors.surface
+  },
+
+  cardHeader: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    gap: 10
   },
 
   address: {
-    fontSize: 17,
-    fontWeight: "700",
-    color: colors.text
+    flex: 1,
+    color: colors.text,
+    fontSize: 15,
+    fontWeight: "800"
   },
 
   details: {
-    marginTop: 8,
-    color: colors.muted
+    marginTop: 7,
+    color: colors.muted,
+    fontSize: 11,
+    lineHeight: 17
   },
 
   defaultBadge: {
-    marginTop: 14,
-    alignSelf: "flex-start",
-    backgroundColor: colors.primary,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 10
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+    borderRadius: 999,
+    backgroundColor: "#DCFCE7"
   },
 
   defaultText: {
-    color: "#fff",
-    fontWeight: "700"
+    color: colors.success,
+    fontSize: 9,
+    fontWeight: "800"
+  },
+
+  empty: {
+    padding: 26,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 16,
+    backgroundColor: colors.surface
+  },
+
+  emptyTitle: {
+    color: colors.text,
+    fontSize: 13,
+    fontWeight: "800"
+  },
+
+  emptyText: {
+    marginTop: 5,
+    color: colors.muted,
+    fontSize: 10,
+    textAlign: "center"
+  },
+
+  retryButton: {
+    marginTop: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 9,
+    borderRadius: 999,
+    backgroundColor: colors.primarySoft
+  },
+
+  retryText: {
+    color: colors.primary,
+    fontSize: 11,
+    fontWeight: "800"
   }
 });

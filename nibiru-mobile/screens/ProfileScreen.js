@@ -65,6 +65,22 @@ export default function ProfileScreen({ navigation }) {
         </View>
       </View>
 
+      {role === "cliente" && (
+        <TouchableOpacity
+          style={styles.actionRow}
+          onPress={() => navigation.navigate("Addresses")}
+        >
+          <View style={styles.actionIcon}>
+            <Ionicons name="location-outline" size={19} color={colors.primary} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.actionTitle}>Direcciones de entrega</Text>
+            <Text style={styles.actionText}>Agrega o consulta los lugares donde recibes tus pedidos.</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color={colors.muted} />
+        </TouchableOpacity>
+      )}
+
       <TouchableOpacity style={styles.logout} onPress={logout}>
         <Ionicons name="log-out-outline" size={18} color={colors.danger} />
         <Text style={styles.logoutText}>Cerrar sesión</Text>
@@ -88,6 +104,10 @@ const styles = StyleSheet.create({
   infoLabel: { color: colors.muted, fontSize: 9 },
   infoValue: { marginTop: 3, color: colors.text, fontSize: 13, fontWeight: "800" },
   roleIcon: { width: 38, height: 38, borderRadius: 12, alignItems: "center", justifyContent: "center", backgroundColor: colors.surfaceMuted },
+  actionRow: { marginTop: 12, minHeight: 78, padding: 14, borderWidth: 1, borderColor: colors.border, borderRadius: 18, flexDirection: "row", alignItems: "center", gap: 12, backgroundColor: colors.surface },
+  actionIcon: { width: 42, height: 42, borderRadius: 13, alignItems: "center", justifyContent: "center", backgroundColor: colors.primarySoft },
+  actionTitle: { color: colors.text, fontSize: 13, fontWeight: "800" },
+  actionText: { marginTop: 4, color: colors.muted, fontSize: 10, lineHeight: 15 },
   logout: { marginTop: "auto", minHeight: 52, borderWidth: 1, borderColor: "#FECACA", borderRadius: 16, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, backgroundColor: "#FEF2F2" },
   logoutText: { color: colors.danger, fontSize: 12, fontWeight: "800" }
 });

@@ -6,6 +6,7 @@ const { execFileSync } = require("child_process");
 const root = path.resolve(__dirname, "../..");
 const backendSrc = path.join(root, "backend", "src");
 const frontendDir = path.join(root, "frontend");
+const mobileDir = path.join(root, "nibiru-mobile");
 
 function walk(dir, predicate) {
   const out = [];
@@ -58,6 +59,7 @@ function checkHtml(file) {
 
 const requiredScreens = [
   "login.html",
+  "register.html",
   "home.html",
   "index.html",
   "waiter.html",
@@ -74,7 +76,7 @@ for (const screen of requiredScreens) {
 }
 
 const appJs = fs.readFileSync(path.join(frontendDir, "app.js"), "utf8");
-for (const screen of requiredScreens.filter((name) => !["login.html", "home.html"].includes(name))) {
+for (const screen of requiredScreens.filter((name) => !["login.html", "register.html", "home.html"].includes(name))) {
   assert(appJs.includes(`'${screen}'`) || appJs.includes(`"${screen}"`), `app.js no registra ${screen} en la navegación/permisos`);
 }
 assert(appJs.includes("/css/theme.css"), "app.js no aplica la capa visual SaaS theme.css");
@@ -115,5 +117,53 @@ const expectedObjects = [
 for (const object of expectedObjects) {
   assert(schemaSql.includes(object), `El esquema PostgreSQL no contiene ${object}`);
 }
+
+const requiredMigrationFragments = [
+  "pg_advisory_xact_lock",
+  "ALTER COLUMN payment_method DROP NOT NULL",
+  "ALTER COLUMN payment_method DROP DEFAULT",
+  "orders_service_type_mealops_check",
+  "orders_payment_method_mealops_check",
+  "daily_folio_counters_last_folio_nonnegative",
+  "combo_groups_selection_bounds",
+  "combo_group_options_extra_price_nonnegative",
+  "order_item_combo_choices_extra_price_nonnegative",
+  "WHEN 'pickup' THEN 'llevar'",
+  "WHEN 'delivery' THEN 'domicilio'",
+  "WHEN 'cash' THEN 'efectivo'",
+  "WHEN 'card' THEN 'tarjeta'"
+];
+for (const fragment of requiredMigrationFragments) {
+  assert(schemaSql.includes(fragment), `La migración PostgreSQL no cubre: ${fragment}`);
+}
+
+const mobilePackage = JSON.parse(
+  fs.readFileSync(path.join(mobileDir, "package.json"), "utf8")
+);
+for (const dependency of ["@expo/vector-icons", "expo-font", "react-native-gesture-handler"]) {
+  assert(
+    mobilePackage.dependencies?.[dependency],
+    `nibiru-mobile debe declarar directamente ${dependency}`
+  );
+}
+
+const addressesScreen = fs.readFileSync(
+  path.join(mobileDir, "screens", "AddressesScreen.js"),
+  "utf8"
+);
+assert(
+  addressesScreen.includes("../config/api"),
+  "AddressesScreen debe usar la configuración central de API"
+);
+assert(
+  !addressesScreen.includes("192.168."),
+  "AddressesScreen no debe fijar una IP privada"
+);
+
+const mobileApp = fs.readFileSync(path.join(mobileDir, "App.js"), "utf8");
+assert(
+  mobileApp.includes('name="Addresses"') || mobileApp.includes("name='Addresses'"),
+  "La app móvil no registra la pantalla de direcciones"
+);
 
 console.log("MealOps smoke estático: OK");
