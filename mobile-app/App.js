@@ -1,144 +1,134 @@
 import "react-native-gesture-handler";
-
+import { useContext } from "react";
 import { NavigationContainer } from "@react-navigation/native";
-
-import {
-  createBottomTabNavigator
-} from "@react-navigation/bottom-tabs";
-
-import {
-  createNativeStackNavigator
-} from "@react-navigation/native-stack";
-
+import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
+import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { Ionicons } from "@expo/vector-icons";
+import { StatusBar, Platform } from "react-native";
 
-import AppProvider from "./context/AppContext.js";
-
-import colors from "./theme/colors.js";
+import AppProvider, { AppContext } from "./context/AppContext";
+import colors from "./theme/colors";
 
 /* SCREENS */
-import LoginScreen from "./screens/LoginScreen.js";
-import RegisterScreen from "./screens/RegisterScreen.js";
-
-import ProductsScreen from "./screens/ProductsScreen.js";
-import CartScreen from "./screens/CartScreen.js";
-import OrdersScreen from "./screens/OrdersScreen.js";
-import ProfileScreen from "./screens/ProfileScreen.js";
+import LoginScreen from "./screens/LoginScreen";
+import RegisterScreen from "./screens/RegisterScreen";
+import ForgotPasswordScreen from "./screens/ForgotPasswordScreen";
+import ResetPasswordScreen from "./screens/ResetPasswordScreen";
+import ProductsScreen from "./screens/ProductsScreen";
+import CartScreen from "./screens/CartScreen";
+import OrdersScreen from "./screens/OrdersScreen";
+import ProfileScreen from "./screens/ProfileScreen";
+import AddressesScreen from "./screens/AddressesScreen";
 
 const Tab = createBottomTabNavigator();
-
 const Stack = createNativeStackNavigator();
 
-/* TABS */
+/* BOTTOM TABS */
 function Tabs() {
+  const { cartCount } = useContext(AppContext);
 
   return (
-
     <Tab.Navigator
       screenOptions={({ route }) => ({
-
         headerShown: false,
-
         tabBarActiveTintColor: colors.primary,
-        tabBarInactiveTintColor: "#999",
-
+        tabBarInactiveTintColor: colors.muted,
         tabBarStyle: {
-          height: 65,
-          paddingBottom: 8,
-          paddingTop: 5,
+          height: Platform.OS === "ios" ? 84 : 64,
+          paddingBottom: Platform.OS === "ios" ? 24 : 8,
+          paddingTop: 8,
+          backgroundColor: colors.surface,
           borderTopWidth: 1,
-          borderTopColor: colors.border
+          borderTopColor: colors.borderLight,
+          elevation: 8,
+          shadowColor: "#000",
+          shadowOffset: { width: 0, height: -2 },
+          shadowOpacity: 0.05,
+          shadowRadius: 6
         },
-
-        tabBarIcon: ({ color, size }) => {
-
+        tabBarLabelStyle: {
+          fontSize: 11,
+          fontWeight: "700"
+        },
+        tabBarIcon: ({ focused, color, size }) => {
           let iconName;
 
           if (route.name === "Productos") {
-            iconName = "restaurant";
+            iconName = focused ? "restaurant" : "restaurant-outline";
+          } else if (route.name === "Carrito") {
+            iconName = focused ? "cart" : "cart-outline";
+          } else if (route.name === "Pedidos") {
+            iconName = focused ? "receipt" : "receipt-outline";
+          } else if (route.name === "Perfil") {
+            iconName = focused ? "person" : "person-outline";
           }
 
-          if (route.name === "Carrito") {
-            iconName = "cart";
-          }
-
-          if (route.name === "Pedidos") {
-            iconName = "receipt";
-          }
-
-          if (route.name === "Perfil") {
-            iconName = "person";
-          }
-
-          return (
-            <Ionicons
-              name={iconName}
-              size={size}
-              color={color}
-            />
-          );
+          return <Ionicons name={iconName} size={size} color={color} />;
         }
       })}
     >
-
       <Tab.Screen
         name="Productos"
         component={ProductsScreen}
+        options={{ tabBarLabel: "Menú" }}
       />
-
       <Tab.Screen
         name="Carrito"
         component={CartScreen}
+        options={{
+          tabBarLabel: "Carrito",
+          tabBarBadge: cartCount > 0 ? cartCount : undefined,
+          tabBarBadgeStyle: {
+            backgroundColor: colors.primary,
+            color: "#ffffff",
+            fontSize: 10,
+            fontWeight: "900"
+          }
+        }}
       />
-
       <Tab.Screen
         name="Pedidos"
         component={OrdersScreen}
+        options={{ tabBarLabel: "Pedidos" }}
       />
-
       <Tab.Screen
         name="Perfil"
         component={ProfileScreen}
+        options={{ tabBarLabel: "Perfil" }}
       />
-
     </Tab.Navigator>
   );
 }
 
-/* APP */
-export default function App() {
+/* ROOT APP WITH NAVIGATION */
+function RootNavigator() {
+  const { token, loadingAuth } = useContext(AppContext);
 
   return (
+    <NavigationContainer>
+      <StatusBar barStyle="dark-content" backgroundColor={colors.surface} />
+      <Stack.Navigator
+        initialRouteName={token ? "Tabs" : "Login"}
+        screenOptions={{
+          headerShown: false,
+          contentStyle: { backgroundColor: colors.background }
+        }}
+      >
+        <Stack.Screen name="Login" component={LoginScreen} />
+        <Stack.Screen name="Register" component={RegisterScreen} />
+        <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
+        <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} />
+        <Stack.Screen name="Addresses" component={AddressesScreen} />
+        <Stack.Screen name="Tabs" component={Tabs} />
+      </Stack.Navigator>
+    </NavigationContainer>
+  );
+}
 
+export default function App() {
+  return (
     <AppProvider>
-
-      <NavigationContainer>
-
-        <Stack.Navigator
-          screenOptions={{
-            headerShown: false
-          }}
-        >
-
-          <Stack.Screen
-            name="Login"
-            component={LoginScreen}
-          />
-
-          <Stack.Screen
-            name="Register"
-            component={RegisterScreen}
-          />
-
-          <Stack.Screen
-            name="Tabs"
-            component={Tabs}
-          />
-
-        </Stack.Navigator>
-
-      </NavigationContainer>
-
+      <RootNavigator />
     </AppProvider>
   );
 }

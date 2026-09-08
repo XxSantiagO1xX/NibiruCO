@@ -1,272 +1,690 @@
+import { useState, useEffect, useContext, useCallback } from "react";
 import {
   View,
   Text,
-  StyleSheet,
-  TouchableOpacity,
   FlatList,
-  Alert
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  ActivityIndicator,
+  Alert,
+  SafeAreaView,
+  ScrollView,
+  KeyboardAvoidingView,
+  Platform
 } from "react-native";
-
-import { useContext } from "react";
-
-import AsyncStorage from "@react-native-async-storage/async-storage";
-
+import { Ionicons } from "@expo/vector-icons";
 import axios from "axios";
-
 import { AppContext } from "../context/AppContext";
-
+import { API_URL } from "../config/api";
 import colors from "../theme/colors";
+import Header from "../components/Header";
+import ServiceTypeSelector from "../components/ServiceTypeSelector";
+import ProductImage from "../components/ProductImage";
+import EmptyState from "../components/EmptyState";
 
-const API = "http://192.168.1.86:3000";
+export default function CartScreen({ navigation }) {
+  const { cart, removeFromCart, updateQuantity, clearCart, cartTotal, user, token } =
+    useContext(AppContext);
 
-export default function CartScreen() {
+  const [serviceType, setServiceType] = useState("local"); // 'local' | 'llevar' | 'domicilio'
+  const [customerName, setCustomerName] = useState("");
+  const [notes, setNotes] = useState("");
 
-  const {
-    cart,
-    removeFromCart,
-    clearCart
-  } = useContext(AppContext);
+  // Addresses state
+  const [addresses, setAddresses] = useState([]);
+  const [selectedAddressId, setSelectedAddressId] = useState(null);
+  const [loadingAddresses, setLoadingAddresses] = useState(false);
 
-  /* TOTAL */
-  const total = cart.reduce(
-    (acc, item) =>
-      acc + (item.price * item.quantity),
-    0
-  );
+  // Submit order loading state
+  const [submitting, setSubmitting] = useState(false);
 
-  /* CREAR PEDIDO */
-  const createOrder = async () => {
+  // Set default customer name from user profile
+  useEffect(() => {
+    if (user?.name && !customerName) {
+      setCustomerName(user.name);
+    }
+  }, [user, customerName]);
 
-    if (!cart.length) {
+  // Load user addresses if token available
+  const loadAddresses = useCallback(async () => {
+    if (!token) return;
+    try {
+      setLoadingAddresses(true);
+      const res = await axios.get(`${API_URL}/users/addresses`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (Array.isArray(res.data)) {
+        setAddresses(res.data);
+        // Select default address if none selected
+        if (res.data.length > 0 && !selectedAddressId) {
+          const def = res.data.find((a) => a.is_default) || res.data[0];
+          setSelectedAddressId(def.id);
+        }
+      }
+    } catch (err) {
+      console.log("Error loading addresses:", err?.response?.data || err.message);
+    } finally {
+      setLoadingAddresses(false);
+    }
+  }, [token, selectedAddressId]);
 
+  useEffect(() => {
+    if (serviceType === "domicilio") {
+      loadAddresses();
+    }
+  }, [serviceType, loadAddresses]);
+
+  // Create Order handler
+  const handleCreateOrder = async () => {
+    if (!token) {
       Alert.alert(
-        "Carrito vacío",
-        "Agrega productos primero"
+        "Inicia Sesión",
+        "Debes iniciar sesión para confirmar tu pedido.",
+        [
+          { text: "Cancelar", style: "cancel" },
+          { text: "Iniciar Sesión", onPress: () => navigation.navigate("Login") }
+        ]
       );
+      return;
+    }
 
+    if (cart.length === 0) {
+      Alert.alert("Carrito Vacío", "Agrega productos antes de confirmar el pedido.");
+      return;
+    }
+
+    if (serviceType === "domicilio" && !selectedAddressId) {
+      Alert.alert(
+        "Dirección Requerida",
+        "Por favor selecciona o registra una dirección para tu entrega a domicilio.",
+        [
+          { text: "Entendido", style: "cancel" },
+          {
+            text: "Agregar Dirección",
+            onPress: () => navigation.navigate("Addresses")
+          }
+        ]
+      );
       return;
     }
 
     try {
+      setSubmitting(true);
 
-      const token = await AsyncStorage.getItem(
-        "token"
-      );
-
-      const items = cart.map(item => ({
+      // Build payload matching backend orders API
+      const itemsPayload = cart.map((item) => ({
         product_id: item.product_id,
-        quantity: item.quantity
+        quantity: item.quantity,
+        choices: item.choices || []
       }));
 
-      const res = await axios.post(
-        `${API}/orders`,
-        {
-          items,
-          type: "local"
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`
-          }
-        }
-      );
+      const payload = {
+        items: itemsPayload,
+        type: serviceType,
+        service_type: serviceType,
+        customer_name: customerName.trim() || undefined,
+        address_id: serviceType === "domicilio" ? selectedAddressId : undefined
+      };
 
-      console.log("PEDIDO:", res.data);
+      const res = await axios.post(`${API_URL}/orders`, payload, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      const createdOrder = res.data;
+      const folioStr = createdOrder.folio
+        ? `Folio F${String(createdOrder.folio).padStart(3, "0")}`
+        : `Pedido #${createdOrder.id}`;
 
       clearCart();
 
       Alert.alert(
-        "Pedido creado",
-        "Tu pedido fue enviado correctamente"
+        "¡Pedido Registrado con Éxito!",
+        `Tu pedido (${folioStr}) ha sido recibido por la cocina. Puedes darle seguimiento en tiempo real.`,
+        [
+          {
+            text: "Ver Mis Pedidos",
+            onPress: () => navigation.navigate("Pedidos")
+          }
+        ]
       );
-
     } catch (err) {
-
-      console.log(
-        err?.response?.data || err.message
-      );
-
-      Alert.alert(
-        "Error",
-        "No se pudo crear el pedido"
-      );
+      console.log("Create order error:", err?.response?.data || err.message);
+      const message =
+        err?.response?.data?.message || "No se pudo procesar tu pedido.";
+      Alert.alert("Error al Crear Pedido", message);
+    } finally {
+      setSubmitting(false);
     }
   };
 
-  /* CARD */
-  const renderItem = ({ item }) => (
+  // Render individual cart item card
+  const renderCartItem = ({ item }) => {
+    const isCombo = item.product_kind === "combo";
+    const itemTotal = item.unit_price * item.quantity;
 
-    <View style={styles.card}>
+    return (
+      <View style={styles.itemCard}>
+        <ProductImage
+          imagePath={item.image}
+          style={styles.itemImage}
+          borderRadius={12}
+        />
 
-      <Text style={styles.name}>
-        {item.name}
-      </Text>
+        <View style={styles.itemInfo}>
+          <View style={styles.itemTitleRow}>
+            <Text style={styles.itemName} numberOfLines={1}>
+              {item.name}
+            </Text>
+            <TouchableOpacity
+              onPress={() => removeFromCart(item.key)}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Ionicons name="trash-outline" size={18} color={colors.danger} />
+            </TouchableOpacity>
+          </View>
 
-      <Text style={styles.quantity}>
-        x{item.quantity}
-      </Text>
+          {isCombo && item.choices?.length > 0 ? (
+            <View style={styles.comboChoicesBox}>
+              {item.choices.map((choice, idx) => (
+                <Text key={idx} style={styles.choiceText}>
+                  • {choice.group_name}: <Text style={{ fontWeight: "700" }}>{choice.option_name}</Text>
+                  {Number(choice.extra_price) > 0 ? ` (+$${Number(choice.extra_price).toFixed(2)})` : ""}
+                </Text>
+              ))}
+            </View>
+          ) : null}
 
-      <Text style={styles.price}>
-        ${item.price * item.quantity}
-      </Text>
+          <View style={styles.itemBottomRow}>
+            <Text style={styles.itemPrice}>${itemTotal.toFixed(2)}</Text>
 
-      <TouchableOpacity
-        style={styles.remove}
-        onPress={() =>
-          removeFromCart(item.product_id)
-        }
-      >
+            {/* Qty controller */}
+            <View style={styles.qtyBox}>
+              <TouchableOpacity
+                style={styles.qtyBtn}
+                onPress={() => updateQuantity(item.key, -1)}
+              >
+                <Ionicons name="remove" size={14} color={colors.text} />
+              </TouchableOpacity>
+              <Text style={styles.qtyText}>{item.quantity}</Text>
+              <TouchableOpacity
+                style={styles.qtyBtn}
+                onPress={() => updateQuantity(item.key, 1)}
+              >
+                <Ionicons name="add" size={14} color={colors.text} />
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </View>
+    );
+  };
 
-        <Text style={{
-          color: "#fff",
-          fontSize: 18
-        }}>
-          -
-        </Text>
-
-      </TouchableOpacity>
-
-    </View>
-  );
+  if (cart.length === 0) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <Header title="Tu Carrito" showBrandMark={false} />
+        <EmptyState
+          icon="cart-outline"
+          title="Tu carrito está vacío"
+          description="Explora nuestro menú diario de hoy y elige tus platillos o combos favoritos."
+          actionLabel="Explorar Menú"
+          onAction={() => navigation.navigate("Productos")}
+        />
+      </SafeAreaView>
+    );
+  }
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.safeArea}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        style={styles.container}
+      >
+        <Header
+          title="Tu Carrito"
+          subtitle={`${cart.length} producto(s) en orden`}
+          rightAction={
+            <TouchableOpacity
+              style={styles.clearBtn}
+              onPress={() => {
+                Alert.alert(
+                  "Vaciar Carrito",
+                  "¿Deseas eliminar todos los productos de tu carrito?",
+                  [
+                    { text: "Cancelar", style: "cancel" },
+                    { text: "Vaciar", style: "destructive", onPress: clearCart }
+                  ]
+                );
+              }}
+            >
+              <Text style={styles.clearBtnText}>Vaciar</Text>
+            </TouchableOpacity>
+          }
+        />
 
-      <Text style={styles.title}>
-        Carrito
-      </Text>
-
-      <FlatList
-        data={cart}
-        renderItem={renderItem}
-        keyExtractor={(item) =>
-          item.product_id.toString()
-        }
-      />
-
-      <View style={styles.footer}>
-
-        <Text style={styles.total}>
-          Total: ${total}
-        </Text>
-
-        <TouchableOpacity
-          style={styles.orderButton}
-          onPress={createOrder}
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
         >
+          {/* Cart Items List */}
+          <View style={styles.itemsSection}>
+            <Text style={styles.sectionHeading}>Platillos & Combos</Text>
+            <FlatList
+              data={cart}
+              keyExtractor={(item) => item.key}
+              renderItem={renderCartItem}
+              scrollEnabled={false}
+            />
+          </View>
 
-          <Text style={styles.orderText}>
-            Crear Pedido
-          </Text>
+          {/* Service Type Selector */}
+          <ServiceTypeSelector
+            selected={serviceType}
+            onSelect={setServiceType}
+          />
 
-        </TouchableOpacity>
+          {/* Delivery Address Section if 'domicilio' */}
+          {serviceType === "domicilio" ? (
+            <View style={styles.addressSection}>
+              <View style={styles.addressSectionHeader}>
+                <Text style={styles.sectionHeading}>Dirección de Entrega</Text>
+                <TouchableOpacity
+                  onPress={() => navigation.navigate("Addresses")}
+                >
+                  <Text style={styles.manageAddressText}>Administrar</Text>
+                </TouchableOpacity>
+              </View>
 
-        <TouchableOpacity
-          style={styles.clear}
-          onPress={clearCart}
-        >
+              {loadingAddresses ? (
+                <ActivityIndicator color={colors.primary} style={{ marginVertical: 10 }} />
+              ) : addresses.length === 0 ? (
+                <View style={styles.noAddressCard}>
+                  <Ionicons name="location-outline" size={24} color={colors.primary} />
+                  <Text style={styles.noAddressTitle}>No tienes direcciones guardadas</Text>
+                  <TouchableOpacity
+                    style={styles.addAddressBtn}
+                    onPress={() => navigation.navigate("Addresses")}
+                  >
+                    <Text style={styles.addAddressBtnText}>+ Agregar Dirección</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                <View style={styles.addressList}>
+                  {addresses.map((addr) => {
+                    const isSelected = selectedAddressId === addr.id;
+                    return (
+                      <TouchableOpacity
+                        key={addr.id}
+                        style={[
+                          styles.addressCard,
+                          isSelected && styles.addressCardSelected
+                        ]}
+                        onPress={() => setSelectedAddressId(addr.id)}
+                        activeOpacity={0.7}
+                      >
+                        <Ionicons
+                          name={isSelected ? "radio-button-on" : "radio-button-off"}
+                          size={18}
+                          color={isSelected ? colors.primary : colors.muted}
+                        />
+                        <View style={styles.addressInfo}>
+                          <Text style={styles.addressLabel}>
+                            {addr.label || "Casa"}
+                            {addr.is_default ? " (Principal)" : ""}
+                          </Text>
+                          <Text style={styles.addressStreet} numberOfLines={1}>
+                            {addr.address}
+                          </Text>
+                          {addr.details ? (
+                            <Text style={styles.addressDetails} numberOfLines={1}>
+                              Ref: {addr.details}
+                            </Text>
+                          ) : null}
+                        </View>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              )}
+            </View>
+          ) : null}
 
-          <Text style={styles.clearText}>
-            Vaciar carrito
-          </Text>
+          {/* Customer Personalization */}
+          <View style={styles.notesSection}>
+            <Text style={styles.sectionHeading}>Datos del Pedido</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Nombre de quien recibe (opcional)"
+              placeholderTextColor={colors.textSubtle}
+              value={customerName}
+              onChangeText={setCustomerName}
+            />
+          </View>
 
-        </TouchableOpacity>
+          {/* Order Summary breakdown */}
+          <View style={styles.summaryCard}>
+            <Text style={styles.summaryTitle}>Resumen de Cuenta</Text>
+            <View style={styles.summaryRow}>
+              <Text style={styles.summaryLabel}>Subtotal</Text>
+              <Text style={styles.summaryValue}>${cartTotal.toFixed(2)}</Text>
+            </View>
+            <View style={styles.summaryRow}>
+              <Text style={styles.summaryLabel}>Servicio ({serviceType})</Text>
+              <Text style={styles.summaryValueFree}>Incluido</Text>
+            </View>
+            <View style={styles.divider} />
+            <View style={styles.totalRow}>
+              <Text style={styles.totalLabel}>Total a Pagar</Text>
+              <Text style={styles.totalAmount}>${cartTotal.toFixed(2)}</Text>
+            </View>
+          </View>
+        </ScrollView>
 
-      </View>
-
-    </View>
+        {/* Fixed Footer Checkout Button */}
+        <View style={styles.footer}>
+          <TouchableOpacity
+            style={[styles.checkoutBtn, submitting && styles.checkoutBtnDisabled]}
+            onPress={handleCreateOrder}
+            disabled={submitting}
+            activeOpacity={0.85}
+          >
+            {submitting ? (
+              <ActivityIndicator color="#ffffff" />
+            ) : (
+              <>
+                <Ionicons name="checkmark-circle" size={20} color="#ffffff" />
+                <Text style={styles.checkoutBtnText}>
+                  Confirmar Pedido · ${cartTotal.toFixed(2)}
+                </Text>
+              </>
+            )}
+          </TouchableOpacity>
+        </View>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-
-  container: {
+  safeArea: {
     flex: 1,
-    padding: 16,
     backgroundColor: colors.background
   },
-
-  title: {
-    fontSize: 28,
-    fontWeight: "700",
-    marginBottom: 20,
-    color: colors.text
+  container: {
+    flex: 1
   },
-
-  card: {
-    backgroundColor: "#fff",
-    padding: 18,
-    borderRadius: 18,
-    marginBottom: 14,
-
-    shadowColor: "#000",
-    shadowOpacity: 0.05,
-    shadowRadius: 10,
-
-    elevation: 3
+  scrollContent: {
+    padding: 16,
+    paddingBottom: 30
   },
-
-  name: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: colors.text
+  clearBtn: {
+    paddingHorizontal: 10,
+    paddingVertical: 4
   },
-
-  quantity: {
-    marginTop: 5,
-    color: colors.muted
-  },
-
-  price: {
-    marginTop: 8,
-    color: colors.primary,
+  clearBtnText: {
+    color: colors.danger,
+    fontSize: 12,
     fontWeight: "700"
   },
-
-  remove: {
-    marginTop: 12,
-    backgroundColor: "#EF4444",
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    justifyContent: "center",
+  itemsSection: {
+    marginBottom: 10
+  },
+  sectionHeading: {
+    fontSize: 14,
+    fontWeight: "800",
+    color: colors.text,
+    marginBottom: 8,
+    letterSpacing: -0.2
+  },
+  itemCard: {
+    flexDirection: "row",
+    backgroundColor: colors.surface,
+    borderRadius: 18,
+    padding: 12,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+    shadowColor: "#1d1814",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    elevation: 2,
+    gap: 12
+  },
+  itemImage: {
+    width: 68,
+    height: 68
+  },
+  itemInfo: {
+    flex: 1,
+    justifyContent: "space-between"
+  },
+  itemTitleRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
     alignItems: "center"
   },
-
-  footer: {
-    marginTop: 20
+  itemName: {
+    fontSize: 14,
+    fontWeight: "800",
+    color: colors.text,
+    flex: 1,
+    marginRight: 6
   },
-
-  total: {
-    fontSize: 24,
+  comboChoicesBox: {
+    backgroundColor: colors.surfaceMuted,
+    padding: 6,
+    borderRadius: 8,
+    marginTop: 4,
+    marginBottom: 4
+  },
+  choiceText: {
+    fontSize: 10,
+    color: colors.muted,
+    lineHeight: 14
+  },
+  itemBottomRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginTop: 4
+  },
+  itemPrice: {
+    fontSize: 15,
+    fontWeight: "900",
+    color: colors.primary
+  },
+  qtyBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: colors.surfaceMuted,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.border
+  },
+  qtyBtn: {
+    width: 28,
+    height: 28,
+    alignItems: "center",
+    justifyContent: "center"
+  },
+  qtyText: {
+    fontSize: 12,
+    fontWeight: "800",
+    color: colors.text,
+    minWidth: 20,
+    textAlign: "center"
+  },
+  addressSection: {
+    marginVertical: 10
+  },
+  addressSectionHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 8
+  },
+  manageAddressText: {
+    fontSize: 12,
     fontWeight: "700",
-    marginBottom: 20,
-    color: colors.text
+    color: colors.primary
   },
-
-  orderButton: {
-    backgroundColor: colors.primary,
-    padding: 18,
-    borderRadius: 16,
-    alignItems: "center"
-  },
-
-  orderText: {
-    color: "#fff",
-    fontWeight: "700",
-    fontSize: 16
-  },
-
-  clear: {
-    marginTop: 12,
-    backgroundColor: colors.accent,
+  noAddressCard: {
+    backgroundColor: colors.surface,
     padding: 16,
     borderRadius: 16,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+    gap: 6
+  },
+  noAddressTitle: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: colors.text
+  },
+  addAddressBtn: {
+    backgroundColor: colors.primarySoft,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 10,
+    marginTop: 6
+  },
+  addAddressBtnText: {
+    color: colors.primary,
+    fontSize: 12,
+    fontWeight: "800"
+  },
+  addressList: {
+    gap: 8
+  },
+  addressCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: colors.surface,
+    padding: 12,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+    gap: 10
+  },
+  addressCardSelected: {
+    backgroundColor: colors.primarySoft,
+    borderColor: colors.primary
+  },
+  addressInfo: {
+    flex: 1
+  },
+  addressLabel: {
+    fontSize: 12,
+    fontWeight: "800",
+    color: colors.text
+  },
+  addressStreet: {
+    fontSize: 11,
+    color: colors.muted,
+    marginTop: 1
+  },
+  addressDetails: {
+    fontSize: 10,
+    color: colors.textSubtle,
+    marginTop: 1
+  },
+  notesSection: {
+    marginVertical: 10
+  },
+  input: {
+    backgroundColor: colors.surface,
+    height: 48,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: 14,
+    fontSize: 13,
+    color: colors.text
+  },
+  summaryCard: {
+    backgroundColor: colors.surface,
+    borderRadius: 20,
+    padding: 16,
+    marginVertical: 12,
+    borderWidth: 1,
+    borderColor: colors.borderLight
+  },
+  summaryTitle: {
+    fontSize: 14,
+    fontWeight: "800",
+    color: colors.text,
+    marginBottom: 12
+  },
+  summaryRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 8
+  },
+  summaryLabel: {
+    fontSize: 13,
+    color: colors.muted
+  },
+  summaryValue: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: colors.text
+  },
+  summaryValueFree: {
+    fontSize: 12,
+    fontWeight: "800",
+    color: colors.success
+  },
+  divider: {
+    height: 1,
+    backgroundColor: colors.borderLight,
+    marginVertical: 10
+  },
+  totalRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
     alignItems: "center"
   },
-
-  clearText: {
-    color: "#fff",
-    fontWeight: "600"
+  totalLabel: {
+    fontSize: 15,
+    fontWeight: "800",
+    color: colors.text
+  },
+  totalAmount: {
+    fontSize: 20,
+    fontWeight: "900",
+    color: colors.primary,
+    letterSpacing: -0.5
+  },
+  footer: {
+    padding: 16,
+    backgroundColor: colors.surface,
+    borderTopWidth: 1,
+    borderTopColor: colors.borderLight
+  },
+  checkoutBtn: {
+    flexDirection: "row",
+    backgroundColor: colors.primary,
+    height: 52,
+    borderRadius: 16,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 4
+  },
+  checkoutBtnDisabled: {
+    opacity: 0.6
+  },
+  checkoutBtnText: {
+    color: "#ffffff",
+    fontSize: 16,
+    fontWeight: "800"
   }
 });

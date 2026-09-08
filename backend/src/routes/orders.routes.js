@@ -452,19 +452,39 @@ router.get("/", auth, async (req, res) => {
       `
         SELECT
           o.*,
+          ua.address,
+          ua.details,
           COALESCE(
             json_agg(
               json_build_object(
                 'product_id', oi.product_id,
-                'quantity', oi.quantity
-              )
+                'name', p.name,
+                'price', p.price,
+                'quantity', oi.quantity,
+                'product_kind', p.product_kind,
+                'choices', COALESCE((
+                  SELECT json_agg(
+                    json_build_object(
+                      'option_product_id', occ.option_product_id,
+                      'name', op.name,
+                      'quantity', occ.quantity,
+                      'extra_price', occ.extra_price
+                    ) ORDER BY occ.id
+                  )
+                  FROM order_item_combo_choices occ
+                  JOIN products op ON op.id = occ.option_product_id
+                  WHERE occ.order_item_id = oi.id
+                ), '[]'::json)
+              ) ORDER BY oi.id
             ) FILTER (WHERE oi.id IS NOT NULL),
             '[]'
           ) AS items
         FROM orders o
+        LEFT JOIN user_addresses ua ON ua.id = o.address_id
         LEFT JOIN order_items oi ON oi.order_id = o.id
+        LEFT JOIN products p ON p.id = oi.product_id
         WHERE o.user_id = $1
-        GROUP BY o.id
+        GROUP BY o.id, ua.id
         ORDER BY o.created_at DESC
       `,
       [userId]

@@ -1,4 +1,4 @@
-import { useState, useContext } from "react";
+import { useState } from "react";
 import {
   View,
   Text,
@@ -13,37 +13,65 @@ import {
   SafeAreaView
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { AppContext } from "../context/AppContext";
+import axios from "axios";
+import { API_URL } from "../config/api";
 import colors from "../theme/colors";
 
-export default function LoginScreen({ navigation }) {
-  const { login } = useContext(AppContext);
+export default function ResetPasswordScreen({ route, navigation }) {
+  const initialPhone = route.params?.phone || "";
+  const initialCode = route.params?.initialCode || "";
 
-  const [phone, setPhone] = useState("");
-  const [password, setPassword] = useState("");
+  const [phone, setPhone] = useState(initialPhone);
+  const [code, setCode] = useState(initialCode);
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
 
-  const handleLogin = async () => {
+  const handleResetPassword = async () => {
     setErrorMsg("");
     const trimmedPhone = phone.trim();
+    const trimmedCode = code.trim();
 
-    if (!trimmedPhone || !password) {
-      setErrorMsg("Ingresa tu teléfono y contraseña");
+    if (!trimmedPhone || !trimmedCode || !newPassword) {
+      setErrorMsg("Completa todos los campos");
+      return;
+    }
+
+    if (newPassword.length < 4) {
+      setErrorMsg("La contraseña debe tener al menos 4 caracteres");
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      setErrorMsg("Las contraseñas no coinciden");
       return;
     }
 
     try {
       setLoading(true);
-      await login(trimmedPhone, password);
-      navigation.replace("Tabs");
+      await axios.post(`${API_URL}/auth/reset-password`, {
+        phone: trimmedPhone,
+        code: trimmedCode,
+        newPassword
+      });
+
+      Alert.alert(
+        "Contraseña Actualizada",
+        "Tu contraseña ha sido restablecida exitosamente. Ya puedes iniciar sesión.",
+        [
+          {
+            text: "Ir al Login",
+            onPress: () => navigation.navigate("Login")
+          }
+        ]
+      );
     } catch (err) {
-      console.log("Login error:", err?.response?.data || err.message);
-      const message =
-        err?.response?.data?.message ||
-        "Credenciales incorrectas o error de conexión";
-      setErrorMsg(message);
+      console.log("Reset password error:", err?.response?.data || err.message);
+      setErrorMsg(
+        err?.response?.data?.message || "Código inválido o expirado"
+      );
     } finally {
       setLoading(false);
     }
@@ -58,24 +86,23 @@ export default function LoginScreen({ navigation }) {
         <ScrollView
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
         >
-          {/* Brand Mark & Header */}
-          <View style={styles.brandContainer}>
-            <View style={styles.brandIcon}>
-              <Ionicons name="restaurant" size={32} color="#ffffff" />
-            </View>
-            <Text style={styles.brandName}>MealOps</Text>
-            <Text style={styles.brandTagline}>Cocina & Menú Diario</Text>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => navigation.goBack()}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            <Ionicons name="arrow-back" size={22} color={colors.text} />
+          </TouchableOpacity>
+
+          <View style={styles.header}>
+            <Text style={styles.title}>Nueva Contraseña</Text>
+            <Text style={styles.subtitle}>
+              Ingresa el código que recibiste y define tu nueva contraseña.
+            </Text>
           </View>
 
-          {/* Form Card */}
           <View style={styles.card}>
-            <Text style={styles.cardTitle}>Iniciar Sesión</Text>
-            <Text style={styles.cardSubtitle}>
-              Ingresa con tu número de teléfono registrado
-            </Text>
-
             {errorMsg ? (
               <View style={styles.errorBanner}>
                 <Ionicons name="alert-circle" size={16} color={colors.danger} />
@@ -83,9 +110,9 @@ export default function LoginScreen({ navigation }) {
               </View>
             ) : null}
 
-            {/* Phone input */}
+            {/* Phone */}
             <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Teléfono</Text>
+              <Text style={styles.inputLabel}>Teléfono móvil</Text>
               <View style={styles.inputWrapper}>
                 <Ionicons
                   name="call-outline"
@@ -95,7 +122,7 @@ export default function LoginScreen({ navigation }) {
                 />
                 <TextInput
                   style={styles.input}
-                  placeholder="Ej. 5512345678"
+                  placeholder="Teléfono"
                   placeholderTextColor={colors.textSubtle}
                   keyboardType="phone-pad"
                   value={phone}
@@ -103,14 +130,37 @@ export default function LoginScreen({ navigation }) {
                     setPhone(val);
                     setErrorMsg("");
                   }}
-                  autoCapitalize="none"
                 />
               </View>
             </View>
 
-            {/* Password input */}
+            {/* Code */}
             <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Contraseña</Text>
+              <Text style={styles.inputLabel}>Código de verificación</Text>
+              <View style={styles.inputWrapper}>
+                <Ionicons
+                  name="key-outline"
+                  size={18}
+                  color={colors.muted}
+                  style={styles.inputIcon}
+                />
+                <TextInput
+                  style={styles.input}
+                  placeholder="Código de 6 dígitos"
+                  placeholderTextColor={colors.textSubtle}
+                  keyboardType="number-pad"
+                  value={code}
+                  onChangeText={(val) => {
+                    setCode(val);
+                    setErrorMsg("");
+                  }}
+                />
+              </View>
+            </View>
+
+            {/* New Password */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Nueva contraseña</Text>
               <View style={styles.inputWrapper}>
                 <Ionicons
                   name="lock-closed-outline"
@@ -120,12 +170,12 @@ export default function LoginScreen({ navigation }) {
                 />
                 <TextInput
                   style={[styles.input, { paddingRight: 40 }]}
-                  placeholder="Tu contraseña"
+                  placeholder="Mínimo 4 caracteres"
                   placeholderTextColor={colors.textSubtle}
                   secureTextEntry={!showPassword}
-                  value={password}
+                  value={newPassword}
                   onChangeText={(val) => {
-                    setPassword(val);
+                    setNewPassword(val);
                     setErrorMsg("");
                   }}
                 />
@@ -143,37 +193,42 @@ export default function LoginScreen({ navigation }) {
               </View>
             </View>
 
-            {/* Forgot password */}
-            <TouchableOpacity
-              style={styles.forgotBtn}
-              onPress={() => navigation.navigate("ForgotPassword")}
-            >
-              <Text style={styles.forgotText}>¿Olvidaste tu contraseña?</Text>
-            </TouchableOpacity>
+            {/* Confirm New Password */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Confirmar nueva contraseña</Text>
+              <View style={styles.inputWrapper}>
+                <Ionicons
+                  name="shield-checkmark-outline"
+                  size={18}
+                  color={colors.muted}
+                  style={styles.inputIcon}
+                />
+                <TextInput
+                  style={styles.input}
+                  placeholder="Repite la contraseña"
+                  placeholderTextColor={colors.textSubtle}
+                  secureTextEntry={!showPassword}
+                  value={confirmPassword}
+                  onChangeText={(val) => {
+                    setConfirmPassword(val);
+                    setErrorMsg("");
+                  }}
+                />
+              </View>
+            </View>
 
             {/* Submit button */}
             <TouchableOpacity
               style={[styles.submitButton, loading && styles.submitButtonDisabled]}
-              onPress={handleLogin}
+              onPress={handleResetPassword}
               disabled={loading}
               activeOpacity={0.85}
             >
               {loading ? (
                 <ActivityIndicator color="#ffffff" />
               ) : (
-                <Text style={styles.submitButtonText}>Entrar a MealOps</Text>
+                <Text style={styles.submitButtonText}>Restablecer Contraseña</Text>
               )}
-            </TouchableOpacity>
-          </View>
-
-          {/* Footer: Register navigation */}
-          <View style={styles.footer}>
-            <Text style={styles.footerText}>¿No tienes cuenta?</Text>
-            <TouchableOpacity
-              onPress={() => navigation.navigate("Register")}
-              style={styles.registerLink}
-            >
-              <Text style={styles.registerLinkText}>Crear cuenta nueva</Text>
             </TouchableOpacity>
           </View>
         </ScrollView>
@@ -192,43 +247,39 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     flexGrow: 1,
-    justifyContent: "center",
-    padding: 20
+    padding: 20,
+    paddingTop: 10
   },
-  brandContainer: {
-    alignItems: "center",
-    marginBottom: 26
-  },
-  brandIcon: {
-    width: 64,
-    height: 64,
-    borderRadius: 20,
-    backgroundColor: colors.primary,
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 14,
+    backgroundColor: colors.surface,
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: colors.primary,
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.35,
-    shadowRadius: 12,
-    elevation: 6,
-    marginBottom: 12
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+    marginBottom: 20
   },
-  brandName: {
-    fontSize: 28,
+  header: {
+    marginBottom: 20
+  },
+  title: {
+    fontSize: 26,
     fontWeight: "900",
     color: colors.text,
-    letterSpacing: -0.8
+    letterSpacing: -0.6
   },
-  brandTagline: {
+  subtitle: {
     fontSize: 13,
-    fontWeight: "600",
     color: colors.muted,
-    marginTop: 2
+    marginTop: 4,
+    lineHeight: 18
   },
   card: {
     backgroundColor: colors.surface,
     borderRadius: 24,
-    padding: 22,
+    padding: 20,
     borderWidth: 1,
     borderColor: colors.borderLight,
     shadowColor: "#1d1814",
@@ -236,18 +287,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.06,
     shadowRadius: 12,
     elevation: 3
-  },
-  cardTitle: {
-    fontSize: 20,
-    fontWeight: "800",
-    color: colors.text,
-    letterSpacing: -0.4
-  },
-  cardSubtitle: {
-    fontSize: 12,
-    color: colors.muted,
-    marginTop: 4,
-    marginBottom: 18
   },
   errorBanner: {
     flexDirection: "row",
@@ -257,7 +296,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 10,
     borderRadius: 12,
-    marginBottom: 16,
+    marginBottom: 14,
     borderWidth: 1,
     borderColor: colors.dangerBorder
   },
@@ -268,13 +307,13 @@ const styles = StyleSheet.create({
     flex: 1
   },
   inputGroup: {
-    marginBottom: 14
+    marginBottom: 12
   },
   inputLabel: {
     fontSize: 12,
     fontWeight: "700",
     color: colors.text,
-    marginBottom: 6
+    marginBottom: 5
   },
   inputWrapper: {
     flexDirection: "row",
@@ -290,22 +329,12 @@ const styles = StyleSheet.create({
   },
   input: {
     flex: 1,
-    height: 48,
+    height: 46,
     fontSize: 14,
     color: colors.text
   },
   eyeButton: {
     padding: 6
-  },
-  forgotBtn: {
-    alignSelf: "flex-end",
-    marginTop: 2,
-    marginBottom: 18
-  },
-  forgotText: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: colors.primary
   },
   submitButton: {
     backgroundColor: colors.primary,
@@ -313,6 +342,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     alignItems: "center",
     justifyContent: "center",
+    marginTop: 10,
     shadowColor: colors.primary,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.25,
@@ -326,24 +356,5 @@ const styles = StyleSheet.create({
     color: "#ffffff",
     fontSize: 15,
     fontWeight: "800"
-  },
-  footer: {
-    flexDirection: "row",
-    justifyContent: "center",
-    alignItems: "center",
-    marginTop: 22,
-    gap: 6
-  },
-  footerText: {
-    fontSize: 13,
-    color: colors.muted
-  },
-  registerLink: {
-    paddingVertical: 4
-  },
-  registerLinkText: {
-    fontSize: 13,
-    fontWeight: "800",
-    color: colors.primary
   }
 });
