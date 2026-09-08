@@ -1,4 +1,127 @@
-<input id="email" placeholder="Correo">
-<input id="password" type="password" placeholder="Contraseña">
-<button onclick="register()">Registrarse</button>
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MealOps — Registro de Cliente</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../css/styles.css">
+</head>
+<body>
 
+  <div id="toast-container"></div>
+
+  <div class="auth-page-wrapper">
+    <div class="auth-card-modern">
+      <!-- LOGO -->
+      <div class="auth-header-logo">
+        <div class="brand-logo-badge" style="width: 48px; height: 48px;">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M18 8h1a4 4 0 0 1 0 8h-1"></path>
+            <path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"></path>
+            <line x1="6" y1="1" x2="6" y2="4"></line>
+            <line x1="10" y1="1" x2="10" y2="4"></line>
+            <line x1="14" y1="1" x2="14" y2="4"></line>
+          </svg>
+        </div>
+        <div>
+          <div style="font-size: 22px; font-weight: 800; color: var(--text-main); letter-spacing: -0.5px;">MealOps</div>
+          <div style="font-size: 12px; color: var(--text-muted); font-weight: 600;">Sistema Operativo Gastronómico</div>
+        </div>
+      </div>
+
+      <h2 style="font-size: 18px; font-weight: 700; text-align: center; margin-bottom: 20px; color: var(--text-main);">Crear Cuenta de Cliente</h2>
+
+      <form id="register-form" onsubmit="handleRegister(event)">
+        <div class="form-group">
+          <label class="form-label">Nombre Completo</label>
+          <input type="text" id="name" class="form-control" placeholder="Ej. Juan Pérez" required>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Número de Teléfono (10 dígitos)</label>
+          <input type="tel" id="phone" class="form-control" placeholder="Ej. 5512345678" required>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Correo Electrónico (Opcional)</label>
+          <input type="email" id="email" class="form-control" placeholder="juan@ejemplo.com">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Contraseña</label>
+          <input type="password" id="password" class="form-control" placeholder="Mínimo 6 caracteres" required>
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-lg" style="width: 100%; margin-top: 10px;" id="btn-submit">
+          Registrar Cuenta
+        </button>
+      </form>
+
+      <div style="text-align: center; margin-top: 20px; font-size: 13px; color: var(--text-muted);">
+        ¿Ya tienes cuenta? <a href="login.html" style="color: var(--primary); font-weight: 600; text-decoration: none;">Iniciar Sesión</a>
+      </div>
+    </div>
+  </div>
+
+  <script src="config.js"></script>
+  <script>
+    const API = (window.MEALOPS_CONFIG && window.MEALOPS_CONFIG.API_URL) || "http://localhost:3000";
+
+    function showToast(msg, type = "info") {
+      const c = document.getElementById("toast-container");
+      const t = document.createElement("div");
+      t.className = `toast ${type}`;
+      t.textContent = msg;
+      c.appendChild(t);
+      setTimeout(() => t.remove(), 3500);
+    }
+
+    async function handleRegister(e) {
+      e.preventDefault();
+      const name = document.getElementById("name").value.trim();
+      const phone = document.getElementById("phone").value.trim();
+      const email = document.getElementById("email").value.trim();
+      const password = document.getElementById("password").value;
+      const btn = document.getElementById("btn-submit");
+
+      btn.disabled = true;
+      btn.textContent = "Creando cuenta...";
+
+      try {
+        const res = await fetch(`${API}/auth/register-phone`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name, phone, email: email || undefined, password })
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+          showToast(data.message || "Error al registrar cuenta", "error");
+          btn.disabled = false;
+          btn.textContent = "Registrar Cuenta";
+          return;
+        }
+
+        // Guardar sesión
+        localStorage.setItem("token", data.token);
+        localStorage.setItem("role", data.role || (data.user && data.user.role) || "cliente");
+        localStorage.setItem("userName", (data.user && data.user.name) || name);
+
+        showToast("✅ Cuenta creada con éxito", "success");
+        setTimeout(() => {
+          window.location.href = "home.html";
+        }, 600);
+
+      } catch (err) {
+        showToast("Error de conexión con el servidor", "error");
+        btn.disabled = false;
+        btn.textContent = "Registrar Cuenta";
+      }
+    }
+  </script>
+</body>
+</html>

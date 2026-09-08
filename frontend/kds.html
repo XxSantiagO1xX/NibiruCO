@@ -1,194 +1,316 @@
 <!DOCTYPE html>
 <html lang="es">
-
 <head>
-<meta charset="UTF-8">
-<title>MealOps Cocina</title>
-
-<link rel="stylesheet" href="../css/styles.css">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MealOps — KDS Cocina en Vivo</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../css/styles.css">
 </head>
-
 <body>
 
-    <header class="hero">
+  <div id="toast-container"></div>
 
-    <h1>MealOps</h1>
-    <p>Pedidos</p>
+  <div class="app-layout">
+    <!-- SIDEBAR -->
+    <aside class="app-sidebar">
+      <div class="sidebar-header">
+        <div class="brand-logo-badge">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M18 8h1a4 4 0 0 1 0 8h-1"></path>
+            <path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"></path>
+            <line x1="6" y1="1" x2="6" y2="4"></line>
+            <line x1="10" y1="1" x2="10" y2="4"></line>
+            <line x1="14" y1="1" x2="14" y2="4"></line>
+          </svg>
+        </div>
+        <div>
+          <div class="brand-title">MealOps</div>
+          <div class="brand-subtitle">Cocina & Restaurante</div>
+        </div>
+      </div>
 
-    <div class="header-wave">
-        <svg viewBox="0 0 1440 320" preserveAspectRatio="none">
-            <path fill="#FDBA74"
-            d="M0,160L60,170C120,180,240,200,360,192C480,184,600,148,720,144C840,140,960,168,1080,170C1200,172,1320,148,1380,136L1440,128V0H0Z">
-            </path>
-        </svg>
-    </div>
+      <nav class="sidebar-nav">
+        <div class="nav-group-title">Operación en Vivo</div>
+        <a href="home.html" class="nav-link">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9"></rect><rect x="14" y="3" width="7" height="5"></rect><rect x="14" y="12" width="7" height="9"></rect><rect x="3" y="16" width="7" height="5"></rect></svg>
+          Panel Principal
+        </a>
+        <a href="index.html" class="nav-link">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>
+          Punto de Venta (POS)
+        </a>
+        <a href="kds.html" class="nav-link active">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+          Cocina (KDS en Vivo)
+        </a>
+        <a href="tables.html" class="nav-link">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M12 6v6l4 2"></path></svg>
+          Mesas & Comedor
+        </a>
 
-</header>
+        <div class="nav-group-title">Administración</div>
+        <a href="menu.html" class="nav-link">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+          Menú del Día / Semanal
+        </a>
+        <a href="products.html" class="nav-link">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path><line x1="3" y1="6" x2="21" y2="6"></line><path d="M16 10a4 4 0 0 1-8 0"></path></svg>
+          Catálogo de Platillos
+        </a>
+      </nav>
 
+      <div class="sidebar-footer">
+        <div class="user-profile-widget">
+          <div class="user-avatar-mini" id="user-avatar">C</div>
+          <div class="user-details">
+            <div class="user-details-name" id="user-name">Chef / Cocina</div>
+            <div class="user-details-role" id="user-role">Rol: Cocina</div>
+          </div>
+          <button class="btn btn-secondary btn-sm" onclick="logout()" title="Cerrar sesión" style="padding: 6px 8px;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+          </button>
+        </div>
+      </div>
+    </aside>
 
-<div class="container">
+    <!-- ÁREA PRINCIPAL KDS -->
+    <main class="app-main">
+      <header class="app-topbar">
+        <div class="topbar-title-area">
+          <h1 class="topbar-title">Kitchen Display System (KDS)</h1>
+        </div>
+        <div class="topbar-actions">
+          <div class="system-status-indicator" id="socket-badge">
+            <span class="status-dot"></span>
+            <span>KDS Conectado</span>
+          </div>
+          <button class="btn btn-secondary btn-sm" onclick="loadKdsOrders()">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
+            Refrescar
+          </button>
+        </div>
+      </header>
 
-<h1>MealOps Cocina</h1>
+      <div class="app-content">
+        <!-- TABLERO KANBAN DE COCINA -->
+        <div class="kds-board">
+          <!-- COLUMNA 1: POR PREPARAR -->
+          <div class="kds-column">
+            <div class="kds-column-header">
+              <div class="kds-column-title">
+                <span style="color: #f59e0b;">⏳</span>
+                <span>Nuevas Comandas</span>
+              </div>
+              <span class="status-badge badge-pendiente" id="count-pending">0</span>
+            </div>
+            <div id="col-pending"></div>
+          </div>
 
-<div class="board">
+          <!-- COLUMNA 2: EN PREPARACIÓN -->
+          <div class="kds-column">
+            <div class="kds-column-header">
+              <div class="kds-column-title">
+                <span style="color: #ea580c;">🔥</span>
+                <span>En Preparación</span>
+              </div>
+              <span class="status-badge badge-preparando" id="count-prep">0</span>
+            </div>
+            <div id="col-prep"></div>
+          </div>
 
-    <div class="column">
-        <h2>🟡 Pendientes</h2>
-        <div id="pending"></div>
-    </div>
+          <!-- COLUMNA 3: LISTOS PARA DESPACHO -->
+          <div class="kds-column">
+            <div class="kds-column-header">
+              <div class="kds-column-title">
+                <span style="color: #10b981;">✅</span>
+                <span>Listos para Entrega</span>
+              </div>
+              <span class="status-badge badge-entregado" id="count-ready">0</span>
+            </div>
+            <div id="col-ready"></div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
 
-    <div class="column">
-        <h2>🟢 Entregados</h2>
-        <div id="done"></div>
-    </div>
+  <script src="config.js"></script>
+  <script src="https://cdn.socket.io/4.8.3/socket.io.min.js"></script>
+  <script>
+    const API = (window.MEALOPS_CONFIG && window.MEALOPS_CONFIG.API_URL) || "http://localhost:3000";
+    const token = localStorage.getItem("token");
+    const role = localStorage.getItem("role") || "admin";
+    const userName = localStorage.getItem("userName") || "Chef Cocina";
 
-</div>
+    if (!token) {
+      window.location.href = "login.html";
+    }
 
-</div>
+    document.getElementById("user-name").textContent = userName;
+    document.getElementById("user-role").textContent = `Rol: ${role}`;
+    document.getElementById("user-avatar").textContent = (userName[0] || "C").toUpperCase();
 
-<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
-<script>
-const socket = io("http://localhost:3000");
+    function showToast(msg, type = "info") {
+      const c = document.getElementById("toast-container");
+      const t = document.createElement("div");
+      t.className = `toast ${type}`;
+      t.textContent = msg;
+      c.appendChild(t);
+      setTimeout(() => t.remove(), 3500);
+    }
 
-socket.on("connect", () => {
-  console.log("Conectado a WebSocket");
-});
+    function logout() {
+      localStorage.removeItem("token");
+      localStorage.removeItem("role");
+      localStorage.removeItem("userName");
+      window.location.href = "login.html";
+    }
 
-// Cuando llega nuevo pedido
-socket.on("new-order", (order) => {
-  console.log("Nuevo pedido:", order);
-  loadOrders(); // recarga UI
-});
+    async function loadKdsOrders() {
+      try {
+        const res = await fetch(`${API}/orders/admin/all`, {
+          headers: { "Authorization": `Bearer ${token}` }
+        });
 
-// Cuando se actualiza pedido
-socket.on("order-updated", (order) => {
-  console.log("Pedido actualizado:", order);
-  loadOrders();
-});
-const API = "http://localhost:3000";
-const token = localStorage.getItem("token");
-
-if (!token) {
-    window.location.href = "login.html";
-}
-
-// 🔐 VALIDAR ROL
-const user = JSON.parse(atob(token.split('.')[1]));
-
-if (user.role !== "cocina" && user.role !== "admin") {
-    alert("Acceso denegado");
-    window.location.href = "index.html";
-}
-
-let productsMap = {};
-let previousOrderIds = [];
-
-// 🔥 CARGAR PRODUCTOS (USAMOS /all PARA EVITAR PROBLEMAS DE MENÚ)
-async function loadProducts() {
-    const res = await fetch(`${API}/products/all`);
-    const products = await res.json();
-
-    productsMap = {};
-    products.forEach(p => productsMap[p.id] = p.name);
-}
-
-
-// 🔥 CARGAR PEDIDOS (IMPORTANTE: /orders/all)
-async function loadOrders() {
-    const res = await fetch(`${API}/orders/all`, {
-        headers: {
-            "Authorization": "Bearer " + token
+        if (res.status === 401 || res.status === 403) {
+          showToast("Acceso restringido: Inicia sesión con rol Cocina o Admin", "error");
+          return;
         }
-    });
 
-    const orders = await res.json();
+        const orders = await res.json();
+        renderKds(orders || []);
+      } catch (err) {
+        console.error("Error loading KDS orders:", err);
+      }
+    }
 
-    const pending = document.getElementById("pending");
-    const done = document.getElementById("done");
+    function renderKds(orders) {
+      const colPending = document.getElementById("col-pending");
+      const colPrep = document.getElementById("col-prep");
+      const colReady = document.getElementById("col-ready");
 
-    pending.innerHTML = "";
-    done.innerHTML = "";
+      const pendingOrders = orders.filter(o => o.status === "pendiente");
+      const prepOrders = orders.filter(o => o.status === "preparando" || o.status === "aceptado");
+      const readyOrders = orders.filter(o => o.status === "listo");
 
-    const currentIds = orders.map(o => o.id);
+      document.getElementById("count-pending").textContent = pendingOrders.length;
+      document.getElementById("count-prep").textContent = prepOrders.length;
+      document.getElementById("count-ready").textContent = readyOrders.length;
 
-    orders.forEach(order => {
-        const div = document.createElement("div");
+      colPending.innerHTML = renderCards(pendingOrders, "pending");
+      colPrep.innerHTML = renderCards(prepOrders, "prep");
+      colReady.innerHTML = renderCards(readyOrders, "ready");
+    }
 
-        const isNew = !previousOrderIds.includes(order.id);
+    function renderCards(orders, type) {
+      if (orders.length === 0) {
+        return `<p style="color: var(--text-muted); font-size: 13px; text-align: center; padding: 40px 0;">Sin comandas</p>`;
+      }
 
-        div.className = "card " + (order.status === "pendiente" ? "pending" : "done");
+      return orders.map(o => {
+        let actionBtn = "";
+        let borderClass = "";
 
-        if (isNew) div.classList.add("new");
+        if (type === "pending") {
+          borderClass = "pending";
+          actionBtn = `
+            <button class="btn btn-primary" style="width: 100%; font-size: 15px;" onclick="updateOrderStatus(${o.id}, 'preparando')">
+              🔥 Iniciar Preparación
+            </button>
+          `;
+        } else if (type === "prep") {
+          borderClass = "preparando";
+          actionBtn = `
+            <button class="btn btn-success" style="width: 100%; font-size: 15px;" onclick="updateOrderStatus(${o.id}, 'listo')">
+              ✅ Marcar como Listo
+            </button>
+          `;
+        } else if (type === "ready") {
+          borderClass = "listo";
+          actionBtn = `
+            <button class="btn btn-secondary" style="width: 100%; font-size: 15px; border-color: var(--border-light);" onclick="updateOrderStatus(${o.id}, 'entregado')">
+              📦 Confirmar Despacho / Entrega
+            </button>
+          `;
+        }
 
-        div.innerHTML = `
-            <div class="order-id">Pedido #${order.id}</div>
+        const itemsHtml = (o.items || []).map(i => `
+          <div class="kds-item-row">
+            <span>${i.name || `Platillo #${i.product_id}`}</span>
+            <span style="color: var(--primary); font-weight: 800;">x${i.quantity}</span>
+          </div>
+        `).join("");
 
-            <div class="meta">
-                ${order.type} • $${order.total}
+        return `
+          <div class="kds-card ${borderClass}">
+            <div class="kds-card-header">
+              <span class="kds-order-num">Comanda #${o.id}</span>
+              <span class="status-badge ${o.type === 'delivery' ? 'badge-preparando' : 'badge-aceptado'}">${o.type}</span>
             </div>
 
-            <div class="items">
-                ${order.items.map(i => {
-                    const name = productsMap[i.product_id] || `Producto ${i.product_id}`;
-                    return `
-                        <div class="item">
-                            <span>${name}</span>
-                            <span class="badge">x${i.quantity}</span>
-                        </div>
-                    `;
-                }).join("")}
+            <div style="font-size: 13px; color: var(--text-muted); margin-bottom: 8px;">
+              Cliente: <strong style="color: var(--text-main);">${o.user_name || o.user_phone || "Comensal"}</strong>
+              ${o.delivery_address ? `<br>Dirección: ${o.delivery_address}` : ''}
             </div>
 
-            <div class="meta">
-                <span class="badge">${order.status}</span>
+            <div class="kds-items-list">
+              ${itemsHtml || '<span style="color: var(--text-muted);">Sin ítems detallados</span>'}
             </div>
 
-            ${
-                order.status === "pendiente"
-                ? `<button class="btn-success" onclick="completeOrder(${order.id})">
-                    Entregar
-                   </button>`
-                : ""
-            }
+            <div style="margin-top: 14px;">
+              ${actionBtn}
+            </div>
+          </div>
         `;
+      }).join("");
+    }
 
-        if (order.status === "pendiente") {
-            pending.appendChild(div);
-        } else {
-            done.appendChild(div);
+    async function updateOrderStatus(id, status) {
+      try {
+        const res = await fetch(`${API}/orders/${id}/status`, {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}`
+          },
+          body: JSON.stringify({ status })
+        });
+
+        if (!res.ok) {
+          const err = await res.json();
+          showToast(err.message || "Error al actualizar estado", "error");
+          return;
         }
-    });
 
-    previousOrderIds = currentIds;
-}
+        showToast(`Pedido #${id} marcado como '${status}'`, "success");
+        loadKdsOrders();
+      } catch (err) {
+        showToast("Error de conexión con el servidor", "error");
+      }
+    }
 
+    // WebSockets en Vivo
+    try {
+      const socket = io(API);
+      socket.on("connect", () => {
+        document.getElementById("socket-badge").classList.remove("offline");
+      });
+      socket.on("disconnect", () => {
+        document.getElementById("socket-badge").classList.add("offline");
+      });
+      socket.on("new-order", (order) => {
+        showToast(`🔔 ¡Nueva comanda #${order.id} recibida!`, "info");
+        loadKdsOrders();
+      });
+      socket.on("order-updated", () => {
+        loadKdsOrders();
+      });
+    } catch(e) {}
 
-// 🔥 COMPLETAR PEDIDO (CON TOKEN)
-async function completeOrder(id) {
-    await fetch(`${API}/orders/${id}`, {
-        method: "PATCH",
-        headers: {
-            "Authorization": "Bearer " + token
-        }
-    });
-
-    loadOrders();
-}
-
-
-// INIT
-async function init() {
-    await loadProducts();
-    loadOrders();
-
-    setInterval(loadOrders, 3000);
-    setInterval(loadProducts, 10000);
-}
-
-init();
-
-</script>
-<div id="toast-container"></div>
+    loadKdsOrders();
+  </script>
 </body>
 </html>

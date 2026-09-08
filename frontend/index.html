@@ -1,279 +1,343 @@
 <!DOCTYPE html>
 <html lang="es">
-
 <head>
-    <meta charset="UTF-8">
-    <title>NibiruCO Ventas</title>
-    <link rel="stylesheet" href="../css/styles.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MealOps — Punto de Venta & Caja (POS)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../css/styles.css">
 </head>
-
 <body>
 
-<header class="hero">
-    <h1>NibiruCO</h1>
-    <p>Ventas</p>
+  <div id="toast-container"></div>
 
-   
+  <div class="app-layout">
+    <!-- SIDEBAR -->
+    <aside class="app-sidebar">
+      <div class="sidebar-header">
+        <div class="brand-logo-badge">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M18 8h1a4 4 0 0 1 0 8h-1"></path>
+            <path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"></path>
+            <line x1="6" y1="1" x2="6" y2="4"></line>
+            <line x1="10" y1="1" x2="10" y2="4"></line>
+            <line x1="14" y1="1" x2="14" y2="4"></line>
+          </svg>
+        </div>
+        <div>
+          <div class="brand-title">MealOps</div>
+          <div class="brand-subtitle">Cocina & Restaurante</div>
+        </div>
+      </div>
 
-    <div class="header-wave">
-        <svg viewBox="0 0 1440 320" preserveAspectRatio="none">
-            <path fill="#FDBA74"
-                d="M0,160L60,170C120,180,240,200,360,192C480,184,600,148,720,144C840,140,960,168,1080,170C1200,172,1320,148,1380,136L1440,128V0H0Z">
-            </path>
-        </svg>
-    </div>
-</header>
+      <nav class="sidebar-nav">
+        <div class="nav-group-title">Operación en Vivo</div>
+        <a href="home.html" class="nav-link">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9"></rect><rect x="14" y="3" width="7" height="5"></rect><rect x="14" y="12" width="7" height="9"></rect><rect x="3" y="16" width="7" height="5"></rect></svg>
+          Panel Principal
+        </a>
+        <a href="index.html" class="nav-link active">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>
+          Punto de Venta (POS)
+        </a>
+        <a href="kds.html" class="nav-link">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+          Cocina (KDS en Vivo)
+        </a>
+        <a href="tables.html" class="nav-link">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M12 6v6l4 2"></path></svg>
+          Mesas & Comedor
+        </a>
 
-<div class="container">
+        <div class="nav-group-title">Administración</div>
+        <a href="menu.html" class="nav-link">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+          Menú del Día / Semanal
+        </a>
+        <a href="products.html" class="nav-link">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path><line x1="3" y1="6" x2="21" y2="6"></line><path d="M16 10a4 4 0 0 1-8 0"></path></svg>
+          Catálogo de Platillos
+        </a>
+      </nav>
 
-    <!-- TOAST -->
-    <div id="toast-container"></div>
+      <div class="sidebar-footer">
+        <div class="user-profile-widget">
+          <div class="user-avatar-mini" id="user-avatar">A</div>
+          <div class="user-details">
+            <div class="user-details-name" id="user-name">Usuario</div>
+            <div class="user-details-role" id="user-role">Rol: Operador</div>
+          </div>
+          <button class="btn btn-secondary btn-sm" onclick="logout()" title="Cerrar sesión" style="padding: 6px 8px;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+          </button>
+        </div>
+      </div>
+    </aside>
 
-    <h1>Ventas</h1>
+    <!-- ÁREA PRINCIPAL POS -->
+    <main class="app-main">
+      <header class="app-topbar">
+        <div class="topbar-title-area">
+          <h1 class="topbar-title">Terminal de Ventas & Mostrador</h1>
+        </div>
+        <div class="topbar-actions">
+          <div class="system-status-indicator" id="socket-badge">
+            <span class="status-dot"></span>
+            <span>Caja Lista</span>
+          </div>
+        </div>
+      </header>
 
-    <h2>Productos</h2>
-    <div id="products" class="products"></div>
+      <div class="app-content">
+        <div class="pos-layout">
+          <!-- CATÁLOGO DE PLATILLOS DISPONIBLES HOY -->
+          <div class="pos-catalog">
+            <div class="card-header">
+              <div>
+                <div class="card-title">Platillos del Menú de Hoy</div>
+                <div class="card-subtitle">Haz clic para agregar a la orden</div>
+              </div>
+              <input type="text" id="search-input" class="form-control" placeholder="Buscar platillo..." style="max-width: 220px;" oninput="filterProducts()">
+            </div>
 
-    <!-- CARRITO -->
-    <div class="card cart">
-        <h2>Carrito</h2>
-        <div id="cart"></div>
+            <div id="products-grid" class="pos-products-grid">
+              <p style="color: var(--text-muted); font-size: 14px; padding: 20px 0;">Cargando catálogo del día...</p>
+            </div>
+          </div>
 
-        <h3>Total: $<span id="total">0</span></h3>
+          <!-- PANEL TICKET DE VENTA -->
+          <div class="pos-ticket-panel">
+            <div class="card-title" style="display: flex; justify-content: space-between; align-items: center;">
+              <span>Comanda Actual</span>
+              <button class="btn btn-secondary btn-sm" onclick="clearCart()">Limpiar</button>
+            </div>
 
-        <select id="type">
-            <option value="llevar">Llevar</option>
-            <option value="local">Local</option>
-            <option value="domicilio">Domicilio</option>
-        </select>
+            <!-- TIPO DE CONSUMO -->
+            <div class="form-group" style="margin-top: 14px;">
+              <label class="form-label">Tipo de Pedido</label>
+              <select id="order-type" class="form-control">
+                <option value="local">🍽️ Comer en Restaurante (Local)</option>
+                <option value="pickup">🥡 Para Llevar (Pickup)</option>
+                <option value="delivery">🛵 Envío a Domicilio (Delivery)</option>
+              </select>
+            </div>
 
-        <br><br>
+            <!-- MÉTODO DE PAGO -->
+            <div class="form-group">
+              <label class="form-label">Método de Pago</label>
+              <select id="payment-method" class="form-control">
+                <option value="cash">💵 Efectivo</option>
+                <option value="card">💳 Tarjeta Débito / Crédito</option>
+              </select>
+            </div>
 
-        <button class="btn-success" onclick="createOrder()">Crear Pedido</button>
-        <button class="btn-danger" onclick="clearCart()">Vaciar carrito</button>
-    </div>
-     <button onclick="logout()" class="btn-danger">Cerrar sesión</button>
-    <h2>Pedidos</h2>
-    <div id="orders"></div>
+            <!-- LISTADO DE ITEMS -->
+            <div class="form-label">Detalle del Pedido</div>
+            <div id="ticket-items" class="pos-ticket-items">
+              <p style="color: var(--text-muted); font-size: 13px; text-align: center; padding: 30px 0;">No hay platillos seleccionados.</p>
+            </div>
 
-</div>
+            <!-- TOTALIZADOR -->
+            <div class="pos-ticket-total-box">
+              <div class="pos-total-row">
+                <span style="font-weight: 600; color: var(--text-muted);">Total a Cobrar:</span>
+                <span class="pos-total-amount" id="ticket-total">$0.00</span>
+              </div>
+            </div>
 
-<script>
+            <button class="btn btn-primary btn-lg" style="width: 100%; font-weight: 700;" onclick="submitOrder()">
+              <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+              Confirmar y Enviar a Cocina
+            </button>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
 
-let TOKEN = localStorage.getItem("token");
+  <script src="config.js"></script>
+  <script src="https://cdn.socket.io/4.8.3/socket.io.min.js"></script>
+  <script>
+    const API = (window.MEALOPS_CONFIG && window.MEALOPS_CONFIG.API_URL) || "http://localhost:3000";
+    const token = localStorage.getItem("token");
+    const userName = localStorage.getItem("userName") || "Operador POS";
+    const role = localStorage.getItem("role") || "admin";
 
-if (!TOKEN) {
-    window.location.href = "login.html";
-}
+    if (!token) {
+      window.location.href = "login.html";
+    }
 
-function logout() {
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
-    window.location.href = "login.html";
-}
+    document.getElementById("user-name").textContent = userName;
+    document.getElementById("user-role").textContent = `Rol: ${role}`;
+    document.getElementById("user-avatar").textContent = (userName[0] || "U").toUpperCase();
 
-const API = "http://localhost:3000";
+    let allProducts = [];
+    let cart = [];
 
-let cart = {};
-let loading = false;
+    function showToast(msg, type = "info") {
+      const c = document.getElementById("toast-container");
+      const t = document.createElement("div");
+      t.className = `toast ${type}`;
+      t.textContent = msg;
+      c.appendChild(t);
+      setTimeout(() => t.remove(), 3500);
+    }
 
-// TOAST
-function showToast(message, type = "info") {
-    const container = document.getElementById("toast-container");
+    function logout() {
+      localStorage.removeItem("token");
+      localStorage.removeItem("role");
+      localStorage.removeItem("userName");
+      window.location.href = "login.html";
+    }
 
-    const toast = document.createElement("div");
-    toast.className = `toast ${type}`;
-    toast.textContent = message;
+    async function loadProducts() {
+      try {
+        const res = await fetch(`${API}/products`);
+        allProducts = await res.json();
+        renderProducts(allProducts);
+      } catch (err) {
+        document.getElementById("products-grid").innerHTML = `
+          <p style="color: var(--status-danger-text); font-size: 14px;">Error cargando menú del día.</p>
+        `;
+      }
+    }
 
-    container.appendChild(toast);
+    function filterProducts() {
+      const q = document.getElementById("search-input").value.toLowerCase().trim();
+      const filtered = allProducts.filter(p => p.name.toLowerCase().includes(q));
+      renderProducts(filtered);
+    }
 
-    setTimeout(() => toast.remove(), 3000);
-}
+    function renderProducts(products) {
+      const grid = document.getElementById("products-grid");
+      if (!products || products.length === 0) {
+        grid.innerHTML = `<p style="color: var(--text-muted); font-size: 14px; padding: 20px 0; grid-column: 1/-1;">No hay platillos disponibles para hoy.</p>`;
+        return;
+      }
 
+      grid.innerHTML = products.map(p => `
+        <div class="pos-product-item" onclick="addToCart(${p.id})">
+          <div>
+            <div class="pos-product-name">${p.name}</div>
+            <div style="font-size: 12px; color: var(--text-muted);">Comida del Día</div>
+          </div>
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 12px;">
+            <span class="pos-product-price">$${Number(p.price).toFixed(2)}</span>
+            <button class="btn btn-soft-orange btn-sm" style="padding: 4px 8px;">+ Agregar</button>
+          </div>
+        </div>
+      `).join("");
+    }
 
-// CARGAR PRODUCTOS
-async function loadProducts() {
-    try {
-        const res = await fetch("http://localhost:3000/products");
-        const products = await res.json();
+    function addToCart(productId) {
+      const prod = allProducts.find(p => p.id === productId);
+      if (!prod) return;
 
-        console.log("PRODUCTS:", products);
+      const existing = cart.find(i => i.id === productId);
+      if (existing) {
+        existing.quantity += 1;
+      } else {
+        cart.push({
+          id: prod.id,
+          name: prod.name,
+          price: Number(prod.price),
+          quantity: 1
+        });
+      }
+      renderCart();
+      showToast(`Agregado: ${prod.name}`, "info");
+    }
 
-        const container = document.getElementById("products");
-        container.innerHTML = "";
+    function updateQty(id, delta) {
+      const item = cart.find(i => i.id === id);
+      if (!item) return;
+      item.quantity += delta;
+      if (item.quantity <= 0) {
+        cart = cart.filter(i => i.id !== id);
+      }
+      renderCart();
+    }
 
-        products.forEach(p => {
-            const div = document.createElement("div");
-            div.innerHTML = `
-    <div class="card">
-        <h3>${p.name}</h3>
-        <p>$${p.price}</p>
-        <button onclick="addToCart(${p.id}, '${p.name}', ${p.price})">
-            Agregar
-        </button>
-    </div>
-`;
-            container.appendChild(div);
+    function clearCart() {
+      cart = [];
+      renderCart();
+    }
+
+    function renderCart() {
+      const container = document.getElementById("ticket-items");
+      if (cart.length === 0) {
+        container.innerHTML = `<p style="color: var(--text-muted); font-size: 13px; text-align: center; padding: 30px 0;">No hay platillos seleccionados.</p>`;
+        document.getElementById("ticket-total").textContent = "$0.00";
+        return;
+      }
+
+      let total = 0;
+      container.innerHTML = cart.map(i => {
+        const subtotal = i.price * i.quantity;
+        total += subtotal;
+        return `
+          <div class="pos-ticket-row">
+            <div>
+              <div style="font-weight: 700; font-size: 14px;">${i.name}</div>
+              <div style="font-size: 12px; color: var(--text-muted);">$${i.price.toFixed(2)} c/u</div>
+            </div>
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <div class="pos-qty-controls">
+                <button class="pos-qty-btn" onclick="updateQty(${i.id}, -1)">-</button>
+                <span style="font-weight: 700; min-width: 18px; text-align: center;">${i.quantity}</span>
+                <button class="pos-qty-btn" onclick="updateQty(${i.id}, 1)">+</button>
+              </div>
+              <span style="font-weight: 700; font-size: 14px; min-width: 60px; text-align: right;">$${subtotal.toFixed(2)}</span>
+            </div>
+          </div>
+        `;
+      }).join("");
+
+      document.getElementById("ticket-total").textContent = `$${total.toFixed(2)}`;
+    }
+
+    async function submitOrder() {
+      if (cart.length === 0) {
+        showToast("Selecciona al menos un platillo para enviar la comanda", "error");
+        return;
+      }
+
+      const orderType = document.getElementById("order-type").value;
+      const paymentMethod = document.getElementById("payment-method").value;
+
+      const payload = {
+        type: orderType,
+        payment_method: paymentMethod,
+        items: cart.map(i => ({ product_id: i.id, quantity: i.quantity }))
+      };
+
+      try {
+        const res = await fetch(`${API}/orders`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}`
+          },
+          body: JSON.stringify(payload)
         });
 
-    } catch (err) {
-        console.error("ERROR PRODUCTS:", err);
-    }
-}
+        const data = await res.json();
 
-
-// AGREGAR
-function addToCart(id, name, price) {
-    if (!cart[id]) {
-        cart[id] = { id, name, price, quantity: 1 };
-    } else {
-        cart[id].quantity++;
-    }
-
-    showToast(`${name} agregado`, "success");
-    renderCart();
-}
-
-
-// DISMINUIR
-function decrease(id) {
-    if (cart[id]) {
-        cart[id].quantity--;
-        if (cart[id].quantity <= 0) delete cart[id];
-    }
-    renderCart();
-}
-
-
-// AUMENTAR
-function increase(id) {
-    cart[id].quantity++;
-    renderCart();
-}
-
-
-// LIMPIAR
-function clearCart() {
-    cart = {};
-    renderCart();
-}
-
-
-// RENDER CARRITO
-function renderCart() {
-    const container = document.getElementById("cart");
-    const totalEl = document.getElementById("total");
-
-    container.innerHTML = "";
-
-    let total = 0;
-
-    Object.values(cart).forEach(item => {
-        total += item.price * item.quantity;
-
-        const div = document.createElement("div");
-        div.className = "cart-item";
-
-        div.innerHTML = `
-            <div>
-                <strong>${item.name}</strong><br>
-                $${item.price} x ${item.quantity} = $${item.price * item.quantity}
-            </div>
-
-            <div class="qty-controls">
-                <button class="qty-btn" onclick="decrease(${item.id})">-</button>
-                <span>${item.quantity}</span>
-                <button class="qty-btn" onclick="increase(${item.id})">+</button>
-            </div>
-        `;
-
-        container.appendChild(div);
-    });
-
-    totalEl.textContent = total;
-}
-
-
-// CREAR PEDIDO
-async function createOrder() {
-    if (loading) return;
-    loading = true;
-
-    const items = Object.values(cart).map(i => ({
-        product_id: i.id,
-        quantity: i.quantity
-    }));
-
-    if (!items.length) {
-        showToast("Agrega productos al carrito", "error");
-        loading = false;
-        return;
-    }
-
-    const type = document.getElementById("type").value;
-
-    const res = await fetch(`${API}/orders`, {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json",
-            "Authorization": "Bearer " + TOKEN
-        },
-        body: JSON.stringify({ items, type })
-    });
-
-    const data = await res.json();
-
-    if (!res.ok) {
-        showToast(data.message, "error");
-        loading = false;
-        return;
-    }
-
-    cart = {};
-    renderCart();
-    loadOrders();
-
-    showToast("Pedido creado correctamente", "success");
-
-    loading = false;
-}
-
-
-// PEDIDOS
-async function loadOrders() {
-    const res = await fetch(`${API}/orders`, {
-        headers: {
-            "Authorization": "Bearer " + TOKEN
+        if (!res.ok) {
+          showToast(data.message || "Error al registrar pedido", "error");
+          return;
         }
-    });
 
-    const data = await res.json();
+        showToast(`✅ Pedido #${data.id} enviado a cocina con éxito`, "success");
+        clearCart();
+      } catch (err) {
+        showToast("Error de conexión al enviar comanda", "error");
+      }
+    }
 
-    const container = document.getElementById("orders");
-    container.innerHTML = "";
-
-    data.forEach(o => {
-        const div = document.createElement("div");
-        div.className = "card";
-
-        div.innerHTML = `
-            <strong>Pedido #${o.id}</strong><br>
-            Tipo: ${o.type}<br>
-            Total: $${o.total}<br>
-            <span class="badge">${o.status}</span>
-        `;
-
-        container.appendChild(div);
-    });
-}
-
-
-// INIT
-loadProducts();
-loadOrders();
-
-</script>
-
+    loadProducts();
+  </script>
 </body>
 </html>

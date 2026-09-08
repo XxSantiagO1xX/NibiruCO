@@ -1,105 +1,100 @@
 const path = require("path");
+const http = require("http");
+const express = require("express");
+const cors = require("cors");
+const { Server } = require("socket.io");
 
 /* CARGAR VARIABLES DE ENTORNO */
 require("dotenv").config({
   path: path.resolve(__dirname, "../.env")
 });
 
-console.log("JWT_SECRET:", process.env.JWT_SECRET);
-
-const express = require("express");
-const cors = require("cors");
-const http = require("http");
-const { Server } = require("socket.io");
-
-/* APP */
+/* INICIALIZAR APP */
 const app = express();
 
-/* DB */
+/* INICIALIZAR BASE DE DATOS */
 require("./db");
 
-/* MIDDLEWARES */
+/* MIDDLEWARES GLOBALES */
 app.use(cors({
   origin: "*",
-  methods: ["GET", "POST", "PATCH", "DELETE"],
+  methods: ["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"]
 }));
 
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
-/* RUTAS */
+/* SERVER HTTP Y SOCKET.IO */
+const server = http.createServer(app);
+
+const io = new Server(server, {
+  cors: {
+    origin: "*",
+    methods: ["GET", "POST", "PATCH", "PUT", "DELETE"]
+  }
+});
+
+/* HACER SOCKET.IO ACCESIBLE EN CONTROLADORES Y RUTAS */
+app.set("io", io);
+
+/* EVENTOS WEBSOCKET */
+io.on("connection", (socket) => {
+  console.log(`🔌 Cliente WebSocket conectado: ${socket.id}`);
+
+  socket.on("disconnect", () => {
+    console.log(`🔌 Cliente WebSocket desconectado: ${socket.id}`);
+  });
+});
+
+/* IMPORTACIÓN DE RUTAS */
 const authRoutes = require("./middleware/auth.routes");
 const productRoutes = require("./routes/products.routes");
 const orderRoutes = require("./routes/orders.routes");
 const menuRoutes = require("./routes/menu.routes");
 const usersRoutes = require("./routes/users.routes");
 
-/* VALIDACIÓN CRÍTICA (NO BORRAR) */
-if (!authRoutes || typeof authRoutes !== "function") {
-  throw new Error("authRoutes NO es válido");
-}
-if (!productRoutes || typeof productRoutes !== "function") {
-  throw new Error("productRoutes NO es válido");
-}
-if (!orderRoutes || typeof orderRoutes !== "function") {
-  throw new Error("orderRoutes NO es válido");
-}
-if (!menuRoutes || typeof menuRoutes !== "function") {
-  throw new Error("menuRoutes NO es válido");
-}
-if (!usersRoutes || typeof usersRoutes !== "function") {
-  throw new Error("usersRoutes NO es válido");
-}
-
-/* USO */
+/* MONTAJE DE RUTAS (ÚNICO Y CENTRALIZADO) */
 app.use("/auth", authRoutes);
 app.use("/products", productRoutes);
 app.use("/orders", orderRoutes);
 app.use("/menu", menuRoutes);
 app.use("/users", usersRoutes);
 
-app.use("/auth", authRoutes);
-app.use("/products", productRoutes);
-app.use("/orders", orderRoutes);
-app.use("/menu", menuRoutes);
-app.use("/users", usersRoutes);
-
-/* RUTAS BASE */
+/* RUTAS BASE / HEALTHCHECK */
 app.get("/", (req, res) => {
-  res.send("MealOps API funcionando");
-});
-
-app.get("/test", (req, res) => {
-  res.send("test ok");
-});
-
-/* SERVER HTTP */
-const server = http.createServer(app);
-
-/* SOCKET.IO */
-const io = new Server(server, {
-  cors: {
-    origin: "*",
-    methods: ["GET", "POST"]
-  }
-});
-
-/* DISPONIBLE EN TODAS LAS RUTAS */
-app.set("io", io);
-
-/* EVENTOS SOCKET */
-io.on("connection", (socket) => {
-  console.log("Cliente conectado:", socket.id);
-
-  socket.on("disconnect", () => {
-    console.log("Cliente desconectado:", socket.id);
+  res.json({
+    status: "ok",
+    app: "MealOps / NibiruCO API",
+    version: "1.0.0",
+    timestamp: new Date().toISOString()
   });
 });
 
-/* PUERTO */
+app.get("/health", (req, res) => {
+  res.json({ status: "healthy", uptime: process.uptime() });
+});
+
+/* MANEJO DE RUTAS NO ENCONTRADAS (404) */
+app.use((req, res) => {
+  res.status(404).json({
+    message: `Ruta no encontrada: ${req.method} ${req.originalUrl}`
+  });
+});
+
+/* MANEJO GLOBAL DE ERRORES (500) */
+app.use((err, req, res, next) => {
+  console.error("🔥 Error no controlado:", err);
+  res.status(500).json({
+    message: "Error interno del servidor",
+    error: process.env.NODE_ENV === "development" ? err.message : undefined
+  });
+});
+
+/* PUERTO DE ESCUCHA */
 const PORT = process.env.PORT || 3000;
 
-/* START */
+/* INICIO DEL SERVIDOR */
 server.listen(PORT, () => {
-  console.log(`Servidor corriendo en http://localhost:${PORT}`);
+  console.log(`🚀 Servidor MealOps backend ejecutándose en http://localhost:${PORT}`);
 });

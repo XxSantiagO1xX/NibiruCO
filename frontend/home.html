@@ -1,81 +1,338 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="UTF-8">
-<title>MealOps Panel</title>
-<link rel="stylesheet" href="../css/styles.css">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MealOps — Panel Operativo Gastronómico</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../css/styles.css">
 </head>
-
 <body>
 
+  <div id="toast-container"></div>
 
-<header class="hero">
+  <div class="app-layout">
+    <!-- SIDEBAR DE NAVEGACIÓN -->
+    <aside class="app-sidebar">
+      <div class="sidebar-header">
+        <div class="brand-logo-badge">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M18 8h1a4 4 0 0 1 0 8h-1"></path>
+            <path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"></path>
+            <line x1="6" y1="1" x2="6" y2="4"></line>
+            <line x1="10" y1="1" x2="10" y2="4"></line>
+            <line x1="14" y1="1" x2="14" y2="4"></line>
+          </svg>
+        </div>
+        <div>
+          <div class="brand-title">MealOps</div>
+          <div class="brand-subtitle">Cocina & Restaurante</div>
+        </div>
+      </div>
 
-    <h1>MealOps</h1>
-    <p>Panel principal</p>
+      <nav class="sidebar-nav">
+        <div class="nav-group-title">Operación en Vivo</div>
+        <a href="home.html" class="nav-link active">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9"></rect><rect x="14" y="3" width="7" height="5"></rect><rect x="14" y="12" width="7" height="9"></rect><rect x="3" y="16" width="7" height="5"></rect></svg>
+          Panel Principal
+        </a>
+        <a href="index.html" class="nav-link">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>
+          Punto de Venta (POS)
+        </a>
+        <a href="kds.html" class="nav-link">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+          Cocina (KDS en Vivo)
+        </a>
+        <a href="tables.html" class="nav-link">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M12 6v6l4 2"></path></svg>
+          Mesas & Comedor
+        </a>
 
-    <div class="header-wave">
-        <svg viewBox="0 0 1440 320" preserveAspectRatio="none">
-            <path fill="#FDBA74"
-            d="M0,160L60,170C120,180,240,200,360,192C480,184,600,148,720,144C840,140,960,168,1080,170C1200,172,1320,148,1380,136L1440,128V0H0Z">
-            </path>
-        </svg>
-    </div>
+        <div class="nav-group-title">Administración</div>
+        <a href="menu.html" class="nav-link">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+          Menú del Día / Semanal
+        </a>
+        <a href="products.html" class="nav-link">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path><line x1="3" y1="6" x2="21" y2="6"></line><path d="M16 10a4 4 0 0 1-8 0"></path></svg>
+          Catálogo de Platillos
+        </a>
+      </nav>
 
-</header>
+      <div class="sidebar-footer">
+        <div class="user-profile-widget">
+          <div class="user-avatar-mini" id="user-avatar">A</div>
+          <div class="user-details">
+            <div class="user-details-name" id="user-name">Usuario</div>
+            <div class="user-details-role" id="user-role">Rol: Operador</div>
+          </div>
+          <button class="btn btn-secondary btn-sm" onclick="logout()" title="Cerrar sesión" style="padding: 6px 8px;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+          </button>
+        </div>
+      </div>
+    </aside>
 
-<div class="container">
+    <!-- ÁREA PRINCIPAL -->
+    <main class="app-main">
+      <header class="app-topbar">
+        <div class="topbar-title-area">
+          <h1 class="topbar-title">Panel de Control Operativo</h1>
+        </div>
+        <div class="topbar-actions">
+          <div class="system-status-indicator" id="socket-badge">
+            <span class="status-dot"></span>
+            <span>Sistema Conectado</span>
+          </div>
+          <span id="live-clock" style="font-size: 13px; font-weight: 600; color: var(--text-muted);"></span>
+        </div>
+      </header>
 
+      <div class="app-content">
+        <!-- MÉTRICAS / KPIS -->
+        <div class="kpi-grid">
+          <div class="kpi-card">
+            <div>
+              <div class="kpi-label">Pedidos Activos en Cocina</div>
+              <div class="kpi-value" id="kpi-active-orders">0</div>
+            </div>
+            <div class="kpi-icon-box orange">
+              <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+            </div>
+          </div>
 
+          <div class="kpi-card">
+            <div>
+              <div class="kpi-label">Ventas Registradas Hoy</div>
+              <div class="kpi-value" id="kpi-total-orders">0</div>
+            </div>
+            <div class="kpi-icon-box green">
+              <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
+            </div>
+          </div>
 
-<div class="grid">
+          <div class="kpi-card">
+            <div>
+              <div class="kpi-label">Platillos en Menú de Hoy</div>
+              <div class="kpi-value" id="kpi-menu-items">0</div>
+            </div>
+            <div class="kpi-icon-box blue">
+              <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+            </div>
+          </div>
 
-  <div class="card card-menu" onclick="go('index.html')">
-    <div class="title">🧾 Ventas</div>
-    <div class="desc">Registrar pedidos</div>
+          <div class="kpi-card">
+            <div>
+              <div class="kpi-label">Mesas Disponibles</div>
+              <div class="kpi-value" id="kpi-free-tables">8 / 10</div>
+            </div>
+            <div class="kpi-icon-box purple">
+              <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M12 6v6l4 2"></path></svg>
+            </div>
+          </div>
+        </div>
+
+        <!-- ACCESOS DIRECTOS OPERATIVOS -->
+        <h2 style="font-size: 16px; font-weight: 700; margin-bottom: 16px; color: var(--text-main);">Accesos Rápidos a Módulos</h2>
+        <div class="action-grid">
+          <a href="index.html" class="action-card">
+            <div class="action-card-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>
+            </div>
+            <div class="action-card-title">Punto de Venta / Caja</div>
+            <div class="action-card-desc">Registrar comandas para consumo local, recoger o entrega a domicilio.</div>
+            <div class="action-card-link">Abrir Terminal POS &rarr;</div>
+          </a>
+
+          <a href="kds.html" class="action-card">
+            <div class="action-card-icon" style="background: #fff7ed; color: #ea580c;">
+              <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+            </div>
+            <div class="action-card-title">Pantalla de Cocina (KDS)</div>
+            <div class="action-card-desc">Visualizar pedidos en preparación y avanzar estados en tiempo real.</div>
+            <div class="action-card-link">Abrir KDS Cocina &rarr;</div>
+          </a>
+
+          <a href="tables.html" class="action-card">
+            <div class="action-card-icon" style="background: #faf5ff; color: #9333ea;">
+              <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M12 6v6l4 2"></path></svg>
+            </div>
+            <div class="action-card-title">Mesas y Comedor</div>
+            <div class="action-card-desc">Asignar mesas, comandas y control de comensales en piso.</div>
+            <div class="action-card-link">Ver Mesas &rarr;</div>
+          </a>
+
+          <a href="menu.html" class="action-card">
+            <div class="action-card-icon" style="background: #f0f9ff; color: #0284c7;">
+              <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+            </div>
+            <div class="action-card-title">Menú del Día y Corrida</div>
+            <div class="action-card-desc">Configurar platillos disponibles para hoy y programación semanal.</div>
+            <div class="action-card-link">Configurar Menú &rarr;</div>
+          </a>
+        </div>
+
+        <!-- TABLA DE ACTIVIDAD RECIENTE -->
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <div class="card-title">Últimas Comandas Registradas</div>
+              <div class="card-subtitle">Actualización en tiempo real vía WebSockets</div>
+            </div>
+            <a href="kds.html" class="btn btn-secondary btn-sm">Ver Todo en Cocina</a>
+          </div>
+
+          <div id="recent-orders-container" style="overflow-x: auto;">
+            <p style="color: var(--text-muted); font-size: 14px; padding: 20px 0;">Cargando pedidos...</p>
+          </div>
+        </div>
+      </div>
+    </main>
   </div>
 
-  <div class="card card-menu" onclick="go('kds.html')">
-    <div class="title">🍳 Cocina</div>
-    <div class="desc">Pantalla de pedidos</div>
-  </div>
+  <script src="config.js"></script>
+  <script src="https://cdn.socket.io/4.8.3/socket.io.min.js"></script>
+  <script>
+    const API = (window.MEALOPS_CONFIG && window.MEALOPS_CONFIG.API_URL) || "http://localhost:3000";
+    const token = localStorage.getItem("token");
+    const role = localStorage.getItem("role") || "admin";
+    const userName = localStorage.getItem("userName") || "Operador Demo";
 
-  <div class="card card-menu" onclick="go('menu.html')">
-    <div class="title">📅 Menú</div>
-    <div class="desc">Configurar menú diario</div>
-  </div>
+    // Verificar Autenticación
+    if (!token) {
+      window.location.href = "login.html";
+    }
 
-  <div class="card card-menu" onclick="go('products.html')">
-    <div class="title">📦 Productos</div>
-    <div class="desc">Gestionar platillos</div>
-  </div>
+    // Inicializar Datos del Usuario
+    document.getElementById("user-name").textContent = userName;
+    document.getElementById("user-role").textContent = `Rol: ${role}`;
+    document.getElementById("user-avatar").textContent = (userName[0] || "U").toUpperCase();
 
-</div>
+    // Reloj en Vivo
+    function updateClock() {
+      const now = new Date();
+      document.getElementById("live-clock").textContent = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    }
+    setInterval(updateClock, 1000);
+    updateClock();
 
-</div>
+    function showToast(msg, type = "info") {
+      const c = document.getElementById("toast-container");
+      const t = document.createElement("div");
+      t.className = `toast ${type}`;
+      t.textContent = msg;
+      c.appendChild(t);
+      setTimeout(() => t.remove(), 3500);
+    }
 
-<script>
-function showToast(message, type = "info") {
-    const container = document.getElementById("toast-container");
+    function logout() {
+      localStorage.removeItem("token");
+      localStorage.removeItem("role");
+      localStorage.removeItem("userName");
+      window.location.href = "login.html";
+    }
 
-    const toast = document.createElement("div");
-    toast.className = `toast ${type}`;
-    toast.textContent = message;
+    // Cargar Estadísticas y Pedidos
+    async function loadDashboardData() {
+      try {
+        const res = await fetch(`${API}/orders/admin/all`, {
+          headers: { "Authorization": `Bearer ${token}` }
+        });
+        if (res.status === 401 || res.status === 403) {
+          // Si es rol cliente, cargar sus órdenes
+          const resUser = await fetch(`${API}/orders`, { headers: { "Authorization": `Bearer ${token}` } });
+          const orders = await resUser.json();
+          renderDashboardOrders(orders || []);
+          return;
+        }
+        const orders = await res.json();
+        renderDashboardOrders(orders || []);
+      } catch (e) {
+        console.error("Error loading dashboard data:", e);
+      }
 
-    container.appendChild(toast);
+      // Cargar Menú del día para métricas
+      try {
+        const days = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
+        const today = days[new Date().getDay()];
+        const resMenu = await fetch(`${API}/menu/${today}`);
+        const menuData = await resMenu.json();
+        if (menuData && menuData.products) {
+          document.getElementById("kpi-menu-items").textContent = menuData.products.length;
+        }
+      } catch (e) {}
+    }
 
-    setTimeout(() => {
-        toast.remove();
-    }, 3000);
-}
+    function renderDashboardOrders(orders) {
+      const active = orders.filter(o => o.status !== "entregado" && o.status !== "cancelado");
+      document.getElementById("kpi-active-orders").textContent = active.length;
+      document.getElementById("kpi-total-orders").textContent = orders.length;
 
-function go(page) {
-  window.location.href = page;
-}
-</script>
+      const container = document.getElementById("recent-orders-container");
+      if (orders.length === 0) {
+        container.innerHTML = `<p style="color: var(--text-muted); font-size: 14px; padding: 16px 0;">No hay pedidos registrados en el sistema.</p>`;
+        return;
+      }
 
-<div id="toast-container"></div>
+      const recent = orders.slice(0, 6);
+      let html = `
+        <table style="width: 100%; border-collapse: collapse; font-size: 14px; text-align: left;">
+          <thead>
+            <tr style="border-bottom: 2px solid var(--border-light); color: var(--text-muted);">
+              <th style="padding: 10px 8px;"># ID</th>
+              <th style="padding: 10px 8px;">Cliente / Origen</th>
+              <th style="padding: 10px 8px;">Tipo</th>
+              <th style="padding: 10px 8px;">Estado</th>
+              <th style="padding: 10px 8px;">Total</th>
+            </tr>
+          </thead>
+          <tbody>
+      `;
 
+      recent.forEach(o => {
+        let badgeClass = "badge-pendiente";
+        if (o.status === "preparando" || o.status === "aceptado") badgeClass = "badge-preparando";
+        if (o.status === "listo") badgeClass = "badge-listo";
+        if (o.status === "entregado") badgeClass = "badge-entregado";
+        if (o.status === "cancelado") badgeClass = "badge-cancelado";
+
+        html += `
+          <tr style="border-bottom: 1px solid var(--border-light);">
+            <td style="padding: 12px 8px; font-weight: 700;">#${o.id}</td>
+            <td style="padding: 12px 8px;">${o.user_name || o.user_phone || "Comensal"}</td>
+            <td style="padding: 12px 8px; text-transform: capitalize;">${o.type}</td>
+            <td style="padding: 12px 8px;"><span class="status-badge ${badgeClass}">${o.status}</span></td>
+            <td style="padding: 12px 8px; font-weight: 700; color: var(--primary);">$${Number(o.total).toFixed(2)}</td>
+          </tr>
+        `;
+      });
+
+      html += `</tbody></table>`;
+      container.innerHTML = html;
+    }
+
+    // Socket.IO en Tiempo Real
+    try {
+      const socket = io(API);
+      socket.on("connect", () => {
+        document.getElementById("socket-badge").classList.remove("offline");
+      });
+      socket.on("disconnect", () => {
+        document.getElementById("socket-badge").classList.add("offline");
+      });
+      socket.on("new-order", (order) => {
+        showToast(`🔔 Nuevo pedido #${order.id} recibido`, "info");
+        loadDashboardData();
+      });
+      socket.on("order-updated", () => {
+        loadDashboardData();
+      });
+    } catch(e) {}
+
+    loadDashboardData();
+  </script>
 </body>
 </html>

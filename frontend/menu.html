@@ -1,135 +1,279 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="UTF-8">
-<title>Menú por día</title>
-<link rel="stylesheet" href="../css/styles.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MealOps — Menú Semanal & Comida Corrida</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../css/styles.css">
 </head>
-
 <body>
-<header class="hero">
 
-    <h1>MealOps</h1>
-    <p>Configurar Menú</p>
+  <div id="toast-container"></div>
 
-    <div class="header-wave">
-        <svg viewBox="0 0 1440 320" preserveAspectRatio="none">
-            <path fill="#FDBA74"
-            d="M0,160L60,170C120,180,240,200,360,192C480,184,600,148,720,144C840,140,960,168,1080,170C1200,172,1320,148,1380,136L1440,128V0H0Z">
-            </path>
-        </svg>
-    </div>
-
-</header>
-<div class="container">
-
-<select id="daySelect">
-  <option>Lunes</option>
-  <option>Martes</option>
-  <option>Miércoles</option>
-  <option>Jueves</option>
-  <option>Viernes</option>
-  <option>Sábado</option>
-  <option>Domingo</option>
-</select>
-
-<div id="products" style="margin-top:20px;"></div>
-
-<br>
-
-<button class="btn-primary" onclick="saveMenu()">Guardar este día</button>
-
-</div>
-
-<script>
-function showToast(message, type = "info") {
-    const container = document.getElementById("toast-container");
-
-    const toast = document.createElement("div");
-    toast.className = `toast ${type}`;
-    toast.textContent = message;
-
-    container.appendChild(toast);
-
-    setTimeout(() => {
-        toast.remove();
-    }, 3000);
-}
-
-const API = "http://localhost:3000";
-
-const selected = new Set();
-
-// 🔥 Mapear días
-const dayMap = {
-  "Lunes": "monday",
-  "Martes": "tuesday",
-  "Miércoles": "wednesday",
-  "Jueves": "thursday",
-  "Viernes": "friday",
-  "Sábado": "saturday",
-  "Domingo": "sunday"
-};
-
-// 🔥 CARGAR PRODUCTOS
-async function loadProducts() {
-  const res = await fetch(`${API}/products/all`);
-  const data = await res.json();
-
-  const container = document.getElementById("products");
-  container.innerHTML = "";
-
-  data.forEach(p => {
-    const div = document.createElement("div");
-    div.className = "card product";
-
-    div.innerHTML = `
-      <div>
-        <strong>${p.name}</strong><br>
-        <span class="badge">$${p.price}</span>
+  <div class="app-layout">
+    <!-- SIDEBAR -->
+    <aside class="app-sidebar">
+      <div class="sidebar-header">
+        <div class="brand-logo-badge">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M18 8h1a4 4 0 0 1 0 8h-1"></path>
+            <path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"></path>
+            <line x1="6" y1="1" x2="6" y2="4"></line>
+            <line x1="10" y1="1" x2="10" y2="4"></line>
+            <line x1="14" y1="1" x2="14" y2="4"></line>
+          </svg>
+        </div>
+        <div>
+          <div class="brand-title">MealOps</div>
+          <div class="brand-subtitle">Cocina & Restaurante</div>
+        </div>
       </div>
 
-      <input type="checkbox" onchange="toggle(${p.id})">
-    `;
+      <nav class="sidebar-nav">
+        <div class="nav-group-title">Operación en Vivo</div>
+        <a href="home.html" class="nav-link">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9"></rect><rect x="14" y="3" width="7" height="5"></rect><rect x="14" y="12" width="7" height="9"></rect><rect x="3" y="16" width="7" height="5"></rect></svg>
+          Panel Principal
+        </a>
+        <a href="index.html" class="nav-link">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>
+          Punto de Venta (POS)
+        </a>
+        <a href="kds.html" class="nav-link">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+          Cocina (KDS en Vivo)
+        </a>
+        <a href="tables.html" class="nav-link">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M12 6v6l4 2"></path></svg>
+          Mesas & Comedor
+        </a>
 
-    container.appendChild(div);
-  });
-}
+        <div class="nav-group-title">Administración</div>
+        <a href="menu.html" class="nav-link active">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+          Menú del Día / Semanal
+        </a>
+        <a href="products.html" class="nav-link">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path><line x1="3" y1="6" x2="21" y2="6"></line><path d="M16 10a4 4 0 0 1-8 0"></path></svg>
+          Catálogo de Platillos
+        </a>
+      </nav>
 
-// 🔁 TOGGLE
-function toggle(id) {
-  if (selected.has(id)) selected.delete(id);
-  else selected.add(id);
-}
+      <div class="sidebar-footer">
+        <div class="user-profile-widget">
+          <div class="user-avatar-mini" id="user-avatar">A</div>
+          <div class="user-details">
+            <div class="user-details-name" id="user-name">Administrador</div>
+            <div class="user-details-role" id="user-role">Rol: Admin</div>
+          </div>
+          <button class="btn btn-secondary btn-sm" onclick="logout()" title="Cerrar sesión" style="padding: 6px 8px;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+          </button>
+        </div>
+      </div>
+    </aside>
 
-// 💾 GUARDAR
-async function saveMenu() {
-  const select = document.getElementById("daySelect");
-  const daySpanish = select.value;
-  const day = dayMap[daySpanish];
+    <!-- ÁREA PRINCIPAL MENÚ -->
+    <main class="app-main">
+      <header class="app-topbar">
+        <div class="topbar-title-area">
+          <h1 class="topbar-title">Configuración del Menú Semanal</h1>
+        </div>
+        <div class="topbar-actions">
+          <button class="btn btn-primary btn-sm" onclick="saveMenu()">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
+            Guardar Menú del Día
+          </button>
+        </div>
+      </header>
 
-  if (!day) {
-    showToast("Día inválido", "error");
-    return;
-  }
+      <div class="app-content">
+        <!-- SELECTOR DE DÍAS EN PASTILLAS -->
+        <div style="display: flex; gap: 8px; overflow-x: auto; padding-bottom: 12px; margin-bottom: 20px;">
+          <button class="btn btn-primary btn-sm" id="btn-monday" onclick="selectDay('monday')">Lunes</button>
+          <button class="btn btn-secondary btn-sm" id="btn-tuesday" onclick="selectDay('tuesday')">Martes</button>
+          <button class="btn btn-secondary btn-sm" id="btn-wednesday" onclick="selectDay('wednesday')">Miércoles</button>
+          <button class="btn btn-secondary btn-sm" id="btn-thursday" onclick="selectDay('thursday')">Jueves</button>
+          <button class="btn btn-secondary btn-sm" id="btn-friday" onclick="selectDay('friday')">Viernes</button>
+          <button class="btn btn-secondary btn-sm" id="btn-saturday" onclick="selectDay('saturday')">Sábado</button>
+          <button class="btn btn-secondary btn-sm" id="btn-sunday" onclick="selectDay('sunday')">Domingo</button>
+        </div>
 
-  await fetch(`${API}/menu/day`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
-      day,
-      products: Array.from(selected)
-    })
-  });
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <div class="card-title" id="day-title">Platillos para el Lunes</div>
+              <div class="card-subtitle">Marca los platillos que estarán disponibles en cocina este día</div>
+            </div>
+            <span class="status-badge badge-aceptado" id="selected-count-badge">0 seleccionados</span>
+          </div>
 
- showToast("Menú guardado", "success");
-}
+          <!-- LISTA DE PRODUCTOS CON CHECKBOX -->
+          <div id="menu-products-list" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px;">
+            <p style="color: var(--text-muted); font-size: 14px; padding: 20px 0;">Cargando catálogo...</p>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
 
-// INIT
-loadProducts();
-</script>
-<div id="toast-container"></div>
+  <script src="config.js"></script>
+  <script>
+    const API = (window.MEALOPS_CONFIG && window.MEALOPS_CONFIG.API_URL) || "http://localhost:3000";
+    const token = localStorage.getItem("token");
+    const role = localStorage.getItem("role") || "admin";
+    const userName = localStorage.getItem("userName") || "Administrador";
+
+    if (!token) {
+      window.location.href = "login.html";
+    }
+
+    document.getElementById("user-name").textContent = userName;
+    document.getElementById("user-role").textContent = `Rol: ${role}`;
+    document.getElementById("user-avatar").textContent = (userName[0] || "A").toUpperCase();
+
+    const DAY_NAMES = {
+      monday: "Lunes",
+      tuesday: "Martes",
+      wednesday: "Miércoles",
+      thursday: "Jueves",
+      friday: "Viernes",
+      saturday: "Sábado",
+      sunday: "Domingo"
+    };
+
+    let currentDay = "monday";
+    let allProducts = [];
+    let selectedProductIds = new Set();
+
+    function showToast(msg, type = "info") {
+      const c = document.getElementById("toast-container");
+      const t = document.createElement("div");
+      t.className = `toast ${type}`;
+      t.textContent = msg;
+      c.appendChild(t);
+      setTimeout(() => t.remove(), 3500);
+    }
+
+    function logout() {
+      localStorage.removeItem("token");
+      localStorage.removeItem("role");
+      localStorage.removeItem("userName");
+      window.location.href = "login.html";
+    }
+
+    async function init() {
+      // Determinar día actual
+      const days = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
+      const today = days[new Date().getDay()];
+      currentDay = today;
+
+      // Cargar productos
+      try {
+        const res = await fetch(`${API}/products`);
+        allProducts = await res.json();
+      } catch (err) {
+        showToast("Error al cargar productos del catálogo", "error");
+      }
+
+      selectDay(currentDay);
+    }
+
+    async function selectDay(day) {
+      currentDay = day;
+
+      // Actualizar botones de días
+      Object.keys(DAY_NAMES).forEach(d => {
+        const btn = document.getElementById(`btn-${d}`);
+        if (btn) {
+          if (d === day) {
+            btn.className = "btn btn-primary btn-sm";
+          } else {
+            btn.className = "btn btn-secondary btn-sm";
+          }
+        }
+      });
+
+      document.getElementById("day-title").textContent = `Platillos para el ${DAY_NAMES[day]}`;
+
+      // Cargar configuración de menú de ese día
+      try {
+        const res = await fetch(`${API}/menu/${day}`);
+        const data = await res.json();
+        const activeIds = data.products || [];
+        selectedProductIds = new Set(activeIds.map(Number));
+        renderChecklist();
+      } catch (err) {
+        selectedProductIds = new Set();
+        renderChecklist();
+      }
+    }
+
+    function renderChecklist() {
+      const container = document.getElementById("menu-products-list");
+      if (allProducts.length === 0) {
+        container.innerHTML = `<p style="color: var(--text-muted); font-size: 14px; padding: 20px 0;">No hay platillos en el catálogo.</p>`;
+        return;
+      }
+
+      document.getElementById("selected-count-badge").textContent = `${selectedProductIds.size} seleccionados`;
+
+      container.innerHTML = allProducts.map(p => {
+        const isChecked = selectedProductIds.has(Number(p.id));
+        return `
+          <label style="display: flex; align-items: center; justify-content: space-between; padding: 14px; border: 1px solid ${isChecked ? 'var(--primary)' : 'var(--border-light)'}; border-radius: var(--radius-md); background: ${isChecked ? 'var(--primary-light)' : 'var(--bg-surface)'}; cursor: pointer; transition: var(--transition);">
+            <div style="display: flex; align-items: center; gap: 12px;">
+              <input type="checkbox" value="${p.id}" ${isChecked ? 'checked' : ''} onchange="toggleProduct(${p.id}, this.checked)">
+              <div>
+                <div style="font-weight: 700; font-size: 14px; color: var(--text-main);">${p.name}</div>
+                <div style="font-size: 13px; font-weight: 700; color: var(--primary);">$${Number(p.price).toFixed(2)}</div>
+              </div>
+            </div>
+            <span class="status-badge ${p.available ? 'badge-entregado' : 'badge-cancelado'}">${p.available ? 'Activo' : 'Agotado'}</span>
+          </label>
+        `;
+      }).join("");
+    }
+
+    function toggleProduct(id, checked) {
+      if (checked) {
+        selectedProductIds.add(Number(id));
+      } else {
+        selectedProductIds.delete(Number(id));
+      }
+      renderChecklist();
+    }
+
+    async function saveMenu() {
+      try {
+        const res = await fetch(`${API}/menu/day`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            day: currentDay,
+            products: Array.from(selectedProductIds)
+          })
+        });
+
+        const data = await res.json();
+        if (!res.ok) {
+          showToast(data.message || "Error al guardar menú", "error");
+          return;
+        }
+
+        showToast(`✅ Menú de ${DAY_NAMES[currentDay]} guardado correctamente en PostgreSQL`, "success");
+      } catch (err) {
+        showToast("Error de conexión al guardar menú", "error");
+      }
+    }
+
+    init();
+  </script>
 </body>
 </html>

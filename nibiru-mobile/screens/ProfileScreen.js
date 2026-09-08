@@ -2,216 +2,180 @@ import {
   View,
   Text,
   TouchableOpacity,
-  StyleSheet
+  StyleSheet,
+  Alert
 } from "react-native";
-
-import {
-  SafeAreaView
-} from "react-native-safe-area-context";
-
+import { useEffect, useState } from "react";
+import { SafeAreaView } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-
-import {
-  Ionicons
-} from "@expo/vector-icons";
-
+import { Ionicons } from "@expo/vector-icons";
 import colors from "../theme/colors";
 
-export default function ProfileScreen({
-  navigation
-}) {
+export default function ProfileScreen({ navigation }) {
+  const [user, setUser] = useState({ name: "Usuario", phone: "", role: "cliente" });
+
+  useEffect(() => {
+    loadUser();
+  }, []);
+
+  const loadUser = async () => {
+    try {
+      const userStr = await AsyncStorage.getItem("user");
+      if (userStr) {
+        setUser(JSON.parse(userStr));
+      }
+    } catch (e) {
+      console.log("Error loading user profile:", e);
+    }
+  };
 
   const logout = async () => {
-
-    await AsyncStorage.removeItem(
-      "token"
+    Alert.alert(
+      "Cerrar sesión",
+      "¿Deseas salir de tu cuenta?",
+      [
+        { text: "Cancelar", style: "cancel" },
+        {
+          text: "Salir",
+          style: "destructive",
+          onPress: async () => {
+            await AsyncStorage.multiRemove(["token", "role", "user"]);
+            navigation.replace("Login");
+          }
+        }
+      ]
     );
-
-    navigation.replace("Login");
   };
 
   return (
-
     <SafeAreaView style={styles.container}>
-
-      {/* HEADER */}
-
+      {/* HEADER DE USUARIO */}
       <View style={styles.header}>
-
         <View style={styles.avatar}>
-
-          <Ionicons
-            name="person-outline"
-            size={40}
-            color={colors.primary}
-          />
-
+          <Ionicons name="person" size={38} color={colors.primary} />
         </View>
 
-        <View>
-
-          <Text style={styles.name}>
-            Ariel Santiago
-          </Text>
-
-          <Text style={styles.subtitle}>
-            Bienvenido
-          </Text>
-
+        <View style={styles.userInfo}>
+          <Text style={styles.name}>{user.name || "Comensal"}</Text>
+          <Text style={styles.subtitle}>Tel: {user.phone || "Sin teléfono"}</Text>
+          <View style={styles.roleBadge}>
+            <Text style={styles.roleText}>Rol: {user.role || "cliente"}</Text>
+          </View>
         </View>
-
       </View>
 
-      {/* TARJETA */}
-
-      <View style={styles.card}>
-
-        <Text style={styles.cardTitle}>
-          Acerca de
-        </Text>
-
-        <Text style={styles.cardText}>
-          NibiruCO es una plataforma para
-          pedidos inteligentes de comida
-          local y para llevar.
-        </Text>
-
-      </View>
-
-      {/* OPCIONES */}
-
+      {/* OPCIONES DEL MENÚ */}
       <View style={styles.menu}>
-
-        <TouchableOpacity style={styles.menuItem}>
-
-          <Ionicons
-            name="settings-outline"
-            size={24}
-            color={colors.text}
-          />
-
-          <Text style={styles.menuText}>
-            Configuración
-          </Text>
-
+        <TouchableOpacity
+          style={styles.menuItem}
+          onPress={() => navigation.navigate("Addresses")}
+        >
+          <Ionicons name="location-outline" size={24} color={colors.text} />
+          <Text style={styles.menuText}>Mis Direcciones de Entrega</Text>
+          <Ionicons name="chevron-forward" size={20} color="#9ca3af" style={{ marginLeft: "auto" }} />
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.menuItem}>
-
-          <Ionicons
-            name="help-circle-outline"
-            size={24}
-            color={colors.text}
-          />
-
-          <Text style={styles.menuText}>
-            Ayuda
-          </Text>
-
+        <TouchableOpacity
+          style={styles.menuItem}
+          onPress={() => Alert.alert("MealOps", "Versión 1.0.0 - Plataforma gastronómica")}
+        >
+          <Ionicons name="information-circle-outline" size={24} color={colors.text} />
+          <Text style={styles.menuText}>Acerca de MealOps</Text>
+          <Ionicons name="chevron-forward" size={20} color="#9ca3af" style={{ marginLeft: "auto" }} />
         </TouchableOpacity>
-
       </View>
 
-      {/* LOGOUT */}
-
-      <TouchableOpacity
-        style={styles.logout}
-        onPress={logout}
-      >
-
-        <Text style={styles.logoutText}>
-          Cerrar sesión
-        </Text>
-
+      {/* BOTÓN DE CIERRE DE SESIÓN */}
+      <TouchableOpacity style={styles.logout} onPress={logout}>
+        <Ionicons name="log-out-outline" size={20} color="#fff" style={{ marginRight: 8 }} />
+        <Text style={styles.logoutText}>Cerrar Sesión</Text>
       </TouchableOpacity>
-
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-
   container: {
     flex: 1,
     backgroundColor: colors.background,
     padding: 20
   },
-
   header: {
     flexDirection: "row",
     alignItems: "center",
-    marginTop: 20,
-    marginBottom: 30
+    marginTop: 10,
+    marginBottom: 28,
+    backgroundColor: "#fff",
+    padding: 20,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "#e5e7eb"
   },
-
   avatar: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: "#FFF7ED",
+    width: 70,
+    height: 70,
+    borderRadius: 35,
+    backgroundColor: "#fff7ed",
     justifyContent: "center",
     alignItems: "center",
-    marginRight: 18
+    marginRight: 16
   },
-
+  userInfo: {
+    flex: 1
+  },
   name: {
-    fontSize: 30,
-    fontWeight: "700",
-    color: colors.text
-  },
-
-  subtitle: {
-    marginTop: 5,
-    color: colors.muted,
-    fontSize: 18
-  },
-
-  card: {
-    backgroundColor: "#fff",
-    padding: 24,
-    borderRadius: 24,
-    marginBottom: 20
-  },
-
-  cardTitle: {
     fontSize: 22,
-    fontWeight: "700",
-    marginBottom: 12,
+    fontWeight: "800",
     color: colors.text
   },
-
-  cardText: {
-    color: colors.muted,
-    lineHeight: 24,
-    fontSize: 16
+  subtitle: {
+    marginTop: 2,
+    color: "#6b7280",
+    fontSize: 14
   },
-
+  roleBadge: {
+    alignSelf: "flex-start",
+    backgroundColor: "#ffedd5",
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 6,
+    marginTop: 6
+  },
+  roleText: {
+    color: "#c2410c",
+    fontSize: 11,
+    fontWeight: "700",
+    textTransform: "uppercase"
+  },
   menu: {
     backgroundColor: "#fff",
-    borderRadius: 24,
-    padding: 10
+    borderRadius: 16,
+    padding: 8,
+    borderWidth: 1,
+    borderColor: "#e5e7eb"
   },
-
   menuItem: {
     flexDirection: "row",
     alignItems: "center",
-    padding: 18
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "#f3f4f6"
   },
-
   menuText: {
     marginLeft: 14,
-    fontSize: 17,
+    fontSize: 16,
+    fontWeight: "600",
     color: colors.text
   },
-
   logout: {
     marginTop: "auto",
-    backgroundColor: "#EF4444",
+    backgroundColor: "#ef4444",
     padding: 18,
-    borderRadius: 18,
+    borderRadius: 14,
+    flexDirection: "row",
+    justifyContent: "center",
     alignItems: "center"
   },
-
   logoutText: {
     color: "#fff",
     fontWeight: "700",
