@@ -154,7 +154,11 @@
         const groupCount = Array.isArray(product.groups) ? product.groups.length : 0;
 
         return `
-          <div class="list-row" style="${isCombo ? 'border-left: 4px solid #9333ea; padding-left: 14px;' : ''}">
+          <div class="list-row" style="${isCombo ? 'border-left: 4px solid #9333ea;' : ''}">
+            <div class="product-thumb">
+              ${product.image ? `<img src="${escapeHtml(product.image)}" alt="" loading="lazy" onerror="this.classList.add('img-failed')">` : ''}
+              <div class="thumb-placeholder">${isCombo ? '🍱' : '🍽️'}</div>
+            </div>
             <div class="list-main">
               <div style="display: flex; align-items: center; gap: 8px;">
                 <strong>${escapeHtml(product.name)}</strong>

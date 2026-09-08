@@ -194,4 +194,40 @@ router.patch("/:id/settings", auth, adminOnly, async (req, res) => {
   }
 });
 
+router.put("/:id", auth, adminOnly, async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id)) return res.status(400).json({ message: "ID inválido" });
+
+    const currentResult = await pool.query("SELECT * FROM products WHERE id = $1", [id]);
+    if (!currentResult.rows.length) return res.status(404).json({ message: "Producto no encontrado" });
+    const current = currentResult.rows[0];
+
+    const name = req.body.name !== undefined ? String(req.body.name).trim() : current.name;
+    const price = req.body.price !== undefined ? Number(req.body.price) : Number(current.price);
+    const image = req.body.image !== undefined ? (req.body.image ? String(req.body.image).trim() : null) : current.image;
+    const kitchenRequired = req.body.kitchen_required !== undefined ? Boolean(req.body.kitchen_required) : current.kitchen_required;
+    const available = req.body.available !== undefined ? Boolean(req.body.available) : current.available;
+
+    if (!name || !Number.isFinite(price) || price <= 0) {
+      return res.status(400).json({ message: "Nombre y precio válido son requeridos" });
+    }
+
+    const result = await pool.query(
+      `
+        UPDATE products
+        SET name = $1, price = $2, image = $3, kitchen_required = $4, available = $5
+        WHERE id = $6
+        RETURNING *
+      `,
+      [name, price, image, kitchenRequired, available, id]
+    );
+
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Error actualizando producto" });
+  }
+});
+
 module.exports = router;

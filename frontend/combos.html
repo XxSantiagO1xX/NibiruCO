@@ -241,22 +241,47 @@
     }
 
     async function addGroup() {
-      if (!selectedComboId) return;
-      const name = document.getElementById('group-name').value.trim();
-      const minSelect = Number(document.getElementById('group-min').value);
-      const maxSelect = Number(document.getElementById('group-max').value);
-      if (!name || !Number.isInteger(minSelect) || !Number.isInteger(maxSelect) || minSelect < 0 || maxSelect < 1 || minSelect > maxSelect) {
-        return showToast('Revisa el nombre, mínimo y máximo del grupo.', 'error');
+      if (!selectedComboId) return showToast('Selecciona o crea un combo primero.', 'error');
+      const nameEl = document.getElementById('group-name');
+      const minEl = document.getElementById('group-min');
+      const maxEl = document.getElementById('group-max');
+      
+      const name = nameEl.value.trim();
+      const minVal = minEl.value.trim();
+      const maxVal = maxEl.value.trim();
+
+      if (!name) {
+        return showToast('Ingresa un nombre para el grupo (ej. Sopa, Plato fuerte, Bebida).', 'error');
+      }
+      if (minVal === '' || maxVal === '') {
+        return showToast('Ingresa el mínimo y máximo de opciones permitidas.', 'error');
+      }
+
+      const minSelect = parseInt(minVal, 10);
+      const maxSelect = parseInt(maxVal, 10);
+
+      if (Number.isNaN(minSelect) || minSelect < 0) {
+        return showToast('El mínimo de opciones debe ser 0 o mayor.', 'error');
+      }
+      if (Number.isNaN(maxSelect) || maxSelect < 1) {
+        return showToast('El máximo de opciones debe ser al menos 1.', 'error');
+      }
+      if (minSelect > maxSelect) {
+        return showToast('El mínimo no puede ser mayor que el máximo permitido.', 'error');
       }
 
       try {
+        const combo = currentCombo();
+        const sortOrder = (combo && Array.isArray(combo.groups) ? combo.groups.length : 0) + 1;
         await apiFetch(`/combos/${selectedComboId}/groups`, {
           method: 'POST',
-          body: JSON.stringify({ name, min_select: minSelect, max_select: maxSelect })
+          body: JSON.stringify({ name, min_select: minSelect, max_select: maxSelect, sort_order: sortOrder })
         });
-        document.getElementById('group-name').value = '';
+        nameEl.value = '';
+        minEl.value = '1';
+        maxEl.value = '1';
         await loadData(selectedComboId);
-        showToast('Grupo agregado.', 'success');
+        showToast(`Grupo "${name}" agregado con éxito.`, 'success');
       } catch (error) {
         showToast(error.message, 'error');
       }
@@ -273,25 +298,33 @@
       const eligibleProducts = products.filter((product) => Number(product.id) !== Number(combo.id) && product.product_kind !== 'combo');
 
       container.innerHTML = combo.groups.map((group) => `
-        <div class="card card-pad" style="margin-bottom:12px">
+        <div class="card card-pad" style="margin-bottom:14px">
           <div class="page-header" style="margin-bottom:12px">
             <div>
               <strong>${escapeHtml(group.name)}</strong>
               <div class="muted" style="font-size:11px;margin-top:4px">Elegir ${group.min_select === group.max_select ? group.min_select : `${group.min_select} a ${group.max_select}`} opción(es) ${group.min_select > 0 ? '(Obligatorio)' : '(Opcional)'}</div>
             </div>
-            <button class="btn btn-sm btn-secondary" onclick="deleteGroup(${group.id})">Eliminar grupo</button>
+            <button class="btn btn-sm btn-danger-soft" onclick="deleteGroup(${group.id})">Eliminar grupo</button>
           </div>
 
-          <div class="list" style="margin-bottom:12px">
-            ${(group.options || []).map((option) => `
+          <div class="list" style="margin-bottom:14px">
+            ${(group.options || []).map((option) => {
+              const optProd = products.find((p) => Number(p.id) === Number(option.option_product_id)) || {};
+              const imgUrl = optProd.image || option.image;
+              return `
               <div class="list-row">
+                <div class="product-thumb">
+                  ${imgUrl ? `<img src="${escapeHtml(imgUrl)}" alt="" loading="lazy" onerror="this.classList.add('img-failed')">` : ''}
+                  <div class="thumb-placeholder">🍽️</div>
+                </div>
                 <div class="list-main">
                   <strong>${escapeHtml(option.name)}</strong>
                   <small>${Number(option.extra_price) > 0 ? `+ ${formatCurrency(option.extra_price)} extra` : 'Sin costo extra'} · ${option.active ? 'Activa' : 'Inactiva'}</small>
                 </div>
                 <button class="btn btn-sm ${option.active ? 'btn-secondary' : 'btn-primary'}" onclick="toggleOption(${group.id}, ${option.id}, ${option.active ? 'false' : 'true'})">${option.active ? 'Desactivar' : 'Activar'}</button>
               </div>
-            `).join('') || '<div class="muted">Sin opciones todavía.</div>'}
+            `;
+            }).join('') || '<div class="muted">Sin opciones todavía.</div>'}
           </div>
 
           <div class="form-grid">

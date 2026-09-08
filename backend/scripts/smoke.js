@@ -28,7 +28,7 @@ function checkNodeSyntax(file) {
 
 function resolveLocalAsset(htmlFile, ref) {
   const clean = ref.split("#")[0].split("?")[0];
-  if (!clean || clean.startsWith("http://") || clean.startsWith("https://") || clean.startsWith("//") || clean.startsWith("data:") || clean.startsWith("javascript:")) {
+  if (!clean || clean.startsWith("http://") || clean.startsWith("https://") || clean.startsWith("//") || clean.startsWith("data:") || clean.startsWith("javascript:") || clean.includes("${") || clean.includes("`")) {
     return null;
   }
 

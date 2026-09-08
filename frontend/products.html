@@ -35,25 +35,76 @@
         <div class="form-grid">
           <div class="field"><label for="name">Nombre</label><input id="name" placeholder="Ej. Agua de jamaica"></div>
           <div class="field"><label for="price">Precio</label><input id="price" type="number" min="0" step="0.01" placeholder="0.00"></div>
-          <div class="field"><label for="image">URL de imagen opcional</label><input id="image" type="url" placeholder="https://..."></div>
+          <div class="field">
+            <label for="image">URL de imagen (opcional)</label>
+            <input id="image" type="url" placeholder="https://..." oninput="updateNewImagePreview()">
+          </div>
         </div>
-        <div class="spacer-16"></div>
-        <label style="display:flex;align-items:center;gap:10px;font-size:13px;font-weight:700">
-          <input id="kitchen-required" type="checkbox" checked style="width:auto">
-          Enviar este producto a Cocina KDS
-        </label>
-        <p class="muted" style="margin:7px 0 0;font-size:11px">Desactívalo para refrescos, postres empacados u otros artículos de entrega inmediata.</p>
+        
+        <div style="display: flex; gap: 16px; align-items: center; margin-top: 14px; flex-wrap: wrap;">
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <div class="product-thumb" id="new-image-preview">
+              <div class="thumb-placeholder">🍽️</div>
+            </div>
+            <small class="muted">Vista previa de imagen</small>
+          </div>
+          <div style="flex: 1; min-width: 240px;">
+            <label style="display:flex;align-items:center;gap:10px;font-size:13px;font-weight:700">
+              <input id="kitchen-required" type="checkbox" checked style="width:auto">
+              Enviar este producto a Cocina KDS
+            </label>
+            <p class="muted" style="margin:4px 0 0;font-size:11px">Desactívalo para refrescos, postres empacados u otros artículos de entrega inmediata.</p>
+          </div>
+        </div>
+
         <div class="spacer-16"></div>
         <button class="btn btn-primary" id="create-button" onclick="createProduct()">Agregar producto</button>
       </section>
 
       <div class="spacer-24"></div>
       <div class="page-header" style="margin-bottom:14px">
-        <div><h2 class="section-title" style="margin:0">Catálogo</h2></div>
+        <div><h2 class="section-title" style="margin:0">Catálogo de productos</h2></div>
         <div class="header-actions"><input id="search" placeholder="Buscar..." oninput="renderProducts()" style="width:260px"></div>
       </div>
       <div id="list" class="list"></div>
     </main>
+  </div>
+
+  <!-- Modal de Edición de Producto -->
+  <div id="edit-modal" class="hidden" style="position:fixed;inset:0;z-index:100;background:rgba(15,23,42,.55);display:grid;place-items:center;padding:18px;">
+    <div class="card card-pad" style="width:min(500px,100%);max-height:90vh;overflow:auto;box-shadow:var(--shadow-lg);">
+      <div class="page-header" style="margin-bottom:14px">
+        <div><h2 class="section-title" style="margin:0">Editar producto</h2></div>
+        <button class="btn btn-secondary btn-sm" onclick="closeEditModal()">Cerrar</button>
+      </div>
+      <input type="hidden" id="edit-id">
+      <div class="field" style="margin-bottom:12px">
+        <label for="edit-name">Nombre</label>
+        <input id="edit-name">
+      </div>
+      <div class="field" style="margin-bottom:12px">
+        <label for="edit-price">Precio ($)</label>
+        <input id="edit-price" type="number" min="0" step="0.01">
+      </div>
+      <div class="field" style="margin-bottom:12px">
+        <label for="edit-image">URL de imagen</label>
+        <input id="edit-image" type="url" placeholder="https://..." oninput="updateEditImagePreview()">
+      </div>
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
+        <div class="product-thumb" id="edit-image-preview">
+          <div class="thumb-placeholder">🍽️</div>
+        </div>
+        <small class="muted">Vista previa de imagen</small>
+      </div>
+      <label style="display:flex;align-items:center;gap:10px;font-size:13px;font-weight:700;margin-bottom:18px">
+        <input id="edit-kitchen" type="checkbox" style="width:auto">
+        Enviar este producto a Cocina KDS
+      </label>
+      <div style="display:flex;gap:10px;justify-content:flex-end">
+        <button class="btn btn-secondary" onclick="closeEditModal()">Cancelar</button>
+        <button class="btn btn-primary" id="edit-save-button" onclick="saveProductEdit()">Guardar cambios</button>
+      </div>
+    </div>
   </div>
 
   <div id="toast-container"></div>
@@ -61,6 +112,26 @@
   <script>
     requireAuth(['admin']);
     let products = [];
+
+    function updateNewImagePreview() {
+      const url = document.getElementById('image').value.trim();
+      const preview = document.getElementById('new-image-preview');
+      if (url) {
+        preview.innerHTML = `<img src="${escapeHtml(url)}" alt="" onerror="this.classList.add('img-failed')"><div class="thumb-placeholder">🍽️</div>`;
+      } else {
+        preview.innerHTML = '<div class="thumb-placeholder">🍽️</div>';
+      }
+    }
+
+    function updateEditImagePreview() {
+      const url = document.getElementById('edit-image').value.trim();
+      const preview = document.getElementById('edit-image-preview');
+      if (url) {
+        preview.innerHTML = `<img src="${escapeHtml(url)}" alt="" onerror="this.classList.add('img-failed')"><div class="thumb-placeholder">🍽️</div>`;
+      } else {
+        preview.innerHTML = '<div class="thumb-placeholder">🍽️</div>';
+      }
+    }
 
     async function loadProducts() {
       try {
@@ -83,11 +154,16 @@
 
       list.innerHTML = filtered.map((product) => `
         <div class="list-row">
+          <div class="product-thumb">
+            ${product.image ? `<img src="${escapeHtml(product.image)}" alt="" loading="lazy" onerror="this.classList.add('img-failed')">` : ''}
+            <div class="thumb-placeholder">🍽️</div>
+          </div>
           <div class="list-main">
             <strong>${escapeHtml(product.name)}</strong>
             <small>${formatCurrency(product.price)} · ID ${product.id} · ${product.product_kind === 'combo' ? 'Combo' : (product.kitchen_required ? 'Cocina' : 'Venta rápida')}</small>
           </div>
           <div class="list-actions">
+            <button class="btn btn-sm btn-secondary" onclick="openEditModal(${product.id})">Editar</button>
             ${product.product_kind !== 'combo' ? `<button class="btn btn-sm btn-secondary" onclick="toggleKitchen(${product.id}, ${product.kitchen_required ? 'false' : 'true'})">${product.kitchen_required ? 'Hacer venta rápida' : 'Enviar a cocina'}</button>` : ''}
             <span class="badge ${product.available ? 'badge-success' : 'badge-danger'}">${product.available ? 'Disponible' : 'Agotado'}</span>
             <button class="btn btn-sm ${product.available ? 'btn-secondary' : 'btn-primary'}" onclick="toggleProduct(${product.id})">${product.available ? 'Marcar agotado' : 'Activar'}</button>
@@ -117,12 +193,62 @@
         document.getElementById('price').value = '';
         document.getElementById('image').value = '';
         document.getElementById('kitchen-required').checked = true;
+        updateNewImagePreview();
         await loadProducts();
-        showToast('Producto creado.', 'success');
+        showToast('Producto creado exitosamente.', 'success');
       } catch (error) {
         showToast(error.message, 'error');
       } finally {
         button.disabled = false;
+      }
+    }
+
+    function openEditModal(productId) {
+      const product = products.find((p) => Number(p.id) === Number(productId));
+      if (!product) return;
+      document.getElementById('edit-id').value = product.id;
+      document.getElementById('edit-name').value = product.name;
+      document.getElementById('edit-price').value = product.price;
+      document.getElementById('edit-image').value = product.image || '';
+      document.getElementById('edit-kitchen').checked = Boolean(product.kitchen_required);
+      updateEditImagePreview();
+      document.getElementById('edit-modal').classList.remove('hidden');
+    }
+
+    function closeEditModal() {
+      document.getElementById('edit-modal').classList.add('hidden');
+    }
+
+    async function saveProductEdit() {
+      const id = Number(document.getElementById('edit-id').value);
+      const name = document.getElementById('edit-name').value.trim();
+      const price = Number(document.getElementById('edit-price').value);
+      const image = document.getElementById('edit-image').value.trim();
+      const kitchenRequired = document.getElementById('edit-kitchen').checked;
+
+      if (!name || !Number.isFinite(price) || price <= 0) {
+        return showToast('Ingresa un nombre y precio válido.', 'error');
+      }
+
+      const btn = document.getElementById('edit-save-button');
+      btn.disabled = true;
+      try {
+        await apiFetch(`/products/${id}`, {
+          method: 'PUT',
+          body: JSON.stringify({
+            name,
+            price,
+            image: image || null,
+            kitchen_required: kitchenRequired
+          })
+        });
+        closeEditModal();
+        await loadProducts();
+        showToast('Producto actualizado correctamente.', 'success');
+      } catch (error) {
+        showToast(error.message, 'error');
+      } finally {
+        btn.disabled = false;
       }
     }
 

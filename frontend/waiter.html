@@ -276,13 +276,23 @@
         container.innerHTML = '<div class="card card-pad muted">No hay productos disponibles para hoy.</div>';
         return;
       }
-      container.innerHTML = filtered.map((product) => `
-        <button class="waiter-product card" onclick="addToCart(${Number(product.id)})" ${activeSessionStatus === 'account_requested' ? 'disabled' : ''}>
-          <span class="waiter-product-copy"><strong>${escapeHtml(product.name)}</strong><small>${product.product_kind === 'combo' ? 'Elegir opciones' : (product.kitchen_required ? 'Preparación en cocina' : 'Entrega inmediata')}</small></span>
-          <span class="waiter-product-price">${formatCurrency(product.price)}</span>
-          <span class="waiter-add">+</span>
-        </button>
-      `).join('');
+      container.innerHTML = filtered.map((product) => {
+        const isCombo = product.product_kind === 'combo';
+        return `
+          <button class="waiter-product card" onclick="addToCart(${Number(product.id)})" ${activeSessionStatus === 'account_requested' ? 'disabled' : ''}>
+            <div class="product-thumb">
+              ${product.image ? `<img src="${escapeHtml(product.image)}" alt="" loading="lazy" onerror="this.classList.add('img-failed')">` : ''}
+              <div class="thumb-placeholder">${isCombo ? '🍱' : '🍽️'}</div>
+            </div>
+            <span class="waiter-product-copy">
+              <strong>${escapeHtml(product.name)}</strong>
+              <small>${isCombo ? 'Elegir opciones' : (product.kitchen_required ? 'Cocina' : 'Entrega inmediata')}</small>
+            </span>
+            <span class="waiter-product-price">${formatCurrency(product.price)}</span>
+            <span class="waiter-add">+</span>
+          </button>
+        `;
+      }).join('');
     }
 
     function addToCart(id) {
@@ -375,7 +385,20 @@
               <span class="muted">Ninguno / Sin opción</span>
             </label>
           ` : ''}
-          ${options.map((option, idx) => `<label class="combo-option"><input type="${type}" name="waiter-combo-${group.id}" value="${option.option_product_id}" data-extra="${Number(option.extra_price || 0)}" data-name="${escapeHtml(option.name)}" ${isSingle && min === 1 && idx === 0 ? 'checked' : ''} onchange="onComboOptionChange(this, ${group.id}, ${max})"><span>${escapeHtml(option.name)}${Number(option.extra_price) > 0 ? ` <small class="muted" style="font-weight:600;color:var(--primary)">(+${formatCurrency(option.extra_price)})</small>` : ''}</span></label>`).join('') || '<div class="muted" style="margin-top:8px">Sin opciones disponibles.</div>'}
+          ${options.map((option, idx) => {
+            const optProd = products.find((p) => Number(p.id) === Number(option.option_product_id)) || {};
+            const imgUrl = optProd.image || option.image;
+            return `
+            <label class="combo-option" style="display:flex;align-items:center;gap:12px;padding:6px 0">
+              <input type="${type}" name="waiter-combo-${group.id}" value="${option.option_product_id}" data-extra="${Number(option.extra_price || 0)}" data-name="${escapeHtml(option.name)}" ${isSingle && min === 1 && idx === 0 ? 'checked' : ''} onchange="onComboOptionChange(this, ${group.id}, ${max})">
+              <div class="product-thumb" style="width:40px;height:40px;min-width:40px">
+                ${imgUrl ? `<img src="${escapeHtml(imgUrl)}" alt="" loading="lazy" onerror="this.classList.add('img-failed')">` : ''}
+                <div class="thumb-placeholder" style="font-size:14px">🍽️</div>
+              </div>
+              <span>${escapeHtml(option.name)}${Number(option.extra_price) > 0 ? ` <small class="muted" style="font-weight:600;color:var(--primary)">(+${formatCurrency(option.extra_price)})</small>` : ''}</span>
+            </label>
+          `;
+          }).join('') || '<div class="muted" style="margin-top:8px">Sin opciones disponibles.</div>'}
         </div>`;
       }).join('');
       updateComboPrice();
