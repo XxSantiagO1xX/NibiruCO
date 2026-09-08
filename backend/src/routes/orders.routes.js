@@ -1,5 +1,6 @@
 const express = require("express");
 const router = express.Router();
+const crypto = require("crypto");
 
 const auth = require("../middleware/auth");
 const roles = require("../middleware/roles");
@@ -37,7 +38,7 @@ function normalizePaymentMethod(value) {
     card: "tarjeta"
   };
   const canonical = aliases[normalized] || normalized;
-  return ["efectivo", "tarjeta", "transferencia", "otro"].includes(canonical)
+  return ["efectivo", "tarjeta", "transferencia", "pago_en_app", "otro"].includes(canonical)
     ? canonical
     : null;
 }
@@ -206,7 +207,9 @@ router.post("/", auth, async (req, res) => {
       customer_name = null,
       pickup_at = null,
       address_id = null,
-      table_session_id = null
+      table_session_id = null,
+      cash_paid_with = null,
+      delivery_zone_id = null
     } = req.body;
 
     const userId = req.user.id;
@@ -220,6 +223,9 @@ router.post("/", auth, async (req, res) => {
     let addressId = address_id === null || address_id === undefined || address_id === ""
       ? null
       : Number(address_id);
+    let deliveryZoneId = delivery_zone_id ? Number(delivery_zone_id) : null;
+    let deliveryFee = 0;
+    let deliveryPin = null;
 
     if (!Array.isArray(items) || items.length === 0) {
       return res.status(400).json({ message: "No hay productos en el pedido" });
@@ -278,16 +284,32 @@ router.post("/", auth, async (req, res) => {
 
       if (serviceType !== "domicilio") {
         addressId = null;
-      } else if (addressId !== null) {
-        const addressResult = await client.query(
-          "SELECT id FROM user_addresses WHERE id = $1 AND user_id = $2",
-          [addressId, userId]
-        );
-        if (!addressResult.rows.length) {
-          return res.status(404).json({ message: "La dirección no pertenece a esta cuenta" });
+        deliveryZoneId = null;
+      } else {
+        // Para domicilio generar PIN de 4 dígitos aleatorio
+        deliveryPin = String(crypto.randomInt(1000, 10000));
+
+        if (deliveryZoneId) {
+          const zoneResult = await client.query(
+            "SELECT fee FROM delivery_zones WHERE id = $1 AND active = TRUE",
+            [deliveryZoneId]
+          );
+          if (zoneResult.rows.length) {
+            deliveryFee = Number(zoneResult.rows[0].fee);
+          }
         }
-      } else if (!staffCanCollect) {
-        return res.status(400).json({ message: "Selecciona una dirección para el pedido a domicilio" });
+
+        if (addressId !== null) {
+          const addressResult = await client.query(
+            "SELECT id FROM user_addresses WHERE id = $1 AND user_id = $2",
+            [addressId, userId]
+          );
+          if (!addressResult.rows.length) {
+            return res.status(404).json({ message: "La dirección no pertenece a esta cuenta" });
+          }
+        } else if (!staffCanCollect) {
+          return res.status(400).json({ message: "Selecciona una dirección para el pedido a domicilio" });
+        }
       }
     }
 
@@ -301,7 +323,7 @@ router.post("/", auth, async (req, res) => {
       return res.status(400).json({ message: "No hay menú configurado para hoy" });
     }
 
-    let total = 0;
+    let total = deliveryFee;
     let requiresKitchen = false;
     const normalizedItems = [];
 
@@ -347,6 +369,12 @@ router.post("/", auth, async (req, res) => {
       normalizedItems.push({ product_id: productId, quantity, choices });
     }
 
+    // Efectivo y cambio esperado
+    const parsedCashPaidWith = cash_paid_with ? Number(cash_paid_with) : null;
+    const cashChangeDue = parsedCashPaidWith && parsedCashPaidWith > total
+      ? parsedCashPaidWith - total
+      : 0;
+
     await client.query("BEGIN");
 
     let folio = null;
@@ -377,9 +405,11 @@ router.post("/", auth, async (req, res) => {
       `
         INSERT INTO orders
           (user_id, type, total, status, payment_method, address_id, table_session_id,
-           service_type, customer_name, pickup_at, folio, service_date, payment_status, paid_at)
+           service_type, customer_name, pickup_at, folio, service_date, payment_status, paid_at,
+           delivery_pin, delivery_zone_id, delivery_fee, cash_paid_with, cash_change_due)
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11,
-                COALESCE($12, CURRENT_DATE), $13::varchar, CASE WHEN $13::varchar = 'paid' THEN NOW() ELSE NULL END)
+                COALESCE($12, CURRENT_DATE), $13::varchar, CASE WHEN $13::varchar = 'paid' THEN NOW() ELSE NULL END,
+                $14, $15, $16, $17, $18)
         RETURNING *
       `,
       [
@@ -395,7 +425,12 @@ router.post("/", auth, async (req, res) => {
         pickupAt,
         folio,
         serviceDate,
-        paid ? "paid" : "pending"
+        paid ? "paid" : "pending",
+        deliveryPin,
+        deliveryZoneId,
+        deliveryFee,
+        parsedCashPaidWith,
+        cashChangeDue
       ]
     );
 
@@ -489,6 +524,13 @@ router.get("/", auth, async (req, res) => {
       `,
       [userId]
     );
+
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Error obteniendo pedidos" });
+  }
+});
 
     res.json(result.rows);
   } catch (err) {

@@ -31,6 +31,14 @@ export default function CartScreen({ navigation }) {
   const [customerName, setCustomerName] = useState("");
   const [notes, setNotes] = useState("");
 
+  // Delivery zones & fee
+  const [zones, setZones] = useState([]);
+  const [selectedZoneId, setSelectedZoneId] = useState(null);
+
+  // Payment methods
+  const [paymentMethod, setPaymentMethod] = useState("efectivo"); // 'efectivo' | 'tarjeta' | 'transferencia' | 'pago_en_app'
+  const [cashPaidWith, setCashPaidWith] = useState("");
+
   // Addresses state
   const [addresses, setAddresses] = useState([]);
   const [selectedAddressId, setSelectedAddressId] = useState(null);
@@ -38,6 +46,24 @@ export default function CartScreen({ navigation }) {
 
   // Submit order loading state
   const [submitting, setSubmitting] = useState(false);
+
+  // Load delivery zones
+  useEffect(() => {
+    async function loadZones() {
+      try {
+        const res = await axios.get(`${API_URL}/deliveries/zones`);
+        if (Array.isArray(res.data)) {
+          setZones(res.data);
+          if (res.data.length > 0 && !selectedZoneId) {
+            setSelectedZoneId(res.data[0].id);
+          }
+        }
+      } catch (err) {
+        console.log("Error loading delivery zones:", err.message);
+      }
+    }
+    loadZones();
+  }, []);
 
   // Set default customer name from user profile
   useEffect(() => {
@@ -124,7 +150,10 @@ export default function CartScreen({ navigation }) {
         type: serviceType,
         service_type: serviceType,
         customer_name: customerName.trim() || undefined,
-        address_id: serviceType === "domicilio" ? selectedAddressId : undefined
+        address_id: serviceType === "domicilio" ? selectedAddressId : undefined,
+        delivery_zone_id: serviceType === "domicilio" ? selectedZoneId : undefined,
+        payment_method: paymentMethod,
+        cash_paid_with: paymentMethod === "efectivo" && cashPaidWith ? Number(cashPaidWith) : undefined
       };
 
       const res = await axios.post(`${API_URL}/orders`, payload, {
@@ -140,7 +169,9 @@ export default function CartScreen({ navigation }) {
 
       Alert.alert(
         "¡Pedido Registrado con Éxito!",
-        `Tu pedido (${folioStr}) ha sido recibido por la cocina. Puedes darle seguimiento en tiempo real.`,
+        `Tu pedido (${folioStr}) ha sido recibido por la cocina.${
+          createdOrder.delivery_pin ? ` Tu PIN de entrega es ${createdOrder.delivery_pin}.` : ""
+        } Puedes darle seguimiento en tiempo real.`,
         [
           {
             text: "Ver Mis Pedidos",
@@ -348,8 +379,113 @@ export default function CartScreen({ navigation }) {
                   })}
                 </View>
               )}
+
+              {/* Delivery Zone Selector */}
+              {zones.length > 0 ? (
+                <View style={styles.zoneSection}>
+                  <Text style={styles.subHeading}>Zona de Entrega</Text>
+                  <View style={styles.zoneGrid}>
+                    {zones.map((z) => {
+                      const isZSelected = selectedZoneId === z.id;
+                      return (
+                        <TouchableOpacity
+                          key={z.id}
+                          style={[
+                            styles.zoneCard,
+                            isZSelected && styles.zoneCardSelected
+                          ]}
+                          onPress={() => setSelectedZoneId(z.id)}
+                          activeOpacity={0.8}
+                        >
+                          <Text
+                            style={[
+                              styles.zoneName,
+                              isZSelected && styles.zoneNameSelected
+                            ]}
+                          >
+                            {z.name}
+                          </Text>
+                          <Text
+                            style={[
+                              styles.zoneFee,
+                              isZSelected && styles.zoneFeeSelected
+                            ]}
+                          >
+                            +${Number(z.fee).toFixed(2)}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                </View>
+              ) : null}
             </View>
           ) : null}
+
+          {/* Payment Method Selector */}
+          <View style={styles.paymentSection}>
+            <Text style={styles.sectionHeading}>Método de Pago</Text>
+            <View style={styles.paymentGrid}>
+              {[
+                { id: "efectivo", label: "Efectivo", icon: "cash-outline" },
+                { id: "tarjeta", label: "Tarjeta", icon: "card-outline" },
+                { id: "transferencia", label: "Transferencia", icon: "swap-horizontal-outline" },
+                { id: "pago_en_app", label: "Pago en App", icon: "phone-portrait-outline" }
+              ].map((p) => {
+                const isSelected = paymentMethod === p.id;
+                return (
+                  <TouchableOpacity
+                    key={p.id}
+                    style={[
+                      styles.paymentCard,
+                      isSelected && styles.paymentCardSelected
+                    ]}
+                    onPress={() => setPaymentMethod(p.id)}
+                    activeOpacity={0.8}
+                  >
+                    <Ionicons
+                      name={p.icon}
+                      size={20}
+                      color={isSelected ? colors.primary : colors.muted}
+                    />
+                    <Text
+                      style={[
+                        styles.paymentLabel,
+                        isSelected && styles.paymentLabelSelected
+                      ]}
+                    >
+                      {p.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            {/* Cash paid with and change calculation */}
+            {paymentMethod === "efectivo" && (
+              <View style={styles.cashChangeBox}>
+                <Text style={styles.cashChangeLabel}>¿Con cuánto vas a pagar? (opcional)</Text>
+                <View style={styles.cashInputRow}>
+                  <Text style={styles.cashPrefix}>$</Text>
+                  <TextInput
+                    style={styles.cashInput}
+                    placeholder="Ej. 200, 500"
+                    placeholderTextColor={colors.textSubtle}
+                    keyboardType="numeric"
+                    value={cashPaidWith}
+                    onChangeText={setCashPaidWith}
+                  />
+                </View>
+                {Number(cashPaidWith) > 0 ? (
+                  <Text style={styles.changeNotice}>
+                    {Number(cashPaidWith) >= (cartTotal + (serviceType === "domicilio" && zones.find((z) => z.id === selectedZoneId) ? Number(zones.find((z) => z.id === selectedZoneId).fee || 0) : 0))
+                      ? `Tu cambio estimado será de: $${(Number(cashPaidWith) - (cartTotal + (serviceType === "domicilio" && zones.find((z) => z.id === selectedZoneId) ? Number(zones.find((z) => z.id === selectedZoneId).fee || 0) : 0))).toFixed(2)}`
+                      : "El monto ingresado es menor al total"}
+                  </Text>
+                ) : null}
+              </View>
+            )}
+          </View>
 
           {/* Customer Personalization */}
           <View style={styles.notesSection}>
@@ -364,44 +500,62 @@ export default function CartScreen({ navigation }) {
           </View>
 
           {/* Order Summary breakdown */}
-          <View style={styles.summaryCard}>
-            <Text style={styles.summaryTitle}>Resumen de Cuenta</Text>
-            <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>Subtotal</Text>
-              <Text style={styles.summaryValue}>${cartTotal.toFixed(2)}</Text>
-            </View>
-            <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>Servicio ({serviceType})</Text>
-              <Text style={styles.summaryValueFree}>Incluido</Text>
-            </View>
-            <View style={styles.divider} />
-            <View style={styles.totalRow}>
-              <Text style={styles.totalLabel}>Total a Pagar</Text>
-              <Text style={styles.totalAmount}>${cartTotal.toFixed(2)}</Text>
-            </View>
-          </View>
+          {(() => {
+            const activeZone = zones.find((z) => z.id === selectedZoneId);
+            const deliveryFee = serviceType === "domicilio" && activeZone ? Number(activeZone.fee || 0) : 0;
+            const finalTotal = cartTotal + deliveryFee;
+
+            return (
+              <View style={styles.summaryCard}>
+                <Text style={styles.summaryTitle}>Resumen de Cuenta</Text>
+                <View style={styles.summaryRow}>
+                  <Text style={styles.summaryLabel}>Subtotal</Text>
+                  <Text style={styles.summaryValue}>${cartTotal.toFixed(2)}</Text>
+                </View>
+                <View style={styles.summaryRow}>
+                  <Text style={styles.summaryLabel}>Servicio ({serviceType})</Text>
+                  <Text style={styles.summaryValueFree}>
+                    {deliveryFee > 0 ? `$${deliveryFee.toFixed(2)}` : "Incluido"}
+                  </Text>
+                </View>
+                <View style={styles.divider} />
+                <View style={styles.totalRow}>
+                  <Text style={styles.totalLabel}>Total a Pagar</Text>
+                  <Text style={styles.totalAmount}>${finalTotal.toFixed(2)}</Text>
+                </View>
+              </View>
+            );
+          })()}
         </ScrollView>
 
         {/* Fixed Footer Checkout Button */}
-        <View style={styles.footer}>
-          <TouchableOpacity
-            style={[styles.checkoutBtn, submitting && styles.checkoutBtnDisabled]}
-            onPress={handleCreateOrder}
-            disabled={submitting}
-            activeOpacity={0.85}
-          >
-            {submitting ? (
-              <ActivityIndicator color="#ffffff" />
-            ) : (
-              <>
-                <Ionicons name="checkmark-circle" size={20} color="#ffffff" />
-                <Text style={styles.checkoutBtnText}>
-                  Confirmar Pedido · ${cartTotal.toFixed(2)}
-                </Text>
-              </>
-            )}
-          </TouchableOpacity>
-        </View>
+        {(() => {
+          const activeZone = zones.find((z) => z.id === selectedZoneId);
+          const deliveryFee = serviceType === "domicilio" && activeZone ? Number(activeZone.fee || 0) : 0;
+          const finalTotal = cartTotal + deliveryFee;
+
+          return (
+            <View style={styles.footer}>
+              <TouchableOpacity
+                style={[styles.checkoutBtn, submitting && styles.checkoutBtnDisabled]}
+                onPress={handleCreateOrder}
+                disabled={submitting}
+                activeOpacity={0.85}
+              >
+                {submitting ? (
+                  <ActivityIndicator color="#ffffff" />
+                ) : (
+                  <>
+                    <Ionicons name="checkmark-circle" size={20} color="#ffffff" />
+                    <Text style={styles.checkoutBtnText}>
+                      Confirmar Pedido · ${finalTotal.toFixed(2)}
+                    </Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            </View>
+          );
+        })()}
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -686,5 +840,125 @@ const styles = StyleSheet.create({
     color: "#ffffff",
     fontSize: 16,
     fontWeight: "800"
+  },
+  zoneSection: {
+    marginTop: 12
+  },
+  subHeading: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: colors.muted,
+    marginBottom: 8
+  },
+  zoneGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8
+  },
+  zoneCard: {
+    flex: 1,
+    minWidth: "45%",
+    backgroundColor: colors.surface,
+    borderRadius: 12,
+    padding: 10,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+    alignItems: "center"
+  },
+  zoneCardSelected: {
+    backgroundColor: colors.primarySoft,
+    borderColor: colors.primary
+  },
+  zoneName: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: colors.text
+  },
+  zoneNameSelected: {
+    color: colors.primary
+  },
+  zoneFee: {
+    fontSize: 11,
+    fontWeight: "800",
+    color: colors.muted,
+    marginTop: 2
+  },
+  zoneFeeSelected: {
+    color: colors.primary
+  },
+  paymentSection: {
+    marginVertical: 10
+  },
+  paymentGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8
+  },
+  paymentCard: {
+    flex: 1,
+    minWidth: "45%",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: colors.surface,
+    padding: 12,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: colors.borderLight
+  },
+  paymentCardSelected: {
+    backgroundColor: colors.primarySoft,
+    borderColor: colors.primary
+  },
+  paymentLabel: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: colors.muted
+  },
+  paymentLabelSelected: {
+    color: colors.primary,
+    fontWeight: "800"
+  },
+  cashChangeBox: {
+    backgroundColor: colors.surfaceMuted,
+    borderRadius: 14,
+    padding: 12,
+    marginTop: 10,
+    borderWidth: 1,
+    borderColor: colors.borderLight
+  },
+  cashChangeLabel: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: colors.muted,
+    marginBottom: 6
+  },
+  cashInputRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: colors.surface,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: 10,
+    height: 40
+  },
+  cashPrefix: {
+    fontSize: 14,
+    fontWeight: "800",
+    color: colors.primary,
+    marginRight: 4
+  },
+  cashInput: {
+    flex: 1,
+    fontSize: 13,
+    color: colors.text,
+    fontWeight: "700"
+  },
+  changeNotice: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: colors.success,
+    marginTop: 6
   }
 });

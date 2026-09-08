@@ -18,6 +18,8 @@ export default function AppProvider({ children }) {
   // Socket state
   const [socket, setSocket] = useState(null);
   const [orderUpdateSignal, setOrderUpdateSignal] = useState(0);
+  const [tablesUpdateSignal, setTablesUpdateSignal] = useState(0);
+  const [tripsUpdateSignal, setTripsUpdateSignal] = useState(0);
 
   // Configure global Axios headers & interceptor
   useEffect(() => {
@@ -91,6 +93,14 @@ export default function AppProvider({ children }) {
 
     s.on("counter-updated", () => {
       setOrderUpdateSignal((v) => v + 1);
+    });
+
+    s.on("tables-updated", () => {
+      setTablesUpdateSignal((v) => v + 1);
+    });
+
+    s.on("trips-updated", () => {
+      setTripsUpdateSignal((v) => v + 1);
     });
 
     setSocket(s);
@@ -256,7 +266,9 @@ export default function AppProvider({ children }) {
 
         // Real-time socket & signals
         socket,
-        orderUpdateSignal
+        orderUpdateSignal,
+        tablesUpdateSignal,
+        tripsUpdateSignal
       }}
     >
       {children}

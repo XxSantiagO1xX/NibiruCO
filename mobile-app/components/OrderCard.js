@@ -55,7 +55,7 @@ const SERVICE_TYPE_MAP = {
   mesa: "Mesa"
 };
 
-export default function OrderCard({ order, onCancel }) {
+export default function OrderCard({ order, onCancel, onTrack }) {
   const statusKey = String(order.status || "pendiente").toLowerCase();
   const statusMeta = STATUS_MAP[statusKey] || STATUS_MAP.pendiente;
   const serviceLabel =
@@ -173,15 +173,30 @@ export default function OrderCard({ order, onCancel }) {
           <Text style={styles.totalText}>Total: ${total.toFixed(2)}</Text>
         </View>
 
-        {isPending && onCancel ? (
-          <TouchableOpacity
-            style={styles.cancelButton}
-            onPress={() => onCancel(order.id)}
-            activeOpacity={0.7}
-          >
-            <Text style={styles.cancelButtonText}>Cancelar</Text>
-          </TouchableOpacity>
-        ) : null}
+        <View style={styles.actionsRow}>
+          {(order.service_type === "domicilio" || order.type === "domicilio") && onTrack ? (
+            <TouchableOpacity
+              style={styles.trackButton}
+              onPress={() => onTrack(order.id)}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="location" size={13} color="#ffffff" />
+              <Text style={styles.trackButtonText}>
+                {order.delivery_pin ? `PIN: ${order.delivery_pin}` : "Seguimiento"}
+              </Text>
+            </TouchableOpacity>
+          ) : null}
+
+          {isPending && onCancel ? (
+            <TouchableOpacity
+              style={styles.cancelButton}
+              onPress={() => onCancel(order.id)}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.cancelButtonText}>Cancelar</Text>
+            </TouchableOpacity>
+          ) : null}
+        </View>
       </View>
     </View>
   );
@@ -327,6 +342,25 @@ const styles = StyleSheet.create({
     color: colors.primary,
     marginTop: 2,
     letterSpacing: -0.3
+  },
+  actionsRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8
+  },
+  trackButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 10,
+    backgroundColor: colors.primary
+  },
+  trackButtonText: {
+    fontSize: 11,
+    fontWeight: "800",
+    color: "#ffffff"
   },
   cancelButton: {
     paddingHorizontal: 14,

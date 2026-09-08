@@ -16,6 +16,7 @@ import { API_URL } from "../config/api";
 import colors from "../theme/colors";
 import Header from "../components/Header";
 import OrderCard from "../components/OrderCard";
+import OrderTrackModal from "../components/OrderTrackModal";
 import SkeletonList from "../components/SkeletonLoader";
 import EmptyState from "../components/EmptyState";
 
@@ -26,6 +27,8 @@ export default function OrdersScreen({ navigation }) {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [statusFilter, setStatusFilter] = useState("all"); // 'all' | 'active' | 'completed'
+  const [trackModalVisible, setTrackModalVisible] = useState(false);
+  const [selectedTrackOrderId, setSelectedTrackOrderId] = useState(null);
 
   // Fetch orders from backend
   const loadOrders = useCallback(async () => {
@@ -223,10 +226,28 @@ export default function OrdersScreen({ navigation }) {
             />
           }
           renderItem={({ item }) => (
-            <OrderCard order={item} onCancel={handleCancelOrder} />
+            <OrderCard
+              order={item}
+              onCancel={handleCancelOrder}
+              onTrack={(id) => {
+                setSelectedTrackOrderId(id);
+                setTrackModalVisible(true);
+              }}
+            />
           )}
         />
       )}
+
+      {/* Real-time Order Tracking Modal */}
+      <OrderTrackModal
+        visible={trackModalVisible}
+        orderId={selectedTrackOrderId}
+        token={token}
+        onClose={() => {
+          setTrackModalVisible(false);
+          setSelectedTrackOrderId(null);
+        }}
+      />
     </SafeAreaView>
   );
 }

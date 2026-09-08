@@ -6,15 +6,21 @@ const operationalSqlPath = path.resolve(
   __dirname,
   "../sql/2026-09-04-mealops-operational.sql"
 );
+const multiRoleSqlPath = path.resolve(
+  __dirname,
+  "../sql/2026-09-08-mealops-multi-role-operations.sql"
+);
 
 async function ensureOperationalSchema() {
   const client = await pool.connect();
 
   try {
-    const sql = fs.readFileSync(operationalSqlPath, "utf8");
+    const sql1 = fs.readFileSync(operationalSqlPath, "utf8");
+    const sql2 = fs.readFileSync(multiRoleSqlPath, "utf8");
 
     await client.query("BEGIN");
-    await client.query(sql);
+    await client.query(sql1);
+    await client.query(sql2);
 
     const tableCount = await client.query(
       "SELECT COUNT(*)::int AS count FROM restaurant_tables"
