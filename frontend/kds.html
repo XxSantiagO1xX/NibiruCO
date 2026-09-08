@@ -63,6 +63,7 @@
     socket.on('new-order', scheduleRefresh);
     socket.on('order-updated', scheduleRefresh);
     socket.on('orders-updated', scheduleRefresh);
+    socket.on('counter-updated', scheduleRefresh);
 
     function scheduleRefresh() {
       clearTimeout(refreshTimer);

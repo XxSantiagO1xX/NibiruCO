@@ -175,6 +175,20 @@ export default function WaiterTableDetailScreen({ route, navigation }) {
     }
   };
 
+  const handleDeliverOrder = async (orderId) => {
+    try {
+      await axios.patch(
+        `${API_URL}/counter/orders/${orderId}/deliver-table`,
+        {},
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      loadSession();
+      Alert.alert("¡Servido en Mesa!", "La comanda ha sido marcada como entregada a los comensales.");
+    } catch (err) {
+      Alert.alert("Error", err?.response?.data?.message || "No se pudo marcar como entregado");
+    }
+  };
+
   const handleOpenPayment = () => {
     const balance = session?.balance || 0;
     setPaymentAmount(balance.toFixed(2));
@@ -389,6 +403,17 @@ export default function WaiterTableDetailScreen({ route, navigation }) {
                   </View>
                 ))}
               </View>
+
+              {ord.status === "listo" && (
+                <TouchableOpacity
+                  style={styles.deliverOrderBtn}
+                  onPress={() => handleDeliverOrder(ord.id)}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons name="checkmark-done-circle" size={16} color="#ffffff" />
+                  <Text style={styles.deliverOrderBtnText}>Servido en Mesa</Text>
+                </TouchableOpacity>
+              )}
             </View>
           ))
         )}
@@ -1013,6 +1038,22 @@ const styles = StyleSheet.create({
   },
   confirmPayBtnText: {
     fontSize: 14,
+    fontWeight: "800",
+    color: "#ffffff"
+  },
+  deliverOrderBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.success,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    marginTop: 12,
+    gap: 6
+  },
+  deliverOrderBtnText: {
+    fontSize: 13,
     fontWeight: "800",
     color: "#ffffff"
   }

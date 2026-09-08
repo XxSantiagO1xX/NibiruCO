@@ -154,6 +154,16 @@
 
     const socket = io(API, { transports: ['websocket', 'polling'] });
     socket.on('tables-updated', loadTables);
+    socket.on('orders-updated', loadTables);
+    socket.on('counter-updated', loadTables);
+    socket.on('waiter-table-ready', (data) => {
+      showToast(`🔔 ¡Comanda lista para servir en ${data.tableName || 'mesa'}! (Folio ${data.folio || data.orderId})`, 'info');
+      try {
+        const snd = new Audio('alert.wav');
+        snd.play().catch(() => {});
+      } catch (_) {}
+      loadTables();
+    });
 
     if (currentUser) {
       document.getElementById('waiter-name').textContent = currentUser.name || currentUser.phone || currentUser.role || 'Mesero';

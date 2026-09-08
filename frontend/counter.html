@@ -3,10 +3,314 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>MealOps · Mostrador</title>
+  <title>MealOps · Centro de Expedición Mostrador</title>
   <link rel="stylesheet" href="../css/styles.css">
   <link rel="stylesheet" href="../css/theme.css" data-mealops-theme="true">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --lane-prep: #fff7ed;
+      --lane-prep-border: #fed7aa;
+      --lane-ready: #ecfdf3;
+      --lane-ready-border: #bbf7d0;
+      --danger-soft: #fef2f2;
+      --danger-border: #fecaca;
+    }
+    .counter-shell { max-width: 1700px; margin: 0 auto; }
+    .counter-header {
+      display: flex;
+      justify-content: space-between;
+      gap: 20px;
+      align-items: center;
+      margin-bottom: 20px;
+      padding: 18px 24px;
+      border: 1px solid rgba(84,72,61,.12);
+      border-radius: 24px;
+      background: rgba(255,255,255,.94);
+      box-shadow: var(--shadow-sm);
+      backdrop-filter: blur(14px);
+    }
+    .counter-metrics-bar {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+    .metric-card {
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 14px 18px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      box-shadow: var(--shadow-sm);
+      cursor: pointer;
+      transition: transform .15s ease, border-color .15s ease;
+    }
+    .metric-card:hover, .metric-card.active {
+      transform: translateY(-2px);
+      border-color: var(--primary);
+    }
+    .metric-card.active {
+      background: var(--primary-soft);
+    }
+    .metric-val { font-size: 26px; font-weight: 900; color: var(--text); letter-spacing: -.03em; }
+    .metric-label { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+
+    /* Filter Bar */
+    .filter-pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 20px;
+    }
+    .filter-pill {
+      padding: 8px 16px;
+      border-radius: 999px;
+      background: #fff;
+      border: 1px solid var(--border);
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--muted);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all .15s ease;
+    }
+    .filter-pill:hover, .filter-pill.active {
+      background: var(--primary);
+      color: #fff;
+      border-color: var(--primary);
+    }
+    .filter-pill.active .badge-num {
+      background: rgba(255,255,255,.25);
+      color: #fff;
+    }
+    .badge-num {
+      padding: 2px 7px;
+      border-radius: 999px;
+      background: #eeeae5;
+      color: var(--text);
+      font-size: 10px;
+      font-weight: 800;
+    }
+
+    /* Orders Grid */
+    .expedition-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+      gap: 16px;
+      align-items: start;
+    }
+
+    .order-card-hub {
+      background: #fff;
+      border: 1.5px solid var(--border);
+      border-radius: 22px;
+      padding: 18px;
+      box-shadow: var(--shadow-sm);
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      position: relative;
+      overflow: hidden;
+      transition: transform .15s ease, box-shadow .15s ease;
+    }
+    .order-card-hub:hover {
+      box-shadow: var(--shadow-md);
+    }
+    .order-card-hub.ready {
+      border-color: #86efac;
+      background: linear-gradient(180deg, #ffffff 0%, #f0fdf4 100%);
+    }
+    .order-card-hub.waiting-kitchen {
+      border-color: #fed7aa;
+      background: linear-gradient(180deg, #ffffff 0%, #fffbf7 100%);
+    }
+    .order-card-hub.delayed {
+      border-color: #fca5a5;
+      background: linear-gradient(180deg, #ffffff 0%, #fef2f2 100%);
+    }
+
+    .card-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+    }
+    .folio-box {
+      font-size: 28px;
+      font-weight: 900;
+      letter-spacing: -.05em;
+      color: var(--text);
+      line-height: 1;
+    }
+    .customer-line {
+      font-size: 13px;
+      font-weight: 800;
+      color: var(--text);
+      margin-top: 4px;
+    }
+    .phone-line {
+      font-size: 11px;
+      color: var(--muted);
+    }
+
+    .status-badge-hub {
+      padding: 6px 10px;
+      border-radius: 999px;
+      font-size: 10px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: .05em;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .badge-hub-prep { background: #fff7ed; color: #c2410c; border: 1px solid #fed7aa; }
+    .badge-hub-ready { background: #ecfdf3; color: #15803d; border: 1px solid #bbf7d0; }
+    .badge-hub-transit { background: var(--primary-soft); color: var(--primary); border: 1px solid var(--primary); }
+    .badge-hub-delivered { background: #f3f4f6; color: #4b5563; border: 1px solid #e5e7eb; }
+
+    .service-dest-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      align-items: center;
+    }
+    .dest-pill {
+      font-size: 11px;
+      font-weight: 800;
+      padding: 4px 10px;
+      border-radius: 8px;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+    }
+    .dest-mesa { background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; }
+    .dest-llevar { background: #fef3c7; color: #b45309; border: 1px solid #fde68a; }
+    .dest-domicilio { background: #f3e8ff; color: #7e22ce; border: 1px solid #e9d5ff; }
+    .dest-local { background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1; }
+
+    .time-badge {
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--muted);
+      background: #f8fafc;
+      padding: 4px 8px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+    }
+    .time-badge.alert {
+      background: #fef2f2;
+      color: #b91c1c;
+      border-color: #fca5a5;
+      font-weight: 800;
+    }
+
+    /* Items List */
+    .items-container {
+      background: rgba(255,255,255,.8);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 10px 12px;
+      display: grid;
+      gap: 8px;
+    }
+    .item-line {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      font-size: 12px;
+      line-height: 1.4;
+    }
+    .item-name-part {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      flex: 1;
+    }
+    .item-tag {
+      font-size: 9px;
+      font-weight: 800;
+      padding: 2px 6px;
+      border-radius: 6px;
+      text-transform: uppercase;
+    }
+    .tag-ready { background: #dcfce7; color: #15803d; }
+    .tag-kitchen { background: #ffedd5; color: #c2410c; }
+    .item-choices-text {
+      font-size: 10px;
+      color: var(--muted);
+      margin-top: 2px;
+      padding-left: 4px;
+    }
+
+    .address-box {
+      background: #faf5ff;
+      border: 1px solid #f3e8ff;
+      border-radius: 12px;
+      padding: 8px 10px;
+      font-size: 11px;
+      color: #6b21a8;
+      line-height: 1.4;
+    }
+
+    .waiter-assigned-box {
+      background: #f0f9ff;
+      border: 1px solid #e0f2fe;
+      border-radius: 12px;
+      padding: 8px 10px;
+      font-size: 11px;
+      color: #0369a1;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    /* Action Buttons */
+    .actions-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+      gap: 8px;
+      margin-top: 4px;
+    }
+    .btn-action {
+      padding: 10px 12px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 800;
+      border: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      transition: all .15s ease;
+    }
+    .btn-ready { background: var(--primary); color: #fff; }
+    .btn-ready:hover { background: var(--primary-hover); }
+    .btn-deliver { background: #16a34a; color: #fff; }
+    .btn-deliver:hover { background: #15803d; }
+    .btn-notify { background: #0284c7; color: #fff; }
+    .btn-notify:hover { background: #0369a1; }
+    .btn-pickup-waiter { background: #f59e0b; color: #fff; }
+    .btn-pickup-waiter:hover { background: #d97706; }
+    .btn-secondary-hub { background: #f1f5f9; color: var(--text); border: 1px solid var(--border); }
+    .btn-secondary-hub:hover { background: #e2e8f0; }
+
+    .empty-hub {
+      grid-column: 1 / -1;
+      padding: 60px 20px;
+      text-align: center;
+      background: #fff;
+      border-radius: 24px;
+      border: 1px dashed var(--border);
+    }
+    .empty-hub h3 { margin: 10px 0 4px; font-size: 18px; color: var(--text); }
+    .empty-hub p { color: var(--muted); font-size: 12px; margin: 0; }
+  </style>
 </head>
 <body>
   <main class="counter-page">
@@ -15,179 +319,463 @@
         <div class="counter-title">
           <div class="counter-title-icon"><svg class="ui-icon"><use href="assets/icons.svg#counter"></use></svg></div>
           <div>
-            <h1>Mostrador</h1>
-            <p>Seguimiento de pedidos para local, para llevar, recoger y domicilio.</p>
+            <h1>Centro de Salida y Mostrador</h1>
+            <p>Control operativo en tiempo real de todos los pedidos (Salón, Llevar, Recoger, Domicilio).</p>
           </div>
         </div>
         <div class="header-actions">
-          <div class="counter-summary">
-            <span id="counter-sync">Conectando…</span>
-            <span id="counter-total">0 pedidos activos</span>
-          </div>
-          <button class="btn btn-secondary" onclick="window.location.href='home.html'">Panel</button>
+          <span id="counter-sync" class="role-pill"><span class="role-dot"></span>Conectando…</span>
+          <button class="btn btn-secondary" onclick="window.location.href='home.html'">Panel Principal</button>
           <button class="btn btn-secondary" onclick="logout()">Salir</button>
         </div>
       </header>
 
-      <section class="counter-grid">
-        <div class="counter-lane">
-          <div class="counter-lane-head">
-            <div>
-              <h2>En preparación</h2>
-              <div class="muted" style="font-size:10px;margin-top:4px">Pedidos que todavía están en cocina.</div>
-            </div>
-            <span id="preparing-count">0</span>
+      <!-- Top Operational Metrics Bar -->
+      <section class="counter-metrics-bar">
+        <div class="metric-card active" onclick="setFilter('all')" id="card-metric-all">
+          <div>
+            <div class="metric-label">Todos Activos</div>
+            <div class="metric-val" id="count-all">0</div>
           </div>
-          <div class="counter-list" id="preparing-list"></div>
+          <svg class="ui-icon" style="color:var(--primary)"><use href="assets/icons.svg#counter"></use></svg>
         </div>
-
-        <div class="counter-lane ready">
-          <div class="counter-lane-head">
-            <div>
-              <h2>Listos para entregar</h2>
-              <div class="muted" style="font-size:10px;margin-top:4px">Confirma la entrega o salida a domicilio cuando el pedido deja mostrador.</div>
-            </div>
-            <span id="ready-count">0</span>
+        <div class="metric-card" onclick="setFilter('waiting_kitchen')" id="card-metric-kitchen">
+          <div>
+            <div class="metric-label">Esperando Cocina</div>
+            <div class="metric-val" id="count-kitchen" style="color:#ea580c">0</div>
           </div>
-          <div class="counter-list" id="ready-list"></div>
+          <svg class="ui-icon" style="color:#ea580c"><use href="assets/icons.svg#flame"></use></svg>
+        </div>
+        <div class="metric-card" onclick="setFilter('ready_mesa')" id="card-metric-mesa">
+          <div>
+            <div class="metric-label">Listos para Mesa</div>
+            <div class="metric-val" id="count-mesa" style="color:#0284c7">0</div>
+          </div>
+          <svg class="ui-icon" style="color:#0284c7"><use href="assets/icons.svg#tables"></use></svg>
+        </div>
+        <div class="metric-card" onclick="setFilter('ready_takeaway')" id="card-metric-takeaway">
+          <div>
+            <div class="metric-label">Listos Mostrador</div>
+            <div class="metric-val" id="count-takeaway" style="color:#16a34a">0</div>
+          </div>
+          <svg class="ui-icon" style="color:#16a34a"><use href="assets/icons.svg#check"></use></svg>
+        </div>
+        <div class="metric-card" onclick="setFilter('ready_delivery')" id="card-metric-delivery">
+          <div>
+            <div class="metric-label">Reparto / Domicilio</div>
+            <div class="metric-val" id="count-delivery" style="color:#9333ea">0</div>
+          </div>
+          <svg class="ui-icon" style="color:#9333ea"><use href="assets/icons.svg#bike"></use></svg>
+        </div>
+      </section>
+
+      <!-- Filter Pills -->
+      <section class="filter-pills">
+        <div class="filter-pill active" data-filter="all" onclick="setFilter('all')">
+          Todos los Pedidos <span class="badge-num" id="pill-all">0</span>
+        </div>
+        <div class="filter-pill" data-filter="waiting_kitchen" onclick="setFilter('waiting_kitchen')">
+          ⏳ Esperando Cocina <span class="badge-num" id="pill-kitchen">0</span>
+        </div>
+        <div class="filter-pill" data-filter="assembling" onclick="setFilter('assembling')">
+          📦 Armando en Mostrador <span class="badge-num" id="pill-assembling">0</span>
+        </div>
+        <div class="filter-pill" data-filter="ready_mesa" onclick="setFilter('ready_mesa')">
+          🍽️ Listos para Salón / Mesa <span class="badge-num" id="pill-mesa">0</span>
+        </div>
+        <div class="filter-pill" data-filter="waiting_arrival" onclick="setFilter('waiting_arrival')">
+          🚶 Esperando Llegada Cliente <span class="badge-num" id="pill-arrival">0</span>
+        </div>
+        <div class="filter-pill" data-filter="ready_takeaway" onclick="setFilter('ready_takeaway')">
+          🛍️ Listos para Recoger <span class="badge-num" id="pill-takeaway">0</span>
+        </div>
+        <div class="filter-pill" data-filter="ready_delivery" onclick="setFilter('ready_delivery')">
+          🛵 Domicilio & Repartidores <span class="badge-num" id="pill-delivery">0</span>
+        </div>
+        <div class="filter-pill" data-filter="delivered" onclick="setFilter('delivered')">
+          ✅ Entregados Hoy <span class="badge-num" id="pill-delivered">0</span>
+        </div>
+      </section>
+
+      <!-- Main Expedition Grid -->
+      <section class="expedition-grid" id="orders-grid">
+        <div class="empty-hub">
+          <h3>Cargando pedidos de salida...</h3>
+          <p>Conectando con la base de datos de MealOps.</p>
         </div>
       </section>
     </div>
   </main>
 
+  <audio id="alert-sound" src="alert.wav" preload="auto"></audio>
   <div id="toast-container"></div>
   <script src="app.js"></script>
   <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
   <script>
-    requireAuth(['mesero', 'cocina', 'admin']);
+    requireAuth(['mesero', 'cocina', 'repartidor', 'admin']);
+
     let orders = [];
+    let currentFilter = 'all';
     let refreshTimer;
+    let knownReadyOrderIds = new Set();
 
     const socket = io(API, { transports: ['websocket', 'polling'] });
     socket.on('connect', () => {
-      document.getElementById('counter-sync').textContent = '● Sincronizado';
+      document.getElementById('counter-sync').innerHTML = '<span class="role-dot"></span>● Sincronizado en Vivo';
     });
     socket.on('disconnect', () => {
-      document.getElementById('counter-sync').textContent = 'Reconectando…';
+      document.getElementById('counter-sync').innerHTML = '<span class="role-dot" style="background:#dc2626"></span>Reconectando…';
     });
-    socket.on('new-order', scheduleRefresh);
-    socket.on('order-updated', scheduleRefresh);
-    socket.on('orders-updated', scheduleRefresh);
-    socket.on('counter-updated', scheduleRefresh);
+    socket.on('new-order', (ord) => { scheduleRefresh(true); });
+    socket.on('order-updated', () => { scheduleRefresh(false); });
+    socket.on('orders-updated', () => { scheduleRefresh(false); });
+    socket.on('counter-updated', () => { scheduleRefresh(true); });
+    socket.on('tables-updated', () => { scheduleRefresh(false); });
+    socket.on('trips-updated', () => { scheduleRefresh(false); });
 
-    function scheduleRefresh() {
+    function scheduleRefresh(playSound = false) {
       clearTimeout(refreshTimer);
-      refreshTimer = setTimeout(loadOrders, 160);
+      refreshTimer = setTimeout(() => loadOrders(playSound), 150);
     }
 
-    function serviceLabel(order) {
-      const type = order.service_type || 'local';
-      if (type === 'llevar') return 'Para llevar';
-      if (type === 'recoger') return 'Recoger';
-      if (type === 'domicilio') return 'Domicilio';
-      return 'Local';
+    function setFilter(filterKey) {
+      currentFilter = filterKey;
+      document.querySelectorAll('.filter-pill').forEach(el => {
+        el.classList.toggle('active', el.getAttribute('data-filter') === filterKey);
+      });
+      document.querySelectorAll('.metric-card').forEach(el => {
+        el.classList.remove('active');
+      });
+      render();
     }
 
-    function statusLabel(status) {
-      const labels = {
-        pendiente: 'Pendiente',
-        aceptado: 'Aceptado',
-        preparando: 'Preparando',
-        listo: 'Listo'
-      };
-      return labels[status] || status;
-    }
-
-    function folioLabel(order) {
+    function folioText(order) {
       return order.folio ? `F${String(order.folio).padStart(3, '0')}` : `#${order.id}`;
     }
 
-    function pickupLabel(order) {
-      if (!order.pickup_at) return null;
-      const date = new Date(order.pickup_at);
-      if (Number.isNaN(date.getTime())) return null;
-      return date.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
+    function serviceBadge(order) {
+      const type = (order.service_type || order.type || 'local').toLowerCase();
+      if (type === 'mesa') {
+        return `<span class="dest-pill dest-mesa">🍽️ ${escapeHtml(order.table_name || order.type || 'Mesa')}</span>`;
+      }
+      if (type === 'local') {
+        if (!order.table_session_id) {
+          return `<span class="dest-pill dest-local">🚶 Comer aquí (Sin mesa)</span>`;
+        }
+        return `<span class="dest-pill dest-mesa">🍽️ ${escapeHtml(order.table_name || 'Salón')}</span>`;
+      }
+      if (type === 'llevar') return `<span class="dest-pill dest-llevar">🛍️ Para Llevar</span>`;
+      if (type === 'recoger') return `<span class="dest-pill dest-llevar">📦 Recoger</span>`;
+      if (type === 'domicilio') return `<span class="dest-pill dest-domicilio">🛵 A Domicilio</span>`;
+      return `<span class="dest-pill dest-local">${escapeHtml(type)}</span>`;
     }
 
-    function renderItems(order) {
+    function renderOrderCard(order) {
+      const isReady = order.status === 'listo';
+      const isDelivered = order.status === 'entregado';
+      const summary = order.summary || {};
+      const stage = summary.counter_stage || 'esperando_cocina';
+      const isDelayed = summary.is_delayed;
+      const serviceType = (order.service_type || 'local').toLowerCase();
+
+      let statusBadgeHtml = '';
+      if (isDelivered) {
+        statusBadgeHtml = `<span class="status-badge-hub badge-hub-delivered">✅ Entregado</span>`;
+      } else if (isReady) {
+        if (stage === 'en_ruta') {
+          statusBadgeHtml = `<span class="status-badge-hub badge-hub-transit">🛵 En Ruta</span>`;
+        } else if (stage === 'esperando_repartidor') {
+          statusBadgeHtml = `<span class="status-badge-hub badge-hub-ready">🛵 Esperando Chofer</span>`;
+        } else if (stage === 'esperando_asignacion') {
+          statusBadgeHtml = `<span class="status-badge-hub badge-hub-ready">🛵 Por Asignar</span>`;
+        } else if (stage === 'listo_para_mesa') {
+          statusBadgeHtml = `<span class="status-badge-hub badge-hub-ready">🍽️ Listo Salón</span>`;
+        } else if (stage === 'en_camino_a_mesa') {
+          statusBadgeHtml = `<span class="status-badge-hub badge-hub-transit">🏃 Mesero en Camino</span>`;
+        } else if (stage === 'listo_esperando_llegada') {
+          statusBadgeHtml = `<span class="status-badge-hub badge-hub-prep">🚶 Esperando Llegada</span>`;
+        } else {
+          statusBadgeHtml = `<span class="status-badge-hub badge-hub-ready">✨ Listo en Mostrador</span>`;
+        }
+      } else if (stage === 'esperando_cocina') {
+        statusBadgeHtml = `<span class="status-badge-hub badge-hub-prep">⏳ En Cocina (${summary.kitchen_items_ready_count}/${summary.kitchen_items_count})</span>`;
+      } else {
+        statusBadgeHtml = `<span class="status-badge-hub badge-hub-prep">📦 Armando</span>`;
+      }
+
+      // Items list
       const items = Array.isArray(order.items) ? order.items : [];
-      return items.map((item) => {
+      const itemsHtml = items.map(item => {
+        const isItemReady = item.status === 'listo' || item.status === 'entregado' || !item.kitchen_required;
+        const tagHtml = isItemReady
+          ? `<span class="item-tag tag-ready">Listo</span>`
+          : `<span class="item-tag tag-kitchen">Cocina</span>`;
+
         const choices = Array.isArray(item.choices) ? item.choices : [];
-        return `<div class="counter-item">
-          <span>${Number(item.quantity) || 1} × ${escapeHtml(item.name || `Producto ${item.product_id}`)}</span>
-          ${choices.length ? `<small>${choices.map((choice) => escapeHtml(choice.name)).join(' · ')}</small>` : ''}
-        </div>`;
-      }).join('');
-    }
+        const choicesHtml = choices.length
+          ? `<div class="item-choices-text">• ${choices.map(c => escapeHtml(c.name)).join(' · ')}</div>`
+          : '';
 
-    function renderDeliveryAddress(order) {
-      if (order.service_type !== 'domicilio' || !order.address) return '';
-      const details = order.details ? ` · ${escapeHtml(order.details)}` : '';
-      return `<div class="counter-delivery-address"><strong>Domicilio</strong><span>${escapeHtml(order.address)}${details}</span></div>`;
-    }
-
-    function renderOrder(order, ready) {
-      const pickup = pickupLabel(order);
-      const payment = order.payment_status === 'paid' ? 'Pagado' : 'Pago pendiente';
-      const action = order.service_type === 'domicilio' ? 'Confirmar salida / entrega' : 'Marcar como entregado';
-      return `<article class="counter-order ${ready ? 'ready' : ''}">
-        <div class="counter-order-head">
-          <div>
-            <div class="counter-folio">${folioLabel(order)}</div>
-            <div class="counter-customer">${escapeHtml(order.customer_name || (order.service_type === 'domicilio' ? 'Pedido a domicilio' : 'Cliente de mostrador'))}</div>
+        return `
+          <div class="item-line">
+            <div class="item-name-part">
+              ${tagHtml}
+              <div>
+                <strong>${item.quantity}×</strong> ${escapeHtml(item.name || `Producto #${item.product_id}`)}
+                ${choicesHtml}
+              </div>
+            </div>
           </div>
-          <span class="counter-status ${ready ? 'ready' : 'prep'}">${escapeHtml(statusLabel(order.status))}</span>
-        </div>
-        <div class="counter-meta">
-          <span>${escapeHtml(serviceLabel(order))}</span>
-          ${pickup ? `<span><svg class="ui-icon" style="width:12px;height:12px"><use href="assets/icons.svg#clock"></use></svg>${pickup}</span>` : ''}
-          <span>${escapeHtml(payment)}</span>
-          <span>${formatCurrency(order.total)}</span>
-        </div>
-        ${renderDeliveryAddress(order)}
-        <div class="counter-items">${renderItems(order) || '<div class="muted">Sin detalle de productos.</div>'}</div>
-        ${ready ? `<button class="btn btn-success counter-deliver" onclick="deliver(${Number(order.id)})">${action}</button>` : ''}
-      </article>`;
+        `;
+      }).join('');
+
+      // Metadata blocks
+      let metaBlockHtml = '';
+      if (serviceType === 'mesa' || order.table_session_id) {
+        metaBlockHtml += `
+          <div class="waiter-assigned-box">
+            <span><strong>Mesa:</strong> ${escapeHtml(order.table_name || 'Salón')}</span>
+            <span><strong>Mesero:</strong> ${escapeHtml(order.waiter_display_name || 'Sin asignar')}</span>
+          </div>
+        `;
+      }
+
+      if (serviceType === 'domicilio') {
+        const driverInfo = order.driver_name
+          ? `Repartidor: ${escapeHtml(order.driver_name)} ${order.delivery_pin ? `· PIN: ${order.delivery_pin}` : ''}`
+          : 'Esperando asignación de repartidor';
+        metaBlockHtml += `
+          <div class="address-box">
+            <div>📍 <strong>${escapeHtml(order.address || 'Dirección de entrega')}</strong></div>
+            <div style="margin-top:2px;font-size:10px;color:#7e22ce">${driverInfo}</div>
+          </div>
+        `;
+      }
+
+      // Actions buttons
+      let actionsHtml = '';
+      if (!isDelivered) {
+        if (serviceType === 'mesa' || order.table_session_id) {
+          if (isReady) {
+            if (!order.picked_up_from_counter_at) {
+              actionsHtml += `
+                <button class="btn-action btn-notify" onclick="notifyWaiter(${order.id})">🔔 Avisar Mesero</button>
+                <button class="btn-action btn-pickup-waiter" onclick="pickupWaiter(${order.id})">🏃 Mesero Recogió</button>
+              `;
+            } else {
+              actionsHtml += `
+                <button class="btn-action btn-deliver" onclick="deliverTable(${order.id})">✅ Entregado en Mesa</button>
+              `;
+            }
+          } else {
+            actionsHtml += `
+              <button class="btn-action btn-ready" onclick="markReady(${order.id})">✨ Marcar Listo</button>
+            `;
+          }
+        } else if (serviceType === 'llevar' || serviceType === 'recoger') {
+          if (isReady) {
+            actionsHtml += `
+              <button class="btn-action btn-deliver" onclick="deliverOrder(${order.id})">🤝 Entregar a Cliente</button>
+            `;
+          } else {
+            actionsHtml += `
+              <button class="btn-action btn-ready" onclick="markReady(${order.id})">✨ Marcar Listo</button>
+            `;
+          }
+        } else if (serviceType === 'local' && !order.table_session_id) {
+          actionsHtml += `
+            <button class="btn-action btn-secondary-hub" onclick="window.location.href='tables.html'">🪑 Asignar a Mesa</button>
+            ${!isReady ? `<button class="btn-action btn-ready" onclick="markReady(${order.id})">✨ Marcar Listo</button>` : ''}
+          `;
+        } else if (serviceType === 'domicilio') {
+          if (!isReady) {
+            actionsHtml += `
+              <button class="btn-action btn-ready" onclick="markReady(${order.id})">✨ Marcar Listo para Reparto</button>
+            `;
+          }
+        }
+      }
+
+      const cardClass = isDelivered
+        ? ''
+        : isReady
+        ? 'ready'
+        : isDelayed
+        ? 'delayed'
+        : stage === 'esperando_cocina'
+        ? 'waiting-kitchen'
+        : '';
+
+      return `
+        <article class="order-card-hub ${cardClass}" id="hub-order-${order.id}">
+          <div class="card-top">
+            <div>
+              <div class="folio-box">${folioText(order)}</div>
+              <div class="customer-line">${escapeHtml(order.customer_name || order.user_name || 'Cliente')}</div>
+              ${order.user_phone ? `<div class="phone-line">Tel: ${escapeHtml(order.user_phone)}</div>` : ''}
+            </div>
+            ${statusBadgeHtml}
+          </div>
+
+          <div class="service-dest-row">
+            ${serviceBadge(order)}
+            <span class="time-badge ${isDelayed ? 'alert' : ''}">
+              ⏱️ ${summary.elapsed_minutes || 0} min ${isDelayed ? '· DEMORADO' : ''}
+            </span>
+            <span class="time-badge">
+              ${order.payment_status === 'paid' ? '💳 Pagado' : '💵 Pago pendiente'} · ${formatCurrency(order.total)}
+            </span>
+          </div>
+
+          ${metaBlockHtml}
+
+          <div class="items-container">
+            ${itemsHtml || '<div class="muted">Sin detalle de platillos.</div>'}
+          </div>
+
+          ${actionsHtml ? `<div class="actions-grid">${actionsHtml}</div>` : ''}
+        </article>
+      `;
     }
 
     function render() {
-      const preparing = orders.filter((order) => ['pendiente', 'aceptado', 'preparando'].includes(order.status));
-      const ready = orders.filter((order) => order.status === 'listo');
+      // Metrics count calculations
+      const activeOrders = orders.filter(o => o.status !== 'cancelado');
+      const waitingKitchen = activeOrders.filter(o => o.status !== 'entregado' && o.summary?.counter_stage === 'esperando_cocina');
+      const readyMesa = activeOrders.filter(o => o.status === 'listo' && (o.service_type === 'mesa' || o.table_session_id));
+      const readyTakeaway = activeOrders.filter(o => o.status === 'listo' && ['llevar', 'recoger'].includes(o.service_type));
+      const readyDelivery = activeOrders.filter(o => ['domicilio'].includes(o.service_type) && o.status !== 'entregado');
+      const assembling = activeOrders.filter(o => o.status !== 'entregado' && o.summary?.counter_stage === 'armando');
+      const waitingArrival = activeOrders.filter(o => o.service_type === 'local' && !o.table_session_id && o.status !== 'entregado');
+      const deliveredToday = activeOrders.filter(o => o.status === 'entregado');
 
-      document.getElementById('preparing-count').textContent = preparing.length;
-      document.getElementById('ready-count').textContent = ready.length;
-      document.getElementById('counter-total').textContent = `${orders.length} pedido${orders.length === 1 ? '' : 's'} activo${orders.length === 1 ? '' : 's'}`;
+      // Update counters in DOM
+      document.getElementById('count-all').textContent = activeOrders.filter(o => o.status !== 'entregado').length;
+      document.getElementById('count-kitchen').textContent = waitingKitchen.length;
+      document.getElementById('count-mesa').textContent = readyMesa.length;
+      document.getElementById('count-takeaway').textContent = readyTakeaway.length;
+      document.getElementById('count-delivery').textContent = readyDelivery.length;
 
-      document.getElementById('preparing-list').innerHTML = preparing.length
-        ? preparing.map((order) => renderOrder(order, false)).join('')
-        : '<div class="counter-empty"><div><strong>Sin pedidos en preparación</strong><br>Cuando entre una orden aparecerá aquí.</div></div>';
+      document.getElementById('pill-all').textContent = activeOrders.filter(o => o.status !== 'entregado').length;
+      document.getElementById('pill-kitchen').textContent = waitingKitchen.length;
+      document.getElementById('pill-assembling').textContent = assembling.length;
+      document.getElementById('pill-mesa').textContent = readyMesa.length;
+      document.getElementById('pill-arrival').textContent = waitingArrival.length;
+      document.getElementById('pill-takeaway').textContent = readyTakeaway.length;
+      document.getElementById('pill-delivery').textContent = readyDelivery.length;
+      document.getElementById('pill-delivered').textContent = deliveredToday.length;
 
-      document.getElementById('ready-list').innerHTML = ready.length
-        ? ready.map((order) => renderOrder(order, true)).join('')
-        : '<div class="counter-empty"><div><strong>Nada esperando entrega</strong><br>Los pedidos listos aparecerán en esta columna.</div></div>';
+      // Filter displayed list
+      let filtered = activeOrders;
+      if (currentFilter === 'all') {
+        filtered = activeOrders.filter(o => o.status !== 'entregado');
+      } else if (currentFilter === 'waiting_kitchen') {
+        filtered = waitingKitchen;
+      } else if (currentFilter === 'assembling') {
+        filtered = assembling;
+      } else if (currentFilter === 'ready_mesa') {
+        filtered = readyMesa;
+      } else if (currentFilter === 'waiting_arrival') {
+        filtered = waitingArrival;
+      } else if (currentFilter === 'ready_takeaway') {
+        filtered = readyTakeaway;
+      } else if (currentFilter === 'ready_delivery') {
+        filtered = readyDelivery;
+      } else if (currentFilter === 'delivered') {
+        filtered = deliveredToday;
+      }
+
+      const grid = document.getElementById('orders-grid');
+      if (filtered.length === 0) {
+        grid.innerHTML = `
+          <div class="empty-hub">
+            <svg class="ui-icon" style="width:48px;height:48px;margin:0 auto;color:var(--muted)"><use href="assets/icons.svg#check"></use></svg>
+            <h3>Sin pedidos en esta sección</h3>
+            <p>El mostrador está al día con esta categoría de despacho.</p>
+          </div>
+        `;
+      } else {
+        grid.innerHTML = filtered.map(renderOrderCard).join('');
+      }
     }
 
-    async function loadOrders() {
+    async function loadOrders(playSoundIfNewReady = false) {
       try {
         orders = await apiFetch('/counter/orders');
+
+        // Check if any order became ready
+        if (playSoundIfNewReady) {
+          const currentReadyIds = new Set(orders.filter(o => o.status === 'listo').map(o => o.id));
+          let hasNewReady = false;
+          currentReadyIds.forEach(id => {
+            if (!knownReadyOrderIds.has(id)) {
+              hasNewReady = true;
+            }
+          });
+          if (hasNewReady) {
+            try { document.getElementById('alert-sound').play(); } catch (_) {}
+          }
+          knownReadyOrderIds = currentReadyIds;
+        }
+
         render();
-      } catch (error) {
-        showToast(error.message, 'error');
+      } catch (err) {
+        showToast(err.message, 'error');
       }
     }
 
-    async function deliver(id) {
+    // Actions
+    async function markReady(orderId) {
       try {
-        await apiFetch(`/counter/orders/${id}/deliver`, { method: 'PATCH' });
-        showToast('Pedido entregado.', 'success');
-        await loadOrders();
-      } catch (error) {
-        showToast(error.message, 'error');
+        await apiFetch(`/counter/orders/${orderId}/mark-ready`, { method: 'PATCH' });
+        showToast('Pedido marcado como listo en mostrador.', 'success');
+        await loadOrders(false);
+      } catch (err) {
+        showToast(err.message, 'error');
       }
     }
 
-    loadOrders();
-    setInterval(loadOrders, 10000);
+    async function pickupWaiter(orderId) {
+      try {
+        await apiFetch(`/counter/orders/${orderId}/pickup-waiter`, { method: 'PATCH' });
+        showToast('Recogida de mesero registrada.', 'success');
+        await loadOrders(false);
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    }
+
+    async function deliverTable(orderId) {
+      try {
+        await apiFetch(`/counter/orders/${orderId}/deliver-table`, { method: 'PATCH' });
+        showToast('Pedido entregado en mesa exitosamente.', 'success');
+        await loadOrders(false);
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    }
+
+    async function deliverOrder(orderId) {
+      try {
+        await apiFetch(`/counter/orders/${orderId}/deliver`, { method: 'PATCH' });
+        showToast('Pedido entregado al cliente.', 'success');
+        await loadOrders(false);
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    }
+
+    async function notifyWaiter(orderId) {
+      try {
+        const res = await apiFetch(`/counter/orders/${orderId}/notify-waiter`, { method: 'POST' });
+        showToast(res.message || 'Mesero notificado.', 'success');
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    }
+
+    loadOrders(false);
+    setInterval(() => loadOrders(false), 8000);
   </script>
 </body>
 </html>

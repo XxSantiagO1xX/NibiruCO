@@ -99,6 +99,11 @@ export default function AppProvider({ children }) {
       setTablesUpdateSignal((v) => v + 1);
     });
 
+    s.on("waiter-table-ready", () => {
+      setTablesUpdateSignal((v) => v + 1);
+      setOrderUpdateSignal((v) => v + 1);
+    });
+
     s.on("trips-updated", () => {
       setTripsUpdateSignal((v) => v + 1);
     });

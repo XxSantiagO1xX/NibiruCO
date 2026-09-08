@@ -126,30 +126,37 @@ router.get(
           u.phone,
           ua.address,
           ua.details,
+          rt.name AS table_name,
           COALESCE(
             json_agg(
               json_build_object(
+                'id', oi.id,
                 'product_id', oi.product_id,
                 'name', p.name,
                 'quantity', oi.quantity,
+                'status', oi.status,
+                'kitchen_required', COALESCE(oi.kitchen_required, p.kitchen_required, TRUE),
                 'product_kind', p.product_kind,
                 'choices', COALESCE((
                   SELECT json_agg(
                     json_build_object(
                       'option_product_id', occ.option_product_id,
                       'name', op.name,
-                      'quantity', occ.quantity
+                      'quantity', occ.quantity,
+                      'kitchen_required', COALESCE(op.kitchen_required, FALSE)
                     ) ORDER BY occ.id
                   )
                   FROM order_item_combo_choices occ
                   JOIN products op ON op.id = occ.option_product_id
                   WHERE occ.order_item_id = oi.id
+                    AND op.kitchen_required = TRUE
                 ), '[]'::json)
               ) ORDER BY oi.id
             ) FILTER (
               WHERE oi.id IS NOT NULL
                 AND (
-                  p.kitchen_required = TRUE
+                  oi.kitchen_required = TRUE
+                  OR p.kitchen_required = TRUE
                   OR EXISTS (
                     SELECT 1
                     FROM order_item_combo_choices occ2
@@ -164,32 +171,44 @@ router.get(
         FROM orders o
         LEFT JOIN users u ON u.id = o.user_id
         LEFT JOIN user_addresses ua ON ua.id = o.address_id
+        LEFT JOIN table_sessions ts ON ts.id = o.table_session_id
+        LEFT JOIN restaurant_tables rt ON rt.id = ts.table_id
         LEFT JOIN order_items oi ON oi.order_id = o.id
         LEFT JOIN products p ON p.id = oi.product_id
-        WHERE EXISTS (
-          SELECT 1
-          FROM order_items koi
-          JOIN products kp ON kp.id = koi.product_id
-          WHERE koi.order_id = o.id
-            AND (
-              kp.kitchen_required = TRUE
-              OR EXISTS (
-                SELECT 1
-                FROM order_item_combo_choices kocc
-                JOIN products kop ON kop.id = kocc.option_product_id
-                WHERE kocc.order_item_id = koi.id
-                  AND kop.kitchen_required = TRUE
+        WHERE (o.service_date = CURRENT_DATE OR o.created_at::date = CURRENT_DATE)
+          AND o.status IN ('pendiente', 'aceptado', 'preparando')
+          AND EXISTS (
+            SELECT 1
+            FROM order_items koi
+            JOIN products kp ON kp.id = koi.product_id
+            WHERE koi.order_id = o.id
+              AND (
+                koi.kitchen_required = TRUE
+                OR kp.kitchen_required = TRUE
+                OR EXISTS (
+                  SELECT 1
+                  FROM order_item_combo_choices kocc
+                  JOIN products kop ON kop.id = kocc.option_product_id
+                  WHERE kocc.order_item_id = koi.id
+                    AND kop.kitchen_required = TRUE
+                )
               )
-            )
-        )
-        GROUP BY o.id, u.id, ua.id
-        ORDER BY o.created_at DESC
+          )
+        GROUP BY o.id, u.id, ua.id, rt.id
+        ORDER BY
+          CASE
+            WHEN o.status = 'preparando' THEN 1
+            WHEN o.status = 'aceptado' THEN 2
+            ELSE 3
+          END,
+          COALESCE(o.pickup_at, o.created_at) ASC,
+          o.id ASC
       `);
 
       res.json(result.rows);
     } catch (err) {
       console.error(err);
-      res.status(500).json({ message: "Error obteniendo pedidos" });
+      res.status(500).json({ message: "Error obteniendo pedidos de cocina" });
     }
   }
 );
@@ -365,8 +384,14 @@ router.post("/", auth, async (req, res) => {
 
       const unitPrice = Number(product.price) + extraTotal;
       total += unitPrice * quantity;
-      requiresKitchen = requiresKitchen || Boolean(product.kitchen_required) || optionNeedsKitchen;
-      normalizedItems.push({ product_id: productId, quantity, choices });
+      const itemNeedsKitchen = Boolean(product.kitchen_required) || optionNeedsKitchen;
+      requiresKitchen = requiresKitchen || itemNeedsKitchen;
+      normalizedItems.push({
+        product_id: productId,
+        quantity,
+        choices,
+        kitchen_required: itemNeedsKitchen
+      });
     }
 
     // Efectivo y cambio esperado
@@ -396,7 +421,7 @@ router.post("/", auth, async (req, res) => {
     const orderStatus = requiresKitchen
       ? "pendiente"
       : tableSessionId
-        ? "entregado"
+        ? "listo"
         : immediateInternalSale
           ? "entregado"
           : "listo";
@@ -406,10 +431,10 @@ router.post("/", auth, async (req, res) => {
         INSERT INTO orders
           (user_id, type, total, status, payment_method, address_id, table_session_id,
            service_type, customer_name, pickup_at, folio, service_date, payment_status, paid_at,
-           delivery_pin, delivery_zone_id, delivery_fee, cash_paid_with, cash_change_due)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11,
+           delivery_pin, delivery_zone_id, delivery_fee, cash_paid_with, cash_change_due, ready_at)
+        VALUES ($1, $2, $3, $4::varchar, $5, $6, $7, $8, $9, $10, $11,
                 COALESCE($12, CURRENT_DATE), $13::varchar, CASE WHEN $13::varchar = 'paid' THEN NOW() ELSE NULL END,
-                $14, $15, $16, $17, $18)
+                $14, $15, $16, $17, $18, CASE WHEN $4::varchar = 'listo' THEN NOW() ELSE NULL END)
         RETURNING *
       `,
       [
@@ -437,13 +462,14 @@ router.post("/", auth, async (req, res) => {
     const order = orderResult.rows[0];
 
     for (const item of normalizedItems) {
+      const itemStatus = item.kitchen_required ? "pendiente" : "listo";
       const itemResult = await client.query(
         `
-          INSERT INTO order_items (order_id, product_id, quantity)
-          VALUES ($1, $2, $3)
+          INSERT INTO order_items (order_id, product_id, quantity, kitchen_required, status, ready_at)
+          VALUES ($1, $2, $3, $4, $5::varchar, CASE WHEN $5::varchar = 'listo' THEN NOW() ELSE NULL END)
           RETURNING id
         `,
-        [order.id, item.product_id, item.quantity]
+        [order.id, item.product_id, item.quantity, item.kitchen_required, itemStatus]
       );
 
       const orderItemId = itemResult.rows[0].id;
@@ -462,7 +488,7 @@ router.post("/", auth, async (req, res) => {
     if (io) {
       if (requiresKitchen) io.emit("new-order", order);
       io.emit("orders-updated", order);
-      if (orderStatus === "listo") io.emit("counter-updated", order);
+      io.emit("counter-updated", order);
       if (tableSessionId) io.emit("tables-updated");
     }
 
@@ -532,29 +558,28 @@ router.get("/", auth, async (req, res) => {
   }
 });
 
-    res.json(result.rows);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: "Error obteniendo pedidos" });
-  }
-});
-
 router.patch(
   "/:id/status",
   auth,
   roles(["cocina", "admin"]),
   async (req, res) => {
+    const client = await pool.connect();
     try {
       const id = Number(req.params.id);
       const status = String(req.body.status || "").toLowerCase();
       if (!Number.isInteger(id)) return res.status(400).json({ message: "Pedido inválido" });
 
-      const currentResult = await pool.query(
-        "SELECT id, status, table_session_id FROM orders WHERE id = $1",
+      await client.query("BEGIN");
+
+      const currentResult = await client.query(
+        "SELECT id, status, table_session_id FROM orders WHERE id = $1 FOR UPDATE",
         [id]
       );
       const current = currentResult.rows[0];
-      if (!current) return res.status(404).json({ message: "Pedido no encontrado" });
+      if (!current) {
+        await client.query("ROLLBACK");
+        return res.status(404).json({ message: "Pedido no encontrado" });
+      }
 
       const transitions = {
         pendiente: ["aceptado", "cancelado"],
@@ -566,19 +591,46 @@ router.patch(
       };
 
       if (!(transitions[current.status] || []).includes(status)) {
+        await client.query("ROLLBACK");
         return res.status(409).json({ message: `No se puede pasar de ${current.status} a ${status}` });
       }
 
       if (current.status === "listo" && status === "entregado" && !current.table_session_id) {
+        await client.query("ROLLBACK");
         return res.status(409).json({ message: "Los pedidos de mostrador se entregan desde el módulo Mostrador" });
       }
 
-      const result = await pool.query(
-        "UPDATE orders SET status = $1 WHERE id = $2 RETURNING *",
+      // Sincronizar items de cocina
+      if (status === "aceptado") {
+        await client.query(
+          "UPDATE order_items SET status = 'aceptado' WHERE order_id = $1 AND kitchen_required = TRUE AND status = 'pendiente'",
+          [id]
+        );
+      } else if (status === "preparando") {
+        await client.query(
+          "UPDATE order_items SET status = 'preparando' WHERE order_id = $1 AND kitchen_required = TRUE AND status IN ('pendiente', 'aceptado')",
+          [id]
+        );
+      } else if (status === "listo") {
+        await client.query(
+          "UPDATE order_items SET status = 'listo', ready_at = COALESCE(ready_at, NOW()) WHERE order_id = $1 AND kitchen_required = TRUE AND status <> 'entregado'",
+          [id]
+        );
+      } else if (status === "entregado") {
+        await client.query(
+          "UPDATE order_items SET status = 'entregado' WHERE order_id = $1",
+          [id]
+        );
+      }
+
+      const result = await client.query(
+        "UPDATE orders SET status = $1::varchar, ready_at = CASE WHEN $1::varchar = 'listo' THEN COALESCE(ready_at, NOW()) ELSE ready_at END WHERE id = $2 RETURNING *",
         [status, id]
       );
 
       const updatedOrder = result.rows[0];
+      await client.query("COMMIT");
+
       const io = req.app.get("io");
       if (io) {
         io.emit("order-updated", updatedOrder);
@@ -589,8 +641,11 @@ router.patch(
 
       res.json(updatedOrder);
     } catch (err) {
+      try { await client.query("ROLLBACK"); } catch (_) {}
       console.error(err);
       res.status(500).json({ message: "Error actualizando pedido" });
+    } finally {
+      client.release();
     }
   }
 );
