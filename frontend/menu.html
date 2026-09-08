@@ -6,6 +6,36 @@
   <title>MealOps · Menú</title>
   <link rel="stylesheet" href="../css/styles.css">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    .menu-tabs {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 16px;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 8px;
+    }
+    .menu-tab {
+      background: none;
+      border: none;
+      padding: 8px 14px;
+      border-radius: var(--radius-sm);
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--muted);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .menu-tab.active {
+      background: var(--surface);
+      color: var(--primary);
+      box-shadow: var(--shadow-sm);
+    }
+    .badge-combo {
+      background: #faf5ff;
+      color: #9333ea;
+      border: 1px solid #e9d5ff;
+    }
+  </style>
 </head>
 <body>
   <div class="app-shell">
@@ -17,6 +47,7 @@
         <a href="kds.html">Cocina KDS</a>
         <a href="menu.html" class="active">Menú</a>
         <a href="products.html">Productos</a>
+        <a href="combos.html">Combos</a>
       </nav>
       <div class="sidebar-footer"><button class="btn btn-ghost" onclick="logout()">Cerrar sesión</button></div>
     </aside>
@@ -25,14 +56,17 @@
       <header class="page-header">
         <div>
           <h1>Menú semanal</h1>
-          <p>Selecciona los productos que estarán disponibles cada día.</p>
+          <p>Selecciona los productos y combos de comida corrida que estarán disponibles cada día.</p>
         </div>
-        <div class="header-actions"><button class="btn btn-primary" id="save-button" onclick="saveMenu()">Guardar día</button></div>
+        <div class="header-actions">
+          <a href="combos.html" class="btn btn-secondary" style="margin-right: 8px;">Administrar combos</a>
+          <button class="btn btn-primary" id="save-button" onclick="saveMenu()">Guardar día</button>
+        </div>
       </header>
 
       <div class="card card-pad">
         <div class="field" style="max-width:260px">
-          <label for="daySelect">Día</label>
+          <label for="daySelect">Día de la semana</label>
           <select id="daySelect" onchange="loadDay()">
             <option value="monday">Lunes</option>
             <option value="tuesday">Martes</option>
@@ -46,7 +80,13 @@
       </div>
 
       <div class="spacer-24"></div>
-      <h2 class="section-title">Productos disponibles</h2>
+
+      <div class="menu-tabs">
+        <button class="menu-tab active" id="tab-all" onclick="setFilter('all')">Todos los artículos</button>
+        <button class="menu-tab" id="tab-combos" onclick="setFilter('combos')">✨ Combos y Comida corrida</button>
+        <button class="menu-tab" id="tab-regular" onclick="setFilter('regular')">🍽️ Platillos individuales</button>
+      </div>
+
       <div id="products" class="list"></div>
     </main>
   </div>
@@ -57,6 +97,15 @@
     requireAuth(['admin']);
     let products = [];
     let selected = new Set();
+    let currentFilter = 'all';
+
+    function setFilter(filter) {
+      currentFilter = filter;
+      document.querySelectorAll('.menu-tab').forEach((tab) => tab.classList.remove('active'));
+      const activeTab = document.getElementById(`tab-${filter}`);
+      if (activeTab) activeTab.classList.add('active');
+      renderProducts();
+    }
 
     async function loadProducts() {
       products = await apiFetch('/products/all');
@@ -87,17 +136,35 @@
         return;
       }
 
-      container.innerHTML = products.map((product) => {
+      let filtered = products;
+      if (currentFilter === 'combos') {
+        filtered = products.filter((p) => p.product_kind === 'combo');
+      } else if (currentFilter === 'regular') {
+        filtered = products.filter((p) => p.product_kind !== 'combo');
+      }
+
+      if (!filtered.length) {
+        container.innerHTML = '<div class="card card-pad muted">No hay artículos en esta categoría.</div>';
+        return;
+      }
+
+      container.innerHTML = filtered.map((product) => {
         const active = selected.has(Number(product.id));
+        const isCombo = product.product_kind === 'combo';
+        const groupCount = Array.isArray(product.groups) ? product.groups.length : 0;
+
         return `
-          <div class="list-row">
+          <div class="list-row" style="${isCombo ? 'border-left: 4px solid #9333ea; padding-left: 14px;' : ''}">
             <div class="list-main">
-              <strong>${escapeHtml(product.name)}</strong>
-              <small>${formatCurrency(product.price)} · ${product.available ? 'Disponible' : 'Agotado'}</small>
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <strong>${escapeHtml(product.name)}</strong>
+                ${isCombo ? `<span class="badge badge-combo">Combo (${groupCount} grupos)</span>` : ''}
+              </div>
+              <small>${formatCurrency(product.price)} · ${product.available ? 'Disponible' : 'Agotado'} · ${isCombo ? 'Comida corrida configurable' : (product.kitchen_required ? 'Cocina' : 'Entrega directa')}</small>
             </div>
             <div class="list-actions">
               <span class="badge ${active ? 'badge-success' : 'badge-neutral'}">${active ? 'En el menú' : 'Fuera del menú'}</span>
-              <button class="btn btn-sm ${active ? 'btn-secondary' : 'btn-primary'}" onclick="toggleProduct(${product.id})">${active ? 'Quitar' : 'Agregar'}</button>
+              <button class="btn btn-sm ${active ? 'btn-secondary' : 'btn-primary'}" onclick="toggleProduct(${product.id})">${active ? 'Quitar del día' : 'Agregar al día'}</button>
             </div>
           </div>
         `;
@@ -123,6 +190,12 @@
 
     async function init() {
       try {
+        // Auto seleccionar día de hoy por defecto
+        const days = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
+        const today = days[new Date().getDay()];
+        const select = document.getElementById('daySelect');
+        if (select) select.value = today;
+
         await loadProducts();
         await loadDay();
       } catch (error) {

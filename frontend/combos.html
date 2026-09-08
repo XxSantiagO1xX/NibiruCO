@@ -6,6 +6,28 @@
   <title>MealOps · Combos</title>
   <link rel="stylesheet" href="../css/styles.css">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    .day-checkboxes {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 8px;
+    }
+    .day-check-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 12px;
+      background: var(--bg-subtle, #f8fafc);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      font-size: 13px;
+      cursor: pointer;
+    }
+    .day-check-item input {
+      width: auto;
+    }
+  </style>
 </head>
 <body>
   <div class="app-shell">
@@ -28,6 +50,9 @@
           <h1>Combos y comida corrida</h1>
           <p>Crea una comida con precio fijo y define qué puede elegir el cliente en cada tiempo.</p>
         </div>
+        <div class="header-actions">
+          <a href="menu.html" class="btn btn-secondary">Ver Menú Semanal</a>
+        </div>
       </header>
 
       <section class="card card-pad">
@@ -36,7 +61,7 @@
           <div class="field"><label for="combo-name">Nombre</label><input id="combo-name" placeholder="Ej. Comida completa"></div>
           <div class="field"><label for="combo-price">Precio base</label><input id="combo-price" type="number" min="0" step="0.01" placeholder="95.00"></div>
         </div>
-        <p class="muted" style="margin:10px 0 0;font-size:11px">Los combos se consideran preparación de cocina. Los artículos de entrega inmediata se configuran individualmente en Productos.</p>
+        <p class="muted" style="margin:10px 0 0;font-size:11px">Los combos se consideran preparación de cocina. Para que aparezcan en Ventas y Mesero, deben estar asignados al menú del día.</p>
         <div class="spacer-16"></div>
         <button class="btn btn-primary" onclick="createCombo()">Crear combo</button>
       </section>
@@ -46,7 +71,7 @@
       <section class="card card-pad">
         <div class="page-header" style="margin-bottom:16px">
           <div>
-            <h2 class="section-title" style="margin:0">Configurar opciones</h2>
+            <h2 class="section-title" style="margin:0">Configurar opciones y disponibilidad en menú</h2>
             <p class="muted" style="margin:5px 0 0;font-size:12px">Ejemplo: grupo “Guisado” → Milanesa, Mole, Enchiladas.</p>
           </div>
           <div class="field" style="min-width:280px">
@@ -57,10 +82,32 @@
 
         <div id="combo-empty" class="muted">Crea un combo para comenzar.</div>
         <div id="combo-editor" class="hidden">
+          
+          <!-- ASIGNACIÓN A MENÚ SEMANAL -->
+          <div class="card card-pad" style="background: var(--bg-subtle, #f8fafc); border: 1px dashed var(--border); margin-bottom: 20px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+              <div>
+                <strong>📅 Días disponible en el Menú Semanal</strong>
+                <p class="muted" style="font-size: 12px; margin-top: 2px;">Marca los días en que este combo se ofrecerá en Mesero y Ventas.</p>
+              </div>
+              <button class="btn btn-sm btn-primary" id="btn-save-days" onclick="saveComboDays()">Guardar días en Menú</button>
+            </div>
+            <div class="day-checkboxes" id="combo-days-container">
+              <label class="day-check-item"><input type="checkbox" value="monday" id="day-monday"> Lunes</label>
+              <label class="day-check-item"><input type="checkbox" value="tuesday" id="day-tuesday"> Martes</label>
+              <label class="day-check-item"><input type="checkbox" value="wednesday" id="day-wednesday"> Miércoles</label>
+              <label class="day-check-item"><input type="checkbox" value="thursday" id="day-thursday"> Jueves</label>
+              <label class="day-check-item"><input type="checkbox" value="friday" id="day-friday"> Viernes</label>
+              <label class="day-check-item"><input type="checkbox" value="saturday" id="day-saturday"> Sábado</label>
+              <label class="day-check-item"><input type="checkbox" value="sunday" id="day-sunday"> Domingo</label>
+            </div>
+          </div>
+
+          <h3 class="section-title" style="font-size: 15px; margin-bottom: 12px;">Grupos de selección</h3>
           <div class="form-grid">
             <div class="field"><label for="group-name">Nombre del grupo</label><input id="group-name" placeholder="Ej. Guisado"></div>
-            <div class="field"><label for="group-min">Mínimo</label><input id="group-min" type="number" min="0" value="1"></div>
-            <div class="field"><label for="group-max">Máximo</label><input id="group-max" type="number" min="1" value="1"></div>
+            <div class="field"><label for="group-min">Mínimo obligatorio</label><input id="group-min" type="number" min="0" value="1"></div>
+            <div class="field"><label for="group-max">Máximo permitido</label><input id="group-max" type="number" min="1" value="1"></div>
           </div>
           <div class="spacer-16"></div>
           <button class="btn btn-secondary" onclick="addGroup()">+ Agregar grupo</button>
@@ -77,14 +124,21 @@
     requireAuth(['admin']);
     let combos = [];
     let products = [];
+    let weeklyMenu = {};
     let selectedComboId = null;
+
+    const DAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
 
     async function loadData(preferredId = null) {
       try {
-        [combos, products] = await Promise.all([
+        const [combosData, productsData, menuData] = await Promise.all([
           apiFetch('/combos'),
-          apiFetch('/products/all')
+          apiFetch('/products/all'),
+          apiFetch('/menu')
         ]);
+        combos = combosData;
+        products = productsData;
+        weeklyMenu = menuData;
         renderComboSelect(preferredId);
       } catch (error) {
         showToast(error.message, 'error');
@@ -108,15 +162,63 @@
       document.getElementById('combo-empty').classList.add('hidden');
       document.getElementById('combo-editor').classList.remove('hidden');
       renderGroups();
+      renderComboDays();
     }
 
     function selectCombo() {
       selectedComboId = Number(document.getElementById('combo-select').value);
       renderGroups();
+      renderComboDays();
     }
 
     function currentCombo() {
       return combos.find((combo) => Number(combo.id) === Number(selectedComboId));
+    }
+
+    function renderComboDays() {
+      if (!selectedComboId) return;
+      DAYS.forEach((day) => {
+        const cb = document.getElementById(`day-${day}`);
+        if (cb) {
+          const dayProducts = weeklyMenu[day] || [];
+          cb.checked = dayProducts.map(Number).includes(Number(selectedComboId));
+        }
+      });
+    }
+
+    async function saveComboDays() {
+      if (!selectedComboId) return;
+      const btn = document.getElementById('btn-save-days');
+      btn.disabled = true;
+      try {
+        for (const day of DAYS) {
+          const cb = document.getElementById(`day-${day}`);
+          const isChecked = cb && cb.checked;
+          const currentList = (weeklyMenu[day] || []).map(Number);
+          const hasCombo = currentList.includes(Number(selectedComboId));
+
+          if (isChecked && !hasCombo) {
+            const updated = [...currentList, Number(selectedComboId)];
+            await apiFetch('/menu/day', {
+              method: 'POST',
+              body: JSON.stringify({ day, products: updated })
+            });
+            weeklyMenu[day] = updated;
+          } else if (!isChecked && hasCombo) {
+            const updated = currentList.filter((id) => id !== Number(selectedComboId));
+            await apiFetch('/menu/day', {
+              method: 'POST',
+              body: JSON.stringify({ day, products: updated })
+            });
+            weeklyMenu[day] = updated;
+          }
+        }
+        showToast('Días del menú actualizados para este combo.', 'success');
+      } catch (error) {
+        showToast(error.message, 'error');
+      } finally {
+        btn.disabled = false;
+      }
     }
 
     async function createCombo() {
@@ -132,7 +234,7 @@
         document.getElementById('combo-name').value = '';
         document.getElementById('combo-price').value = '';
         await loadData(combo.id);
-        showToast('Combo creado. Ahora agrega sus grupos de elección.', 'success');
+        showToast('Combo creado. Ahora agrega sus grupos de opciones y los días del menú.', 'success');
       } catch (error) {
         showToast(error.message, 'error');
       }
@@ -164,7 +266,7 @@
       const combo = currentCombo();
       const container = document.getElementById('groups');
       if (!combo || !combo.groups.length) {
-        container.innerHTML = '<div class="muted">Todavía no hay grupos. Agrega, por ejemplo, “Sopa”, “Guisado” o “Agua”.</div>';
+        container.innerHTML = '<div class="muted">Todavía no hay grupos. Agrega, por ejemplo, “Sopa”, “Plato fuerte” o “Bebida”.</div>';
         return;
       }
 
@@ -175,7 +277,7 @@
           <div class="page-header" style="margin-bottom:12px">
             <div>
               <strong>${escapeHtml(group.name)}</strong>
-              <div class="muted" style="font-size:11px;margin-top:4px">Elegir ${group.min_select === group.max_select ? group.min_select : `${group.min_select}–${group.max_select}`}</div>
+              <div class="muted" style="font-size:11px;margin-top:4px">Elegir ${group.min_select === group.max_select ? group.min_select : `${group.min_select} a ${group.max_select}`} opción(es) ${group.min_select > 0 ? '(Obligatorio)' : '(Opcional)'}</div>
             </div>
             <button class="btn btn-sm btn-secondary" onclick="deleteGroup(${group.id})">Eliminar grupo</button>
           </div>
@@ -185,7 +287,7 @@
               <div class="list-row">
                 <div class="list-main">
                   <strong>${escapeHtml(option.name)}</strong>
-                  <small>${Number(option.extra_price) > 0 ? `+ ${formatCurrency(option.extra_price)}` : 'Sin costo extra'} · ${option.active ? 'Activa' : 'Inactiva'}</small>
+                  <small>${Number(option.extra_price) > 0 ? `+ ${formatCurrency(option.extra_price)} extra` : 'Sin costo extra'} · ${option.active ? 'Activa' : 'Inactiva'}</small>
                 </div>
                 <button class="btn btn-sm ${option.active ? 'btn-secondary' : 'btn-primary'}" onclick="toggleOption(${group.id}, ${option.id}, ${option.active ? 'false' : 'true'})">${option.active ? 'Desactivar' : 'Activar'}</button>
               </div>
@@ -194,14 +296,14 @@
 
           <div class="form-grid">
             <div class="field">
-              <label>Agregar producto</label>
+              <label>Agregar producto como opción</label>
               <select id="option-product-${group.id}">
-                ${eligibleProducts.map((product) => `<option value="${product.id}">${escapeHtml(product.name)}</option>`).join('')}
+                ${eligibleProducts.map((product) => `<option value="${product.id}">${escapeHtml(product.name)} (${formatCurrency(product.price)})</option>`).join('')}
               </select>
             </div>
             <div class="field">
-              <label>Costo extra</label>
-              <input id="option-extra-${group.id}" type="number" min="0" step="0.01" value="0">
+              <label>Precio extra (+ $)</label>
+              <input id="option-extra-${group.id}" type="number" min="0" step="0.50" value="0">
             </div>
             <div class="field" style="justify-content:end">
               <label>&nbsp;</label>

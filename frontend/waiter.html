@@ -339,28 +339,66 @@
     }
 
     function openCombo(productId) {
-      const combo = combos.find((item) => Number(item.id) === Number(productId));
+      const combo = (combos && combos.find((item) => Number(item.id) === Number(productId))) || products.find((item) => Number(item.id) === Number(productId));
       if (!combo) return showToast('Este combo todavía no está configurado.', 'error');
+
+      const groups = combo.groups || [];
+      if (!groups.length) {
+        const product = products.find((item) => Number(item.id) === Number(productId));
+        if (product) {
+          addCartItem(product, []);
+          showToast(`${product.name} agregado a la comanda`, 'success');
+        }
+        return;
+      }
+
       comboEditing = combo;
       document.getElementById('combo-title').textContent = combo.name;
-      document.getElementById('combo-groups').innerHTML = combo.groups.map((group) => {
-        const type = Number(group.max_select) === 1 ? 'radio' : 'checkbox';
+      document.getElementById('combo-groups').innerHTML = groups.map((group) => {
+        const isSingle = Number(group.max_select) === 1;
+        const type = isSingle ? 'radio' : 'checkbox';
         const options = (group.options || []).filter((option) => option.active && option.available);
+        const min = Number(group.min_select);
+        const max = Number(group.max_select);
+        const reqText = min === 0 ? '(Opcional)' : '(Obligatorio)';
+        const rangeText = min === max ? `Elige ${min}` : `Elige entre ${min} y ${max}`;
+
         return `<div class="combo-group">
-          <strong>${escapeHtml(group.name)}</strong>
-          <div class="muted" style="font-size:11px;margin-top:3px">Elige ${group.min_select === group.max_select ? group.min_select : `${group.min_select}–${group.max_select}`}</div>
-          ${options.map((option) => `<label class="combo-option"><input type="${type}" name="waiter-combo-${group.id}" value="${option.option_product_id}" onchange="updateComboPrice()"><span>${escapeHtml(option.name)}${Number(option.extra_price) > 0 ? ` <small class="muted">(+${formatCurrency(option.extra_price)})</small>` : ''}</span></label>`).join('') || '<div class="muted" style="margin-top:8px">Sin opciones disponibles.</div>'}
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <strong>${escapeHtml(group.name)}</strong>
+            <small class="muted">${reqText}</small>
+          </div>
+          <div class="muted" style="font-size:11px;margin-top:2px;margin-bottom:8px">${rangeText}</div>
+          ${isSingle && min === 0 ? `
+            <label class="combo-option">
+              <input type="radio" name="waiter-combo-${group.id}" value="" checked onchange="updateComboPrice()">
+              <span class="muted">Ninguno / Sin opción</span>
+            </label>
+          ` : ''}
+          ${options.map((option, idx) => `<label class="combo-option"><input type="${type}" name="waiter-combo-${group.id}" value="${option.option_product_id}" data-extra="${Number(option.extra_price || 0)}" data-name="${escapeHtml(option.name)}" ${isSingle && min === 1 && idx === 0 ? 'checked' : ''} onchange="onComboOptionChange(this, ${group.id}, ${max})"><span>${escapeHtml(option.name)}${Number(option.extra_price) > 0 ? ` <small class="muted" style="font-weight:600;color:var(--primary)">(+${formatCurrency(option.extra_price)})</small>` : ''}</span></label>`).join('') || '<div class="muted" style="margin-top:8px">Sin opciones disponibles.</div>'}
         </div>`;
       }).join('');
       updateComboPrice();
       document.getElementById('combo-modal').classList.remove('hidden');
     }
 
+    function onComboOptionChange(input, groupId, maxSelect) {
+      if (input.type === 'checkbox') {
+        const checked = document.querySelectorAll(`input[name="waiter-combo-${groupId}"]:checked`);
+        if (checked.length > maxSelect) {
+          input.checked = false;
+          showToast(`Solo puedes seleccionar hasta ${maxSelect} opción(es) en este grupo.`, 'error');
+        }
+      }
+      updateComboPrice();
+    }
+
     function selectedComboChoices() {
       if (!comboEditing) return [];
       const choices = [];
-      comboEditing.groups.forEach((group) => {
+      (comboEditing.groups || []).forEach((group) => {
         document.querySelectorAll(`input[name="waiter-combo-${group.id}"]:checked`).forEach((input) => {
+          if (!input.value) return;
           const option = (group.options || []).find((candidate) => Number(candidate.option_product_id) === Number(input.value));
           if (option) choices.push({
             group_id: Number(group.id),
@@ -383,14 +421,16 @@
     function confirmCombo() {
       if (!comboEditing) return;
       const choices = selectedComboChoices();
-      for (const group of comboEditing.groups) {
+      for (const group of (comboEditing.groups || [])) {
         const count = choices.filter((choice) => Number(choice.group_id) === Number(group.id)).length;
-        if (count < Number(group.min_select) || count > Number(group.max_select)) return showToast(`Revisa ${group.name}.`, 'error');
+        if (count < Number(group.min_select)) return showToast(`Selecciona al menos ${group.min_select} opción(es) en "${group.name}".`, 'error');
+        if (count > Number(group.max_select)) return showToast(`Selecciona máximo ${group.max_select} opción(es) en "${group.name}".`, 'error');
       }
       const product = products.find((item) => Number(item.id) === Number(comboEditing.id));
       if (!product) return;
       addCartItem(product, choices);
       closeCombo();
+      showToast(`${product.name} agregado a la comanda`, 'success');
     }
 
     function closeCombo() {
