@@ -379,7 +379,7 @@ router.post("/", auth, async (req, res) => {
           (user_id, type, total, status, payment_method, address_id, table_session_id,
            service_type, customer_name, pickup_at, folio, service_date, payment_status, paid_at)
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11,
-                COALESCE($12, CURRENT_DATE), $13, CASE WHEN $13 = 'paid' THEN NOW() ELSE NULL END)
+                COALESCE($12, CURRENT_DATE), $13::varchar, CASE WHEN $13::varchar = 'paid' THEN NOW() ELSE NULL END)
         RETURNING *
       `,
       [
