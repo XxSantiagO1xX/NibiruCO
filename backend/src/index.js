@@ -111,6 +111,17 @@ async function start() {
   server.listen(PORT, () => {
     console.log(`MealOps disponible en http://localhost:${PORT}`);
   });
+
+  // Motor de Despacho Automático periódico (verificar expiraciones y pedidos en cola)
+  const dispatchEngine = require("./services/dispatchEngine");
+  setInterval(async () => {
+    try {
+      await dispatchEngine.checkExpiredOffers(io);
+      await dispatchEngine.evaluateDispatchQueue(io);
+    } catch (err) {
+      console.error("DISPATCH TICKER ERROR:", err.message);
+    }
+  }, 5000);
 }
 
 start().catch((error) => {

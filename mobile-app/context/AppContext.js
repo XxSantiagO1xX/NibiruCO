@@ -20,6 +20,7 @@ export default function AppProvider({ children }) {
   const [orderUpdateSignal, setOrderUpdateSignal] = useState(0);
   const [tablesUpdateSignal, setTablesUpdateSignal] = useState(0);
   const [tripsUpdateSignal, setTripsUpdateSignal] = useState(0);
+  const [offerUpdateSignal, setOfferUpdateSignal] = useState(0);
 
   // Configure global Axios headers & interceptor
   useEffect(() => {
@@ -106,6 +107,35 @@ export default function AppProvider({ children }) {
 
     s.on("trips-updated", () => {
       setTripsUpdateSignal((v) => v + 1);
+    });
+
+    s.on("delivery-offer-created", () => {
+      setOfferUpdateSignal((v) => v + 1);
+      setTripsUpdateSignal((v) => v + 1);
+    });
+
+    s.on("delivery-offer-expired", () => {
+      setOfferUpdateSignal((v) => v + 1);
+      setTripsUpdateSignal((v) => v + 1);
+    });
+
+    s.on("delivery-offer-accepted", () => {
+      setOfferUpdateSignal((v) => v + 1);
+      setTripsUpdateSignal((v) => v + 1);
+    });
+
+    s.on("delivery-offer-rejected", () => {
+      setOfferUpdateSignal((v) => v + 1);
+      setTripsUpdateSignal((v) => v + 1);
+    });
+
+    s.on("driver-status-updated", () => {
+      setOfferUpdateSignal((v) => v + 1);
+      setTripsUpdateSignal((v) => v + 1);
+    });
+
+    s.on("delivery-config-updated", () => {
+      setOfferUpdateSignal((v) => v + 1);
     });
 
     setSocket(s);
@@ -273,7 +303,8 @@ export default function AppProvider({ children }) {
         socket,
         orderUpdateSignal,
         tablesUpdateSignal,
-        tripsUpdateSignal
+        tripsUpdateSignal,
+        offerUpdateSignal
       }}
     >
       {children}

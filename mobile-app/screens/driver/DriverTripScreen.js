@@ -22,12 +22,17 @@ import DriverIssueModal from "./DriverIssueModal";
 import { openWazeNavigation, openPhoneCall } from "../../utils/navigation";
 
 export default function DriverTripScreen({ navigation }) {
-  const { token, user, tripsUpdateSignal, orderUpdateSignal } = useContext(AppContext);
+  const { token, user, checkAuth, tripsUpdateSignal, orderUpdateSignal, offerUpdateSignal } = useContext(AppContext);
 
   const [tripData, setTripData] = useState(null);
+  const [activeOffer, setActiveOffer] = useState(null);
+  const [offerSecondsLeft, setOfferSecondsLeft] = useState(0);
+  const [driverStatus, setDriverStatus] = useState(user?.driver_status || "offline");
+  const [updatingStatus, setUpdatingStatus] = useState(false);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [startingTrip, setStartingTrip] = useState(false);
+  const [respondingOffer, setRespondingOffer] = useState(false);
 
   // Modals state
   const [pinModalVisible, setPinModalVisible] = useState(false);
@@ -39,15 +44,29 @@ export default function DriverTripScreen({ navigation }) {
   const [activeStopForIssue, setActiveStopForIssue] = useState(null);
   const [submittingIssue, setSubmittingIssue] = useState(false);
 
-  const loadMyTrip = useCallback(async () => {
+  const loadData = useCallback(async () => {
     if (!token) return;
     try {
-      const res = await axios.get(`${API_URL}/deliveries/my-trip`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setTripData(res.data);
+      const [tripRes, offerRes] = await Promise.all([
+        axios.get(`${API_URL}/deliveries/my-trip`, {
+          headers: { Authorization: `Bearer ${token}` }
+        }).catch(() => ({ data: null })),
+        axios.get(`${API_URL}/deliveries/my-offer`, {
+          headers: { Authorization: `Bearer ${token}` }
+        }).catch(() => ({ data: { offer: null } }))
+      ]);
+
+      setTripData(tripRes?.data || null);
+
+      const offer = offerRes?.data?.offer || null;
+      setActiveOffer(offer);
+      if (offer) {
+        setOfferSecondsLeft(Math.max(0, Number(offer.seconds_left || 0)));
+      } else {
+        setOfferSecondsLeft(0);
+      }
     } catch (err) {
-      console.log("Error loading driver trip:", err?.response?.data || err.message);
+      console.log("Error loading driver trip/offer:", err?.response?.data || err.message);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -55,12 +74,99 @@ export default function DriverTripScreen({ navigation }) {
   }, [token]);
 
   useEffect(() => {
-    loadMyTrip();
-  }, [loadMyTrip, tripsUpdateSignal, orderUpdateSignal]);
+    if (user?.driver_status) {
+      setDriverStatus(user.driver_status);
+    }
+  }, [user]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData, tripsUpdateSignal, orderUpdateSignal, offerUpdateSignal]);
+
+  // Offer countdown timer interval
+  useEffect(() => {
+    if (!activeOffer || offerSecondsLeft <= 0) return;
+    const interval = setInterval(() => {
+      setOfferSecondsLeft((prev) => {
+        if (prev <= 1) {
+          clearInterval(interval);
+          loadData();
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [activeOffer, offerSecondsLeft, loadData]);
 
   const onRefresh = () => {
     setRefreshing(true);
-    loadMyTrip();
+    loadData();
+    checkAuth();
+  };
+
+  const handleUpdateStatus = async (newStatus) => {
+    try {
+      setUpdatingStatus(true);
+      await axios.patch(
+        `${API_URL}/deliveries/drivers/${user.id}/status`,
+        { status: newStatus },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setDriverStatus(newStatus);
+      await checkAuth();
+      loadData();
+    } catch (err) {
+      Alert.alert("Error", err?.response?.data?.message || "No se pudo actualizar estado");
+    } finally {
+      setUpdatingStatus(false);
+    }
+  };
+
+  const handleAcceptOffer = async () => {
+    if (!activeOffer) return;
+    try {
+      setRespondingOffer(true);
+      await axios.post(
+        `${API_URL}/deliveries/offers/${activeOffer.id}/accept`,
+        {},
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setActiveOffer(null);
+      await checkAuth();
+      loadData();
+      Alert.alert("¡Oferta Aceptada!", "El viaje ha sido asignado a tu ruta.");
+    } catch (err) {
+      Alert.alert("Oferta no disponible", err?.response?.data?.message || "La oferta expiró o fue cancelada");
+      setActiveOffer(null);
+      loadData();
+    } finally {
+      setRespondingOffer(false);
+    }
+  };
+
+  const handleRejectOffer = async (shouldPause = false) => {
+    if (!activeOffer) return;
+    try {
+      setRespondingOffer(true);
+      await axios.post(
+        `${API_URL}/deliveries/offers/${activeOffer.id}/reject`,
+        { reason: "rechazado_por_repartidor", pause: shouldPause },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setActiveOffer(null);
+      if (shouldPause) {
+        setDriverStatus("pausa");
+      }
+      await checkAuth();
+      loadData();
+    } catch (err) {
+      console.log("Error rejecting offer:", err.message);
+      setActiveOffer(null);
+      loadData();
+    } finally {
+      setRespondingOffer(false);
+    }
   };
 
   const handleStartTrip = async () => {
@@ -190,6 +296,69 @@ export default function DriverTripScreen({ navigation }) {
         }
       />
 
+      {/* Driver Operational Status Bar */}
+      <View style={styles.statusBarContainer}>
+        <Text style={styles.statusLabel}>Mi Estado:</Text>
+        <View style={styles.statusPillsRow}>
+          <TouchableOpacity
+            style={[
+              styles.statusPill,
+              driverStatus === "disponible" && styles.statusPillActiveAvailable
+            ]}
+            onPress={() => handleUpdateStatus("disponible")}
+            disabled={updatingStatus}
+          >
+            <View style={[styles.statusDot, { backgroundColor: "#16a34a" }]} />
+            <Text
+              style={[
+                styles.statusPillText,
+                driverStatus === "disponible" && styles.statusPillTextActive
+              ]}
+            >
+              Disponible
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[
+              styles.statusPill,
+              driverStatus === "pausa" && styles.statusPillActivePause
+            ]}
+            onPress={() => handleUpdateStatus("pausa")}
+            disabled={updatingStatus}
+          >
+            <View style={[styles.statusDot, { backgroundColor: "#eab308" }]} />
+            <Text
+              style={[
+                styles.statusPillText,
+                driverStatus === "pausa" && styles.statusPillTextActive
+              ]}
+            >
+              Pausa
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[
+              styles.statusPill,
+              driverStatus === "offline" && styles.statusPillActiveOffline
+            ]}
+            onPress={() => handleUpdateStatus("offline")}
+            disabled={updatingStatus}
+          >
+            <View style={[styles.statusDot, { backgroundColor: "#94a3b8" }]} />
+            <Text
+              style={[
+                styles.statusPillText,
+                driverStatus === "offline" && styles.statusPillTextActive
+              ]}
+            >
+              Offline
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
@@ -202,11 +371,103 @@ export default function DriverTripScreen({ navigation }) {
           />
         }
       >
+        {/* Incoming Exclusive Offer Alert */}
+        {activeOffer ? (
+          <View style={styles.offerAlertCard}>
+            <View style={styles.offerHeaderRow}>
+              <View style={styles.offerBadge}>
+                <Ionicons name="flash" size={14} color="#ffffff" />
+                <Text style={styles.offerBadgeText}>Oferta Exclusiva</Text>
+              </View>
+              <View style={styles.countdownBadge}>
+                <Ionicons name="time" size={14} color="#b45309" />
+                <Text style={styles.countdownText}>{offerSecondsLeft}s restantes</Text>
+              </View>
+            </View>
+
+            <Text style={styles.offerTitle}>
+              {activeOffer.orders?.length || 1} {(activeOffer.orders?.length || 1) === 1 ? "Pedido disponible" : "Pedidos agrupados"}
+            </Text>
+
+            <View style={styles.offerDetailsBox}>
+              <View style={styles.offerDetailRow}>
+                <Text style={styles.offerDetailLabel}>Zona:</Text>
+                <Text style={styles.offerDetailVal}>
+                  {activeOffer.orders?.[0]?.zone_name || "Zona general"}
+                </Text>
+              </View>
+              <View style={styles.offerDetailRow}>
+                <Text style={styles.offerDetailLabel}>Efectivo a cobrar:</Text>
+                <Text style={styles.offerDetailValHighlight}>
+                  ${Number(activeOffer.total_cash_to_collect || 0).toFixed(2)}
+                </Text>
+              </View>
+              <View style={styles.offerAddressesList}>
+                {activeOffer.orders?.map((ord, i) => (
+                  <Text key={ord.id || i} style={styles.offerAddressItem} numberOfLines={1}>
+                    📍 F{String(ord.folio || ord.id).padStart(3, "0")} · {ord.address}
+                  </Text>
+                ))}
+              </View>
+            </View>
+
+            <View style={styles.offerActionsRow}>
+              <TouchableOpacity
+                style={[styles.rejectOfferBtn, respondingOffer && { opacity: 0.6 }]}
+                onPress={() => handleRejectOffer(false)}
+                disabled={respondingOffer}
+              >
+                <Text style={styles.rejectOfferBtnText}>Rechazar</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.acceptOfferBtn, respondingOffer && { opacity: 0.6 }]}
+                onPress={handleAcceptOffer}
+                disabled={respondingOffer}
+              >
+                {respondingOffer ? (
+                  <ActivityIndicator color="#ffffff" />
+                ) : (
+                  <>
+                    <Ionicons name="checkmark-circle" size={18} color="#ffffff" />
+                    <Text style={styles.acceptOfferBtnText}>Aceptar Viaje</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        ) : null}
+
+        {/* Returning to Base Banner */}
+        {driverStatus === "regresando" && (
+          <View style={styles.returningCard}>
+            <Ionicons name="bicycle" size={24} color={colors.primary} />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.returningTitle}>Ruta completada · Regresando a base</Text>
+              <Text style={styles.returningSubtitle}>
+                Al llegar al restaurante, márcate como disponible para recibir nuevos pedidos.
+              </Text>
+            </View>
+            <TouchableOpacity
+              style={styles.setAvailableBtn}
+              onPress={() => handleUpdateStatus("disponible")}
+            >
+              <Text style={styles.setAvailableBtnText}>En Base 🟢</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
         {!trip ? (
           <EmptyState
             icon="bicycle-outline"
-            title="Sin viaje activo asignado"
-            description="Cuando cocina/despacho arme un viaje para tu ruta, aparecerá aquí con los destinos y navegación en tiempo real."
+            title={driverStatus === "disponible" ? "Esperando pedidos listos..." : "Sin viaje activo"}
+            description={
+              driverStatus === "disponible"
+                ? "Estás disponible. En cuanto mostrador marque pedidos listos en tu zona, recibirás una oferta exclusiva."
+                : driverStatus === "pausa"
+                ? "Estás en pausa. Cambia tu estado a 'Disponible' para empezar a recibir viajes."
+                : "Estás desconectado. Activa tu estado para recibir asignaciones automáticas."
+            }
           />
         ) : (
           <View style={{ gap: 14 }}>
@@ -777,5 +1038,223 @@ const styles = StyleSheet.create({
     borderColor: colors.dangerBorder,
     alignItems: "center",
     justifyContent: "center"
+  },
+  statusBarContainer: {
+    backgroundColor: colors.surface,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.borderLight,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between"
+  },
+  statusLabel: {
+    fontSize: 12,
+    fontWeight: "800",
+    color: colors.text
+  },
+  statusPillsRow: {
+    flexDirection: "row",
+    gap: 6
+  },
+  statusPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+    backgroundColor: colors.surfaceMuted
+  },
+  statusPillActiveAvailable: {
+    backgroundColor: "#dcfce7",
+    borderColor: "#86efac"
+  },
+  statusPillActivePause: {
+    backgroundColor: "#fef9c3",
+    borderColor: "#fde047"
+  },
+  statusPillActiveOffline: {
+    backgroundColor: "#f1f5f9",
+    borderColor: "#cbd5e1"
+  },
+  statusDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4
+  },
+  statusPillText: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: colors.muted
+  },
+  statusPillTextActive: {
+    color: colors.text,
+    fontWeight: "900"
+  },
+  offerAlertCard: {
+    backgroundColor: "#fffbeb",
+    borderRadius: 20,
+    borderWidth: 2,
+    borderColor: "#f59e0b",
+    padding: 16,
+    marginBottom: 14,
+    gap: 10,
+    shadowColor: "#f59e0b",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 4
+  },
+  offerHeaderRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center"
+  },
+  offerBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: "#d97706",
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999
+  },
+  offerBadgeText: {
+    color: "#ffffff",
+    fontSize: 11,
+    fontWeight: "900",
+    textTransform: "uppercase"
+  },
+  countdownBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: "#fef3c7",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#fde68a"
+  },
+  countdownText: {
+    fontSize: 12,
+    fontWeight: "900",
+    color: "#b45309"
+  },
+  offerTitle: {
+    fontSize: 18,
+    fontWeight: "900",
+    color: colors.text
+  },
+  offerDetailsBox: {
+    backgroundColor: "#ffffff",
+    borderRadius: 14,
+    padding: 12,
+    gap: 6,
+    borderWidth: 1,
+    borderColor: "#fde68a"
+  },
+  offerDetailRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center"
+  },
+  offerDetailLabel: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: colors.muted
+  },
+  offerDetailVal: {
+    fontSize: 12,
+    fontWeight: "800",
+    color: colors.text
+  },
+  offerDetailValHighlight: {
+    fontSize: 15,
+    fontWeight: "900",
+    color: colors.primary
+  },
+  offerAddressesList: {
+    marginTop: 4,
+    paddingTop: 6,
+    borderTopWidth: 1,
+    borderTopColor: colors.borderLight,
+    gap: 4
+  },
+  offerAddressItem: {
+    fontSize: 11,
+    color: colors.muted,
+    fontWeight: "600"
+  },
+  offerActionsRow: {
+    flexDirection: "row",
+    gap: 10,
+    marginTop: 4
+  },
+  rejectOfferBtn: {
+    flex: 1,
+    height: 46,
+    borderRadius: 14,
+    backgroundColor: "#fee2e2",
+    borderWidth: 1,
+    borderColor: "#fca5a5",
+    alignItems: "center",
+    justifyContent: "center"
+  },
+  rejectOfferBtnText: {
+    fontSize: 13,
+    fontWeight: "800",
+    color: "#dc2626"
+  },
+  acceptOfferBtn: {
+    flex: 2,
+    height: 46,
+    borderRadius: 14,
+    backgroundColor: colors.primary,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6
+  },
+  acceptOfferBtnText: {
+    fontSize: 14,
+    fontWeight: "900",
+    color: "#ffffff"
+  },
+  returningCard: {
+    backgroundColor: "#eff6ff",
+    borderWidth: 1.5,
+    borderColor: "#93c5fd",
+    borderRadius: 18,
+    padding: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    marginBottom: 14
+  },
+  returningTitle: {
+    fontSize: 13,
+    fontWeight: "900",
+    color: "#1d4ed8"
+  },
+  returningSubtitle: {
+    fontSize: 11,
+    color: "#3b82f6",
+    marginTop: 2
+  },
+  setAvailableBtn: {
+    backgroundColor: "#16a34a",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10
+  },
+  setAvailableBtnText: {
+    color: "#ffffff",
+    fontSize: 12,
+    fontWeight: "900"
   }
 });

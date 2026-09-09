@@ -492,6 +492,13 @@ router.post("/", auth, async (req, res) => {
       if (tableSessionId) io.emit("tables-updated");
     }
 
+    if (order.status === "listo" && (order.type === "domicilio" || order.service_type === "domicilio")) {
+      const dispatchEngine = require("../services/dispatchEngine");
+      dispatchEngine.evaluateDispatchQueue(io).catch((err) => {
+        console.error("DISPATCH ON ORDER CREATED ERROR:", err.message);
+      });
+    }
+
     res.status(201).json({ ...order, requires_kitchen: requiresKitchen });
   } catch (err) {
     try {
@@ -637,6 +644,13 @@ router.patch(
         io.emit("orders-updated", updatedOrder);
         io.emit("counter-updated", updatedOrder);
         if (updatedOrder.table_session_id) io.emit("tables-updated");
+      }
+
+      if (updatedOrder.status === "listo" && (updatedOrder.type === "domicilio" || updatedOrder.service_type === "domicilio")) {
+        const dispatchEngine = require("../services/dispatchEngine");
+        dispatchEngine.evaluateDispatchQueue(io).catch((err) => {
+          console.error("DISPATCH ON ORDER STATUS READY ERROR:", err.message);
+        });
       }
 
       res.json(updatedOrder);

@@ -432,6 +432,12 @@
     socket.on('counter-updated', () => { scheduleRefresh(true); });
     socket.on('tables-updated', () => { scheduleRefresh(false); });
     socket.on('trips-updated', () => { scheduleRefresh(false); });
+    socket.on('delivery-offer-created', () => { scheduleRefresh(false); });
+    socket.on('delivery-offer-expired', () => { scheduleRefresh(false); });
+    socket.on('delivery-offer-accepted', () => { scheduleRefresh(false); });
+    socket.on('delivery-offer-rejected', () => { scheduleRefresh(false); });
+    socket.on('driver-status-updated', () => { scheduleRefresh(false); });
+    socket.on('delivery-config-updated', () => { scheduleRefresh(false); });
 
     function scheduleRefresh(playSound = false) {
       clearTimeout(refreshTimer);
@@ -482,12 +488,16 @@
       if (isDelivered) {
         statusBadgeHtml = `<span class="status-badge-hub badge-hub-delivered">✅ Entregado</span>`;
       } else if (isReady) {
-        if (stage === 'en_ruta') {
-          statusBadgeHtml = `<span class="status-badge-hub badge-hub-transit">🛵 En Ruta</span>`;
-        } else if (stage === 'esperando_repartidor') {
-          statusBadgeHtml = `<span class="status-badge-hub badge-hub-ready">🛵 Esperando Chofer</span>`;
-        } else if (stage === 'esperando_asignacion') {
-          statusBadgeHtml = `<span class="status-badge-hub badge-hub-ready">🛵 Por Asignar</span>`;
+        if (serviceType === 'domicilio') {
+          if (stage === 'en_ruta') {
+            statusBadgeHtml = `<span class="status-badge-hub badge-hub-transit">🚚 En ruta</span>`;
+          } else if (stage === 'esperando_recogida' || order.driver_name) {
+            statusBadgeHtml = `<span class="status-badge-hub badge-hub-ready">🛵 ${escapeHtml(order.driver_name || 'Repartidor')} asignado · esperando recogida</span>`;
+          } else if (stage === 'oferta_enviada' && summary.active_offer) {
+            statusBadgeHtml = `<span class="status-badge-hub badge-hub-prep" style="background:#fef3c7;color:#b45309;border-color:#fde68a">🛵 Oferta enviada a ${escapeHtml(summary.active_offer.driver_name || 'Chofer')} (${summary.active_offer.seconds_left}s)</span>`;
+          } else {
+            statusBadgeHtml = `<span class="status-badge-hub badge-hub-prep" style="background:#f3e8ff;color:#7e22ce;border-color:#e9d5ff">🔎 Buscando repartidor</span>`;
+          }
         } else if (stage === 'listo_para_mesa') {
           statusBadgeHtml = `<span class="status-badge-hub badge-hub-ready">🍽️ Listo Salón</span>`;
         } else if (stage === 'en_camino_a_mesa') {
@@ -542,12 +552,15 @@
 
       if (serviceType === 'domicilio') {
         const driverInfo = order.driver_name
-          ? `Repartidor: ${escapeHtml(order.driver_name)} ${order.delivery_pin ? `· PIN: ${order.delivery_pin}` : ''}`
-          : 'Esperando asignación de repartidor';
+          ? `🛵 <strong>Repartidor asignado:</strong> ${escapeHtml(order.driver_name)} ${order.delivery_pin ? `· <strong>PIN:</strong> ${order.delivery_pin}` : ''}`
+          : summary.active_offer
+          ? `🛵 <strong>Oferta exclusiva:</strong> ${escapeHtml(summary.active_offer.driver_name)} (${summary.active_offer.seconds_left}s restantes)`
+          : `🔎 <strong>Cola de Despacho:</strong> Buscando repartidor disponible en zona`;
+
         metaBlockHtml += `
           <div class="address-box">
             <div>📍 <strong>${escapeHtml(order.address || 'Dirección de entrega')}</strong></div>
-            <div style="margin-top:2px;font-size:10px;color:#7e22ce">${driverInfo}</div>
+            <div style="margin-top:4px;font-size:11px;color:#7e22ce">${driverInfo}</div>
           </div>
         `;
       }
@@ -592,6 +605,12 @@
             actionsHtml += `
               <button class="btn-action btn-ready" onclick="markReady(${order.id})">✨ Marcar Listo para Reparto</button>
             `;
+          } else {
+            if (currentUser && currentUser.role === 'admin') {
+              actionsHtml += `
+                <button class="btn-action btn-secondary-hub" onclick="openAssignDriverModal(${order.id})">⚡ Asignación Manual (Admin)</button>
+              `;
+            }
           }
         }
       }
@@ -769,6 +788,39 @@
       try {
         const res = await apiFetch(`/counter/orders/${orderId}/notify-waiter`, { method: 'POST' });
         showToast(res.message || 'Mesero notificado.', 'success');
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    }
+
+    async function openAssignDriverModal(orderId) {
+      try {
+        const drivers = await apiFetch('/deliveries/drivers');
+        if (!drivers.length) {
+          showToast('No hay repartidores registrados en el sistema.', 'error');
+          return;
+        }
+
+        const options = drivers.map(d => `${d.id}: ${d.name} [Estado: ${d.driver_status || 'offline'}${d.active_trip_id ? ' · en viaje' : ''}]`).join('\n');
+        const chosen = prompt(`Asignar repartidor manual (Override Admin) para Pedido #${orderId}:\nIngresa el ID del repartidor:\n\n${options}`);
+        if (!chosen) return;
+
+        const driverId = Number(chosen.trim());
+        if (!driverId) {
+          showToast('ID de repartidor inválido', 'error');
+          return;
+        }
+
+        await apiFetch('/deliveries/trips/override', {
+          method: 'POST',
+          body: JSON.stringify({
+            driver_user_id: driverId,
+            order_ids: [orderId]
+          })
+        });
+
+        showToast('Repartidor asignado correctamente mediante override de Admin.', 'success');
+        await loadOrders(false);
       } catch (err) {
         showToast(err.message, 'error');
       }

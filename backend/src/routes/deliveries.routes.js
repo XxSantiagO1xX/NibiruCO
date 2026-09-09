@@ -4,10 +4,41 @@ const crypto = require("crypto");
 const pool = require("../db");
 const auth = require("../middleware/auth");
 const roles = require("../middleware/roles");
+const dispatchEngine = require("../services/dispatchEngine");
 
 const adminOnly = roles(["admin"]);
 const driverOrAdmin = roles(["repartidor", "admin"]);
 const staffRoles = roles(["mesero", "cocina", "repartidor", "admin"]);
+
+// 0. Configuración de Despacho Automático
+router.get("/config", auth, staffRoles, async (req, res) => {
+  try {
+    const config = await dispatchEngine.getConfig();
+    res.json(config);
+  } catch (err) {
+    console.error("GET CONFIG ERROR:", err);
+    res.status(500).json({ message: "Error obteniendo configuración de despacho" });
+  }
+});
+
+router.patch("/config", auth, adminOnly, async (req, res) => {
+  try {
+    const updated = await dispatchEngine.updateConfig(req.body);
+    const io = req.app.get("io");
+    if (io) io.emit("delivery-config-updated", updated);
+
+    if (updated.dispatch_mode === "automatic" && updated.auto_dispatch_enabled) {
+      setTimeout(() => {
+        dispatchEngine.evaluateDispatchQueue(io).catch((e) => console.error("AUTO DISPATCH ON CONFIG ERROR:", e));
+      }, 50);
+    }
+
+    res.json(updated);
+  } catch (err) {
+    console.error("UPDATE CONFIG ERROR:", err);
+    res.status(500).json({ message: "Error actualizando configuración de despacho" });
+  }
+});
 
 // 1. Zonas de reparto
 router.get("/zones", async (req, res) => {
@@ -29,9 +60,13 @@ router.get("/zones", async (req, res) => {
   }
 });
 
-// 2. Lista de repartidores
-router.get("/drivers", auth, adminOnly, async (req, res) => {
+// 2. Lista de repartidores con estado operativo en tiempo real
+router.get("/drivers", auth, staffRoles, async (req, res) => {
   try {
+    // Expirar ofertas vencidas antes de responder
+    const io = req.app.get("io");
+    await dispatchEngine.checkExpiredOffers(io);
+
     const result = await pool.query(`
       SELECT
         u.id,
@@ -39,6 +74,17 @@ router.get("/drivers", auth, adminOnly, async (req, res) => {
         u.phone,
         u.email,
         u.role,
+        COALESCE(u.driver_status, 'offline') AS driver_status,
+        u.driver_status_updated_at,
+        u.driver_last_completed_at,
+        COALESCE(
+          (SELECT COUNT(*)::int
+           FROM delivery_trips dt
+           WHERE dt.driver_user_id = u.id
+             AND dt.created_at >= CURRENT_DATE
+             AND dt.status = 'completed'),
+          0
+        ) AS completed_trips_today,
         COALESCE(
           (SELECT t.id FROM delivery_trips t
            WHERE t.driver_user_id = u.id AND t.status IN ('assigned', 'in_transit')
@@ -50,10 +96,26 @@ router.get("/drivers", auth, adminOnly, async (req, res) => {
            WHERE t.driver_user_id = u.id AND t.status IN ('assigned', 'in_transit')
            ORDER BY t.id DESC LIMIT 1),
           NULL
-        ) AS active_trip_status
+        ) AS active_trip_status,
+        (SELECT dao.id FROM delivery_assignment_offers dao
+         WHERE dao.driver_user_id = u.id AND dao.status = 'pending' AND dao.expires_at > NOW()
+         ORDER BY dao.id DESC LIMIT 1) AS active_offer_id,
+        (SELECT EXTRACT(EPOCH FROM (dao.expires_at - NOW()))::int FROM delivery_assignment_offers dao
+         WHERE dao.driver_user_id = u.id AND dao.status = 'pending' AND dao.expires_at > NOW()
+         ORDER BY dao.id DESC LIMIT 1) AS active_offer_remaining_seconds
       FROM users u
       WHERE u.role = 'repartidor'
-      ORDER BY u.name ASC
+      ORDER BY
+        CASE
+          WHEN u.driver_status = 'disponible' THEN 1
+          WHEN u.driver_status = 'esperando_recogida' THEN 2
+          WHEN u.driver_status = 'en_ruta' THEN 3
+          WHEN u.driver_status = 'regresando' THEN 4
+          WHEN u.driver_status = 'oferta_pendiente' THEN 5
+          WHEN u.driver_status = 'pausa' THEN 6
+          ELSE 7
+        END,
+        u.name ASC
     `);
     res.json(result.rows);
   } catch (err) {
@@ -62,9 +124,61 @@ router.get("/drivers", auth, adminOnly, async (req, res) => {
   }
 });
 
-// 3. Pedidos listos o pendientes de asignación de domicilio
-router.get("/ready-orders", auth, adminOnly, async (req, res) => {
+// 2.1 Actualizar estado operativo de un repartidor (Chofer o Admin)
+router.patch("/drivers/:id/status", auth, driverOrAdmin, async (req, res) => {
   try {
+    const driverId = Number(req.params.id);
+    const { status } = req.body;
+    const isSelf = Number(req.user.id) === driverId;
+    const isAdmin = req.user.role === "admin";
+
+    if (!isSelf && !isAdmin) {
+      return res.status(403).json({ message: "No tienes permisos para cambiar el estado de este repartidor" });
+    }
+
+    const validStatuses = ["offline", "disponible", "oferta_pendiente", "esperando_recogida", "en_ruta", "regresando", "pausa"];
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({ message: "Estado de repartidor no válido" });
+    }
+
+    const result = await pool.query(`
+      UPDATE users
+      SET driver_status = $1, driver_status_updated_at = NOW()
+      WHERE id = $2 AND role = 'repartidor'
+      RETURNING id, name, driver_status, driver_status_updated_at
+    `, [status, driverId]);
+
+    if (!result.rows.length) {
+      return res.status(404).json({ message: "Repartidor no encontrado" });
+    }
+
+    const updatedDriver = result.rows[0];
+    const io = req.app.get("io");
+    if (io) {
+      io.emit("driver-status-updated", updatedDriver);
+      io.emit("delivery-updated", { driver_id: driverId });
+      io.emit("counter-updated");
+    }
+
+    if (["disponible", "regresando"].includes(status)) {
+      setTimeout(() => {
+        dispatchEngine.evaluateDispatchQueue(io).catch((e) => console.error("DISPATCH ON DRIVER STATUS CHANGE ERROR:", e));
+      }, 50);
+    }
+
+    res.json(updatedDriver);
+  } catch (err) {
+    console.error("UPDATE DRIVER STATUS ERROR:", err);
+    res.status(500).json({ message: "Error actualizando estado del repartidor" });
+  }
+});
+
+// 3. Pedidos listos o pendientes de asignación de domicilio
+router.get("/ready-orders", auth, staffRoles, async (req, res) => {
+  try {
+    const io = req.app.get("io");
+    await dispatchEngine.checkExpiredOffers(io);
+
     const result = await pool.query(`
       SELECT
         o.*,
@@ -77,7 +191,14 @@ router.get("/ready-orders", auth, adminOnly, async (req, res) => {
         dts.id AS trip_stop_id,
         dts.trip_id,
         dts.status AS stop_status,
-        drv.name AS driver_name
+        drv.name AS driver_name,
+        drv.phone AS driver_phone,
+        dao.id AS active_offer_id,
+        dao.driver_user_id AS offer_driver_id,
+        off_drv.name AS offer_driver_name,
+        dao.expires_at AS offer_expires_at,
+        EXTRACT(EPOCH FROM (dao.expires_at - NOW()))::int AS offer_remaining_seconds,
+        dao.recommendation_reason AS offer_recommendation_reason
       FROM orders o
       LEFT JOIN users u ON u.id = o.user_id
       LEFT JOIN user_addresses ua ON ua.id = o.address_id
@@ -85,21 +206,206 @@ router.get("/ready-orders", auth, adminOnly, async (req, res) => {
       LEFT JOIN delivery_trip_stops dts ON dts.order_id = o.id
       LEFT JOIN delivery_trips dt ON dt.id = dts.trip_id
       LEFT JOIN users drv ON drv.id = dt.driver_user_id
+      LEFT JOIN delivery_assignment_offers dao
+        ON o.id = ANY(dao.order_ids)
+       AND dao.status = 'pending'
+       AND dao.expires_at > NOW()
+      LEFT JOIN users off_drv ON off_drv.id = dao.driver_user_id
       WHERE (o.service_type = 'domicilio' OR o.type = 'domicilio')
         AND o.status NOT IN ('cancelado', 'entregado')
-      ORDER BY o.created_at ASC
+      ORDER BY
+        CASE
+          WHEN o.status = 'listo' AND dts.id IS NULL AND dao.id IS NULL THEN 1
+          WHEN o.status = 'listo' AND dao.id IS NOT NULL THEN 2
+          WHEN dts.id IS NOT NULL THEN 3
+          ELSE 4
+        END,
+        COALESCE(o.ready_at, o.created_at) ASC
+    `);
+
+    res.json(result.rows.map((r) => {
+      const createdAtMs = new Date(r.ready_at || r.created_at).getTime();
+      const elapsedQueueMinutes = Math.max(0, Math.floor((Date.now() - createdAtMs) / 60000));
+      return {
+        ...r,
+        total: Number(r.total),
+        delivery_fee: Number(r.delivery_fee || 0),
+        cash_paid_with: r.cash_paid_with ? Number(r.cash_paid_with) : null,
+        cash_change_due: r.cash_change_due ? Number(r.cash_change_due) : null,
+        elapsed_queue_minutes: elapsedQueueMinutes,
+        offer_remaining_seconds: r.offer_remaining_seconds ? Math.max(0, Number(r.offer_remaining_seconds)) : null
+      };
+    }));
+  } catch (err) {
+    console.error("GET READY ORDERS ERROR:", err);
+    res.status(500).json({ message: "Error obteniendo pedidos de reparto" });
+  }
+});
+
+// 3.1 Ofertas activas en tiempo real (Admin / Mostrador)
+router.get("/offers/active", auth, staffRoles, async (req, res) => {
+  try {
+    const io = req.app.get("io");
+    await dispatchEngine.checkExpiredOffers(io);
+
+    const result = await pool.query(`
+      SELECT
+        dao.*,
+        u.name AS driver_name,
+        u.phone AS driver_phone,
+        EXTRACT(EPOCH FROM (dao.expires_at - NOW()))::int AS remaining_seconds
+      FROM delivery_assignment_offers dao
+      JOIN users u ON u.id = dao.driver_user_id
+      WHERE dao.status = 'pending'
+        AND dao.expires_at > NOW()
+      ORDER BY dao.expires_at ASC
     `);
 
     res.json(result.rows.map((r) => ({
       ...r,
-      total: Number(r.total),
-      delivery_fee: Number(r.delivery_fee || 0),
-      cash_paid_with: r.cash_paid_with ? Number(r.cash_paid_with) : null,
-      cash_change_due: r.cash_change_due ? Number(r.cash_change_due) : null
+      remaining_seconds: Math.max(0, Number(r.remaining_seconds || 0)),
+      score: Number(r.score)
     })));
   } catch (err) {
-    console.error("GET READY ORDERS ERROR:", err);
-    res.status(500).json({ message: "Error obteniendo pedidos de reparto" });
+    console.error("GET ACTIVE OFFERS ERROR:", err);
+    res.status(500).json({ message: "Error obteniendo ofertas activas" });
+  }
+});
+
+// 3.2 Oferta activa del repartidor autenticado
+router.get("/my-offer", auth, driverOrAdmin, async (req, res) => {
+  try {
+    const driverId = req.user.id;
+    const io = req.app.get("io");
+    await dispatchEngine.checkExpiredOffers(io);
+
+    const offerRes = await pool.query(`
+      SELECT
+        dao.*,
+        EXTRACT(EPOCH FROM (dao.expires_at - NOW()))::int AS remaining_seconds,
+        dz.name AS zone_name
+      FROM delivery_assignment_offers dao
+      LEFT JOIN orders o ON o.id = dao.order_ids[1]
+      LEFT JOIN delivery_zones dz ON dz.id = o.delivery_zone_id
+      WHERE dao.driver_user_id = $1
+        AND dao.status = 'pending'
+        AND dao.expires_at > NOW()
+      ORDER BY dao.id DESC
+      LIMIT 1
+    `, [driverId]);
+
+    if (!offerRes.rows.length) {
+      return res.json({ active_offer: null });
+    }
+
+    const offer = offerRes.rows[0];
+    const orderIds = Array.isArray(offer.order_ids) ? offer.order_ids : [];
+
+    const ordersRes = await pool.query(`
+      SELECT
+        o.id,
+        o.folio,
+        o.total,
+        o.payment_method,
+        o.cash_paid_with,
+        o.cash_change_due,
+        o.customer_name,
+        u.name AS user_name,
+        u.phone AS user_phone,
+        ua.address,
+        ua.details AS address_details,
+        dz.name AS zone_name
+      FROM orders o
+      LEFT JOIN users u ON u.id = o.user_id
+      LEFT JOIN user_addresses ua ON ua.id = o.address_id
+      LEFT JOIN delivery_zones dz ON dz.id = o.delivery_zone_id
+      WHERE o.id = ANY($1::bigint[])
+      ORDER BY o.id ASC
+    `, [orderIds]);
+
+    const orders = ordersRes.rows.map((o) => ({
+      ...o,
+      total: Number(o.total),
+      cash_paid_with: o.cash_paid_with ? Number(o.cash_paid_with) : null,
+      cash_change_due: o.cash_change_due ? Number(o.cash_change_due) : null
+    }));
+
+    const totalCashToCollect = orders
+      .filter((o) => o.payment_method === "efectivo")
+      .reduce((sum, o) => sum + o.total, 0);
+
+    res.json({
+      active_offer: {
+        ...offer,
+        remaining_seconds: Math.max(0, Number(offer.remaining_seconds || 0)),
+        total_cash_to_collect: totalCashToCollect,
+        total_amount: orders.reduce((sum, o) => sum + o.total, 0),
+        orders
+      }
+    });
+  } catch (err) {
+    console.error("GET MY OFFER ERROR:", err);
+    res.status(500).json({ message: "Error obteniendo oferta activa" });
+  }
+});
+
+// 3.3 Aceptar oferta (Repartidor)
+router.post("/offers/:id/accept", auth, driverOrAdmin, async (req, res) => {
+  try {
+    const offerId = Number(req.params.id);
+    const driverId = req.user.id;
+    const io = req.app.get("io");
+
+    const result = await dispatchEngine.acceptOffer(offerId, driverId, io);
+    res.json(result);
+  } catch (err) {
+    console.error("ACCEPT OFFER ERROR:", err);
+    res.status(err.status || 500).json({ message: err.message || "Error aceptando oferta" });
+  }
+});
+
+// 3.4 Rechazar oferta (Repartidor)
+router.post("/offers/:id/reject", auth, driverOrAdmin, async (req, res) => {
+  try {
+    const offerId = Number(req.params.id);
+    const driverId = req.user.id;
+    const { reason, pause } = req.body;
+    const io = req.app.get("io");
+
+    const result = await dispatchEngine.rejectOffer(offerId, driverId, reason, Boolean(pause), io);
+    res.json(result);
+  } catch (err) {
+    console.error("REJECT OFFER ERROR:", err);
+    res.status(err.status || 500).json({ message: err.message || "Error rechazando oferta" });
+  }
+});
+
+// 3.5 Cancelar oferta (Admin)
+router.post("/offers/:id/cancel", auth, adminOnly, async (req, res) => {
+  try {
+    const offerId = Number(req.params.id);
+    const { reason } = req.body;
+    const io = req.app.get("io");
+
+    const result = await dispatchEngine.cancelOffer(offerId, reason, io);
+    res.json(result);
+  } catch (err) {
+    console.error("CANCEL OFFER ERROR:", err);
+    res.status(err.status || 500).json({ message: err.message || "Error cancelando oferta" });
+  }
+});
+
+// 3.6 Forzar reasignación / Asignación manual de Administrador (Override)
+router.post("/trips/override", auth, adminOnly, async (req, res) => {
+  try {
+    const { driver_user_id, order_ids } = req.body;
+    const io = req.app.get("io");
+
+    const trip = await dispatchEngine.adminForceAssign(driver_user_id, order_ids, io);
+    res.status(201).json(trip);
+  } catch (err) {
+    console.error("ADMIN OVERRIDE ASSIGN ERROR:", err);
+    res.status(err.status || 500).json({ message: err.message || "Error asignando viaje" });
   }
 });
 
@@ -205,69 +511,15 @@ router.get("/proposals", auth, adminOnly, async (req, res) => {
 
 // 5. Crear / Asignar viaje de reparto (Admin)
 router.post("/trips", auth, adminOnly, async (req, res) => {
-  const client = await pool.connect();
   try {
-    const { driver_user_id, order_ids, stop_orders } = req.body;
-
-    if (!driver_user_id || !Array.isArray(order_ids) || order_ids.length === 0) {
-      return res.status(400).json({ message: "Repartidor y lista de pedidos requeridos" });
-    }
-
-    // Verificar que el repartidor existe
-    const driverRes = await client.query(
-      "SELECT id, name, role FROM users WHERE id = $1 AND role = 'repartidor'",
-      [driver_user_id]
-    );
-    if (!driverRes.rows.length) {
-      return res.status(404).json({ message: "Repartidor no encontrado o no tiene rol repartidor" });
-    }
-
-    await client.query("BEGIN");
-
-    // Crear viaje
-    const tripRes = await client.query(`
-      INSERT INTO delivery_trips (driver_user_id, status)
-      VALUES ($1, 'assigned')
-      RETURNING *
-    `, [driver_user_id]);
-    const trip = tripRes.rows[0];
-
-    const stops = [];
-    for (let index = 0; index < order_ids.length; index += 1) {
-      const orderId = Number(order_ids[index]);
-      const stopOrder = stop_orders && stop_orders[index] ? Number(stop_orders[index]) : index + 1;
-      const etaMinutes = 25 + index * 10;
-
-      const stopRes = await client.query(`
-        INSERT INTO delivery_trip_stops (trip_id, order_id, stop_order, status, eta_minutes)
-        VALUES ($1, $2, $3, 'pending', $4)
-        RETURNING *
-      `, [trip.id, orderId, stopOrder, etaMinutes]);
-
-      await client.query(`
-        UPDATE orders
-        SET delivery_driver_id = $1
-        WHERE id = $2
-      `, [driver_user_id, orderId]);
-
-      stops.push(stopRes.rows[0]);
-    }
-
-    await client.query("COMMIT");
-
+    const { driver_user_id, order_ids } = req.body;
     const io = req.app.get("io");
-    if (io) {
-      io.emit("delivery-updated", { trip_id: trip.id, driver_user_id });
-      io.emit("orders-updated");
-    }
 
-    res.status(201).json({ ...trip, stops });
+    const trip = await dispatchEngine.adminForceAssign(driver_user_id, order_ids, io);
+    res.status(201).json(trip);
   } catch (err) {
-    try { await client.query("ROLLBACK"); } catch (_) {}
     console.error("CREATE TRIP ERROR:", err);
-    res.status(500).json({ message: "Error creando viaje de reparto" });
-  } finally {
-    client.release();
+    res.status(err.status || 500).json({ message: err.message || "Error creando viaje de reparto" });
   }
 });
 
@@ -362,14 +614,11 @@ router.patch("/my-trip/start", auth, driverOrAdmin, async (req, res) => {
       WHERE id = $1
     `, [tripId]);
 
-    // Actualizar estado de pedidos asociados
     await client.query(`
-      UPDATE orders
-      SET status = 'preparando'
-      WHERE id IN (
-        SELECT order_id FROM delivery_trip_stops WHERE trip_id = $1
-      ) AND status IN ('pendiente', 'aceptado', 'listo')
-    `, [tripId]);
+      UPDATE users
+      SET driver_status = 'en_ruta', driver_status_updated_at = NOW()
+      WHERE id = $1
+    `, [driverId]);
 
     await client.query("COMMIT");
 
@@ -377,6 +626,7 @@ router.patch("/my-trip/start", auth, driverOrAdmin, async (req, res) => {
     if (io) {
       io.emit("delivery-updated", { trip_id: tripId, driver_id: driverId });
       io.emit("orders-updated");
+      io.emit("counter-updated");
     }
 
     res.json({ ok: true, message: "Viaje iniciado", trip_id: tripId });
@@ -481,6 +731,15 @@ router.post("/stops/:id/verify-pin", auth, driverOrAdmin, async (req, res) => {
         SET status = 'completed', completed_at = NOW()
         WHERE id = $1
       `, [stop.trip_id]);
+
+      await client.query(`
+        UPDATE users
+        SET driver_status = 'regresando',
+            driver_status_updated_at = NOW(),
+            driver_last_completed_at = NOW()
+        WHERE id = (SELECT driver_user_id FROM delivery_trips WHERE id = $1)
+      `, [stop.trip_id]);
+
       tripCompleted = true;
     }
 
@@ -491,6 +750,12 @@ router.post("/stops/:id/verify-pin", auth, driverOrAdmin, async (req, res) => {
       io.emit("delivery-updated", { trip_id: stop.trip_id });
       io.emit("orders-updated");
       io.emit("counter-updated");
+    }
+
+    if (tripCompleted) {
+      setTimeout(() => {
+        dispatchEngine.evaluateDispatchQueue(io).catch((e) => console.error("AUTO DISPATCH ON TRIP COMPLETION ERROR:", e));
+      }, 50);
     }
 
     res.json({
@@ -556,12 +821,23 @@ router.post("/stops/:id/admin-override", auth, adminOnly, async (req, res) => {
       WHERE trip_id = $1 AND status NOT IN ('delivered', 'failed')
     `, [stop.trip_id]);
 
+    let tripCompleted = false;
     if (remainingRes.rows[0].count === 0) {
       await client.query(`
         UPDATE delivery_trips
         SET status = 'completed', completed_at = NOW()
         WHERE id = $1
       `, [stop.trip_id]);
+
+      await client.query(`
+        UPDATE users
+        SET driver_status = 'regresando',
+            driver_status_updated_at = NOW(),
+            driver_last_completed_at = NOW()
+        WHERE id = (SELECT driver_user_id FROM delivery_trips WHERE id = $1)
+      `, [stop.trip_id]);
+
+      tripCompleted = true;
     }
 
     await client.query("COMMIT");
@@ -570,6 +846,13 @@ router.post("/stops/:id/admin-override", auth, adminOnly, async (req, res) => {
     if (io) {
       io.emit("delivery-updated", { trip_id: stop.trip_id });
       io.emit("orders-updated");
+      io.emit("counter-updated");
+    }
+
+    if (tripCompleted) {
+      setTimeout(() => {
+        dispatchEngine.evaluateDispatchQueue(io).catch((e) => console.error("AUTO DISPATCH ON ADMIN OVERRIDE COMPLETION ERROR:", e));
+      }, 50);
     }
 
     res.json({ ok: true, message: "Entrega autorizada por administrador" });

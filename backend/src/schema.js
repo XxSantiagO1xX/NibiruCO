@@ -14,6 +14,10 @@ const counterKdsSqlPath = path.resolve(
   __dirname,
   "../sql/2026-09-08-mealops-counter-kds-dispatch.sql"
 );
+const autoDispatchSqlPath = path.resolve(
+  __dirname,
+  "../sql/2026-09-09-mealops-auto-dispatch.sql"
+);
 
 async function ensureOperationalSchema() {
   const client = await pool.connect();
@@ -22,11 +26,13 @@ async function ensureOperationalSchema() {
     const sql1 = fs.readFileSync(operationalSqlPath, "utf8");
     const sql2 = fs.readFileSync(multiRoleSqlPath, "utf8");
     const sql3 = fs.readFileSync(counterKdsSqlPath, "utf8");
+    const sql4 = fs.readFileSync(autoDispatchSqlPath, "utf8");
 
     await client.query("BEGIN");
     await client.query(sql1);
     await client.query(sql2);
     await client.query(sql3);
+    await client.query(sql4);
 
     const tableCount = await client.query(
       "SELECT COUNT(*)::int AS count FROM restaurant_tables"

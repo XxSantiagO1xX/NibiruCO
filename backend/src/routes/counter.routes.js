@@ -47,6 +47,11 @@ router.get("/orders", auth, counterRoles, async (req, res) => {
         dt.status AS trip_status,
         drv.name AS driver_name,
         drv.phone AS driver_phone,
+        dao.id AS active_offer_id,
+        dao.driver_user_id AS active_offer_driver_id,
+        offer_drv.name AS active_offer_driver_name,
+        dao.expires_at AS active_offer_expires_at,
+        ROUND(EXTRACT(EPOCH FROM (dao.expires_at - NOW()))) AS active_offer_seconds_left,
         COALESCE(
           json_agg(
             json_build_object(
@@ -89,12 +94,17 @@ router.get("/orders", auth, counterRoles, async (req, res) => {
       LEFT JOIN delivery_trip_stops dts ON dts.order_id = o.id
       LEFT JOIN delivery_trips dt ON dt.id = dts.trip_id
       LEFT JOIN users drv ON drv.id = dt.driver_user_id
+      LEFT JOIN delivery_assignment_offers dao
+        ON dao.status = 'pending'
+       AND o.id = ANY(dao.order_ids)
+       AND dao.expires_at > NOW()
+      LEFT JOIN users offer_drv ON offer_drv.id = dao.driver_user_id
       LEFT JOIN order_items oi ON oi.order_id = o.id
       LEFT JOIN products p ON p.id = oi.product_id
       WHERE o.service_date = CURRENT_DATE
          OR o.created_at::date = CURRENT_DATE
       GROUP BY
-        o.id, u.id, ua.id, ts.id, rt.id, wu.id, wta.id, shift_wu.id, dt.id, drv.id
+        o.id, u.id, ua.id, ts.id, rt.id, wu.id, wta.id, shift_wu.id, dt.id, drv.id, dao.id, dao.driver_user_id, offer_drv.name, dao.expires_at
       ORDER BY
         CASE
           WHEN o.status = 'listo' THEN 1
@@ -139,9 +149,11 @@ router.get("/orders", auth, counterRoles, async (req, res) => {
           if (order.trip_status === "in_transit") {
             counterStage = "en_ruta";
           } else if (order.driver_name) {
-            counterStage = "esperando_repartidor";
+            counterStage = "esperando_recogida";
+          } else if (order.active_offer_id) {
+            counterStage = "oferta_enviada";
           } else {
-            counterStage = "esperando_asignacion";
+            counterStage = "buscando_repartidor";
           }
         } else {
           counterStage = "listo_para_recoger";
@@ -164,6 +176,13 @@ router.get("/orders", auth, counterRoles, async (req, res) => {
         ...order,
         total: Number(order.total),
         waiter_display_name: order.assigned_waiter_name || order.shift_waiter_name || null,
+        active_offer: order.active_offer_id ? {
+          id: order.active_offer_id,
+          driver_user_id: order.active_offer_driver_id,
+          driver_name: order.active_offer_driver_name,
+          expires_at: order.active_offer_expires_at,
+          seconds_left: Math.max(0, Number(order.active_offer_seconds_left || 0))
+        } : null,
         summary: {
           total_items: totalItems,
           kitchen_items_count: kitchenItemsCount,
@@ -173,7 +192,14 @@ router.get("/orders", auth, counterRoles, async (req, res) => {
           is_mixed: isMixed,
           elapsed_minutes: elapsedMinutes,
           is_delayed: isDelayed,
-          counter_stage: counterStage
+          counter_stage: counterStage,
+          active_offer: order.active_offer_id ? {
+            id: order.active_offer_id,
+            driver_user_id: order.active_offer_driver_id,
+            driver_name: order.active_offer_driver_name,
+            expires_at: order.active_offer_expires_at,
+            seconds_left: Math.max(0, Number(order.active_offer_seconds_left || 0))
+          } : null
         }
       };
     });
@@ -222,6 +248,13 @@ router.patch("/orders/:id/mark-ready", auth, counterRoles, async (req, res) => {
       io.emit("orders-updated", order);
       io.emit("counter-updated", order);
       if (order.table_session_id) io.emit("tables-updated");
+    }
+
+    if (String(order.service_type || order.type || "").toLowerCase() === "domicilio") {
+      const dispatchEngine = require("../services/dispatchEngine");
+      dispatchEngine.evaluateDispatchQueue(io).catch((err) => {
+        console.error("DISPATCH ON COUNTER MARK READY ERROR:", err.message);
+      });
     }
 
     res.json(order);
