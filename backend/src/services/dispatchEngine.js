@@ -1,5 +1,7 @@
 const pool = require("../db");
 const pushNotification = require("./pushNotification");
+const { getBusinessDateStr } = require("../utils/timezone");
+const { calculateStopETAs } = require("./routePlanner");
 
 /**
  * Obtener la configuración actual de despacho
@@ -27,6 +29,21 @@ async function getConfig(client = pool) {
     max_orders_per_trip: 3,
     auto_dispatch_enabled: true
   };
+}
+
+/**
+ * Asigna el siguiente folio de viaje diario de forma atómica y concurrente
+ */
+async function assignNextTripFolio(client = pool, dateStr = null) {
+  const dayStr = dateStr || getBusinessDateStr();
+  const folioRes = await client.query(`
+    INSERT INTO daily_trip_folio_counters (day, last_folio)
+    VALUES ($1::date, 1)
+    ON CONFLICT (day) DO UPDATE
+    SET last_folio = daily_trip_folio_counters.last_folio + 1
+    RETURNING last_folio
+  `, [dayStr]);
+  return folioRes.rows[0].last_folio;
 }
 
 /**
@@ -127,9 +144,141 @@ async function getPendingDeliveryOrders(client = pool) {
 }
 
 /**
+ * Reconciliar viajes que quedaron huérfanos o inconsistentes (ej. todas las órdenes entregadas/canceladas pero viaje sigue abierto)
+ */
+async function reconcileStaleTrips(client = pool, io = null) {
+  try {
+    const activeTripsRes = await client.query(`
+      SELECT dt.id, dt.driver_user_id, dt.status
+      FROM delivery_trips dt
+      WHERE dt.status IN ('assigned', 'in_transit')
+    `);
+
+    for (const trip of activeTripsRes.rows) {
+      // Verificar si quedan paradas pendientes o en curso
+      const stopsCheck = await client.query(`
+        SELECT
+          COUNT(*)::int AS total_stops,
+          COUNT(*) FILTER (WHERE dts.status IN ('delivered', 'failed'))::int AS closed_stops,
+          COUNT(*) FILTER (WHERE o.status IN ('entregado', 'cancelado'))::int AS closed_orders
+        FROM delivery_trip_stops dts
+        JOIN orders o ON o.id = dts.order_id
+        WHERE dts.trip_id = $1
+      `, [trip.id]);
+
+      const { total_stops, closed_stops, closed_orders } = stopsCheck.rows[0];
+
+      if (total_stops > 0 && (closed_stops === total_stops || closed_orders === total_stops)) {
+        // Cerrar el viaje
+        await client.query(`
+          UPDATE delivery_trips
+          SET status = 'completed', completed_at = NOW()
+          WHERE id = $1
+        `, [trip.id]);
+
+        // Marcar todas las paradas que sigan en pending como delivered si la orden ya está entregada
+        await client.query(`
+          UPDATE delivery_trip_stops dts
+          SET status = 'delivered', delivered_at = NOW()
+          FROM orders o
+          WHERE dts.trip_id = $1 AND dts.order_id = o.id AND o.status = 'entregado' AND dts.status = 'pending'
+        `, [trip.id]);
+
+        // Verificar si el repartidor tiene otros viajes activos
+        const otherTrips = await client.query(`
+          SELECT 1 FROM delivery_trips
+          WHERE driver_user_id = $1 AND status IN ('assigned', 'in_transit') AND id != $2
+        `, [trip.driver_user_id, trip.id]);
+
+        if (!otherTrips.rows.length) {
+          await client.query(`
+            UPDATE users
+            SET driver_status = 'disponible',
+                driver_status_updated_at = NOW(),
+                driver_last_completed_at = NOW()
+            WHERE id = $1 AND driver_status IN ('esperando_recogida', 'en_ruta', 'regresando')
+          `, [trip.driver_user_id]);
+        }
+
+        if (io) {
+          io.emit("delivery-updated", { trip_id: trip.id, driver_id: trip.driver_user_id });
+          io.emit("counter-updated");
+        }
+      }
+    }
+  } catch (err) {
+    console.error("[ReconcileStaleTrips Error]:", err.message);
+  }
+}
+
+/**
+ * Reconciliar estado de un repartidor específico
+ */
+async function reconcileDriverTrip(driverId, client = pool, io = null) {
+  try {
+    const activeTripsRes = await client.query(`
+      SELECT dt.id, dt.driver_user_id, dt.status
+      FROM delivery_trips dt
+      WHERE dt.driver_user_id = $1 AND dt.status IN ('assigned', 'in_transit')
+    `, [driverId]);
+
+    for (const trip of activeTripsRes.rows) {
+      const stopsCheck = await client.query(`
+        SELECT
+          COUNT(*)::int AS total_stops,
+          COUNT(*) FILTER (WHERE dts.status IN ('delivered', 'failed'))::int AS closed_stops,
+          COUNT(*) FILTER (WHERE o.status IN ('entregado', 'cancelado'))::int AS closed_orders
+        FROM delivery_trip_stops dts
+        JOIN orders o ON o.id = dts.order_id
+        WHERE dts.trip_id = $1
+      `, [trip.id]);
+
+      const { total_stops, closed_stops, closed_orders } = stopsCheck.rows[0];
+      if (total_stops > 0 && (closed_stops === total_stops || closed_orders === total_stops)) {
+        await client.query(`
+          UPDATE delivery_trips
+          SET status = 'completed', completed_at = NOW()
+          WHERE id = $1
+        `, [trip.id]);
+
+        await client.query(`
+          UPDATE delivery_trip_stops dts
+          SET status = 'delivered', delivered_at = NOW()
+          FROM orders o
+          WHERE dts.trip_id = $1 AND dts.order_id = o.id AND o.status = 'entregado' AND dts.status = 'pending'
+        `, [trip.id]);
+      }
+    }
+
+    const remainingTrips = await client.query(`
+      SELECT 1 FROM delivery_trips
+      WHERE driver_user_id = $1 AND status IN ('assigned', 'in_transit')
+    `, [driverId]);
+
+    if (!remainingTrips.rows.length) {
+      await client.query(`
+        UPDATE users
+        SET driver_status = 'disponible',
+            driver_status_updated_at = NOW(),
+            driver_last_completed_at = NOW()
+        WHERE id = $1 AND driver_status IN ('esperando_recogida', 'en_ruta', 'regresando')
+      `, [driverId]);
+
+      if (io) {
+        io.emit("delivery-updated", { driver_id: driverId });
+        io.emit("counter-updated");
+      }
+    }
+  } catch (err) {
+    console.error(`[ReconcileDriverTrip Error for ${driverId}]:`, err.message);
+  }
+}
+
+/**
  * Obtener repartidores elegibles para recibir ofertas
  */
 async function getEligibleDrivers(client = pool) {
+  const businessDayStr = getBusinessDateStr();
   const result = await client.query(`
     SELECT
       u.id,
@@ -143,7 +292,7 @@ async function getEligibleDrivers(client = pool) {
         (SELECT COUNT(*)::int
          FROM delivery_trips dt
          WHERE dt.driver_user_id = u.id
-           AND dt.created_at >= CURRENT_DATE
+           AND dt.created_at >= $1::date
            AND dt.status = 'completed'),
         0
       ) AS completed_trips_today,
@@ -184,7 +333,7 @@ async function getEligibleDrivers(client = pool) {
           AND dao.expires_at > NOW()
       )
     ORDER BY u.id ASC
-  `);
+  `, [businessDayStr]);
 
   return result.rows.map((r) => ({
     ...r,
@@ -290,6 +439,9 @@ async function evaluateDispatchQueue(io) {
     if (config.dispatch_mode !== "automatic" || !config.auto_dispatch_enabled) {
       return { ok: true, message: "Modo manual activo. Asignación automática pausada." };
     }
+
+    // 0. Reconciliar viajes stale antes de evaluar la cola
+    await reconcileStaleTrips(client, io);
 
     // 1. Revisar y expirar ofertas vencidas primero
     await checkExpiredOffers(io, client);
@@ -519,34 +671,74 @@ async function acceptOffer(offerId, driverUserId, io) {
       WHERE id = $1
     `, [offerId]);
 
-    // 2. Crear el viaje confirmado (delivery_trips)
+    // 2. Generar folio diario atómico
+    const tripFolio = await assignNextTripFolio(client);
+
+    // 3. Crear el viaje confirmado (delivery_trips)
     const tripRes = await client.query(`
-      INSERT INTO delivery_trips (driver_user_id, status)
-      VALUES ($1, 'assigned')
+      INSERT INTO delivery_trips (driver_user_id, status, trip_folio)
+      VALUES ($1, 'assigned', $2)
       RETURNING *
-    `, [driverUserId]);
+    `, [driverUserId, tripFolio]);
     const trip = tripRes.rows[0];
 
-    // 3. Crear paradas (delivery_trip_stops) y actualizar pedidos
+    // 4. Crear paradas (delivery_trip_stops) y actualizar pedidos
     const stops = [];
     const orderIds = Array.isArray(offer.order_ids) ? offer.order_ids : [];
+
+    // Obtener detalles de órdenes para cálculo de ruta/ETAs
+    const orderDetails = orderIds.length > 0 ? await client.query(`
+      SELECT o.id, o.delivery_lat, o.delivery_lng, COALESCE(dz.estimated_min_minutes, 25) as est_min
+      FROM orders o
+      LEFT JOIN delivery_zones dz ON dz.id = o.delivery_zone_id
+      WHERE o.id = ANY($1::bigint[])
+    `, [orderIds]) : { rows: [] };
+
+    const rawStops = orderIds.map((ordId, idx) => {
+      const oRow = orderDetails.rows.find((r) => Number(r.id) === Number(ordId));
+      return {
+        order_id: ordId,
+        stop_order: idx + 1,
+        lat: oRow?.delivery_lat ? Number(oRow.delivery_lat) : 20.59 + idx * 0.01,
+        lng: oRow?.delivery_lng ? Number(oRow.delivery_lng) : -100.39 - idx * 0.01
+      };
+    });
+
+    const etaResults = await calculateStopETAs(rawStops, { lat: 20.5888, lng: -100.3899 });
+
+    // Consultar turno activo del repartidor
+    const shiftRes = await client.query(`
+      SELECT id FROM driver_shifts
+      WHERE driver_user_id = $1 AND status = 'open'
+      ORDER BY id DESC LIMIT 1
+    `, [driverUserId]);
+    const activeShiftId = shiftRes.rows.length ? shiftRes.rows[0].id : null;
 
     for (let idx = 0; idx < orderIds.length; idx += 1) {
       const ordId = Number(orderIds[idx]);
       const stopOrder = idx + 1;
-      const etaMinutes = 25 + idx * 10;
+      const etaInfo = etaResults[idx] || {};
+      const etaMinutes = etaInfo.eta_minutes || (25 + idx * 10);
+      const etaMinMinutes = etaInfo.eta_min_minutes || Math.max(1, etaMinutes - 3);
+      const etaMaxMinutes = etaInfo.eta_max_minutes || (etaMinutes + 5);
+      const etaSource = etaInfo.eta_source || "heuristic";
+      const estimatedArrivalAt = etaInfo.estimated_arrival_at || new Date(Date.now() + etaMinutes * 60000);
 
       const stopRes = await client.query(`
-        INSERT INTO delivery_trip_stops (trip_id, order_id, stop_order, status, eta_minutes)
-        VALUES ($1, $2, $3, 'pending', $4)
+        INSERT INTO delivery_trip_stops (
+          trip_id, order_id, stop_order, status,
+          eta_minutes, eta_min_minutes, eta_max_minutes, estimated_arrival_at, eta_source
+        )
+        VALUES ($1, $2, $3, 'pending', $4, $5, $6, $7, $8)
         RETURNING *
-      `, [trip.id, ordId, stopOrder, etaMinutes]);
+      `, [trip.id, ordId, stopOrder, etaMinutes, etaMinMinutes, etaMaxMinutes, estimatedArrivalAt, etaSource]);
 
       await client.query(`
         UPDATE orders
-        SET delivery_driver_id = $1
+        SET delivery_driver_id = $1,
+            shift_id = COALESCE($3, shift_id)
         WHERE id = $2
-      `, [driverUserId, ordId]);
+      `, [driverUserId, ordId, activeShiftId]);
 
       stops.push(stopRes.rows[0]);
     }
@@ -750,32 +942,72 @@ async function adminForceAssign(driverUserId, orderIds, io) {
       }
     }
 
-    // 2. Crear el viaje
+    // 2. Generar folio diario atómico
+    const tripFolio = await assignNextTripFolio(client);
+
+    // 3. Crear el viaje
     const tripRes = await client.query(`
-      INSERT INTO delivery_trips (driver_user_id, status)
-      VALUES ($1, 'assigned')
+      INSERT INTO delivery_trips (driver_user_id, status, trip_folio)
+      VALUES ($1, 'assigned', $2)
       RETURNING *
-    `, [driverUserId]);
+    `, [driverUserId, tripFolio]);
     const trip = tripRes.rows[0];
 
-    // 3. Crear paradas
+    // 4. Crear paradas
     const stops = [];
+
+    const orderDetails = orderIds.length > 0 ? await client.query(`
+      SELECT o.id, o.delivery_lat, o.delivery_lng, COALESCE(dz.estimated_min_minutes, 25) as est_min
+      FROM orders o
+      LEFT JOIN delivery_zones dz ON dz.id = o.delivery_zone_id
+      WHERE o.id = ANY($1::bigint[])
+    `, [orderIds]) : { rows: [] };
+
+    const rawStops = orderIds.map((ordId, idx) => {
+      const oRow = orderDetails.rows.find((r) => Number(r.id) === Number(ordId));
+      return {
+        order_id: ordId,
+        stop_order: idx + 1,
+        lat: oRow?.delivery_lat ? Number(oRow.delivery_lat) : 20.59 + idx * 0.01,
+        lng: oRow?.delivery_lng ? Number(oRow.delivery_lng) : -100.39 - idx * 0.01
+      };
+    });
+
+    const etaResults = await calculateStopETAs(rawStops, { lat: 20.5888, lng: -100.3899 });
+
+    // Consultar turno activo del repartidor
+    const shiftRes = await client.query(`
+      SELECT id FROM driver_shifts
+      WHERE driver_user_id = $1 AND status = 'open'
+      ORDER BY id DESC LIMIT 1
+    `, [driverUserId]);
+    const activeShiftId = shiftRes.rows.length ? shiftRes.rows[0].id : null;
+
     for (let i = 0; i < orderIds.length; i += 1) {
       const ordId = Number(orderIds[i]);
       const stopOrder = i + 1;
-      const etaMinutes = 25 + i * 10;
+      const etaInfo = etaResults[i] || {};
+      const etaMinutes = etaInfo.eta_minutes || (25 + i * 10);
+      const etaMinMinutes = etaInfo.eta_min_minutes || Math.max(1, etaMinutes - 3);
+      const etaMaxMinutes = etaInfo.eta_max_minutes || (etaMinutes + 5);
+      const etaSource = etaInfo.eta_source || "heuristic";
+      const estimatedArrivalAt = etaInfo.estimated_arrival_at || new Date(Date.now() + etaMinutes * 60000);
 
       const stopRes = await client.query(`
-        INSERT INTO delivery_trip_stops (trip_id, order_id, stop_order, status, eta_minutes)
-        VALUES ($1, $2, $3, 'pending', $4)
+        INSERT INTO delivery_trip_stops (
+          trip_id, order_id, stop_order, status,
+          eta_minutes, eta_min_minutes, eta_max_minutes, estimated_arrival_at, eta_source
+        )
+        VALUES ($1, $2, $3, 'pending', $4, $5, $6, $7, $8)
         RETURNING *
-      `, [trip.id, ordId, stopOrder, etaMinutes]);
+      `, [trip.id, ordId, stopOrder, etaMinutes, etaMinMinutes, etaMaxMinutes, estimatedArrivalAt, etaSource]);
 
       await client.query(`
         UPDATE orders
-        SET delivery_driver_id = $1
+        SET delivery_driver_id = $1,
+            shift_id = COALESCE($3, shift_id)
         WHERE id = $2
-      `, [driverUserId, ordId]);
+      `, [driverUserId, ordId, activeShiftId]);
 
       stops.push(stopRes.rows[0]);
     }
@@ -849,6 +1081,9 @@ module.exports = {
   rejectOffer,
   cancelOffer,
   adminForceAssign,
-  cleanupPendingOffersForOrder
+  cleanupPendingOffersForOrder,
+  reconcileStaleTrips,
+  reconcileDriverTrip,
+  assignNextTripFolio
 };
 

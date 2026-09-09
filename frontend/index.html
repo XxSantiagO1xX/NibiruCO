@@ -78,7 +78,10 @@
           <h2>Pedido actual</h2>
           <div class="cart-subtitle">Los precios y las opciones se validan nuevamente en el servidor.</div>
           <div id="cart" class="cart-list"></div>
+          <div class="total-row" id="subtotal-row" style="font-size:13px;color:var(--muted);display:none"><span>Subtotal platillos</span><span id="subtotal-val">$0.00</span></div>
+          <div class="total-row" id="delivery-fee-row" style="font-size:13px;color:var(--primary);display:none"><span>Costo de envío</span><span id="delivery-fee-val">$0.00</span></div>
           <div class="total-row"><span>Total</span><strong id="total">$0.00</strong></div>
+
           <div class="field">
             <label for="type">Tipo de pedido</label>
             <select id="type" onchange="updateServiceFields()">
@@ -88,13 +91,48 @@
               <option value="domicilio">Domicilio</option>
             </select>
           </div>
+
+          <!-- Campos para Llevar y Recoger -->
           <div id="service-extra" class="service-extra hidden" style="margin-top:10px">
             <div class="field"><label for="customer-name">Nombre / referencia</label><input id="customer-name" placeholder="Ej. Laura"></div>
             <div class="field" id="pickup-field"><label for="pickup-at">Hora de recolección</label><input id="pickup-at" type="datetime-local"></div>
           </div>
+
+          <!-- Campos para Domicilio -->
+          <div id="delivery-extra" class="hidden" style="margin-top:10px;padding:12px;background:#f8fafc;border-radius:14px;border:1px solid var(--border);display:flex;flex-direction:column;gap:10px">
+            <div class="field">
+              <label for="delivery-zone">Zona de reparto</label>
+              <select id="delivery-zone" onchange="onZoneChange()"></select>
+            </div>
+            <div class="field">
+              <label for="delivery-customer-select">Cliente registrado (Opcional)</label>
+              <select id="delivery-customer-select" onchange="onCustomerSelect()"></select>
+            </div>
+            <div class="field" id="delivery-name-box">
+              <label for="delivery-name">Nombre del cliente</label>
+              <input id="delivery-name" placeholder="Ej. Juan Pérez">
+            </div>
+            <div class="field" id="delivery-phone-box">
+              <label for="delivery-phone">Teléfono de contacto</label>
+              <input id="delivery-phone" placeholder="5551234567">
+            </div>
+            <div class="field" id="delivery-address-select-box" style="display:none">
+              <label for="delivery-address-select">Direcciones guardadas</label>
+              <select id="delivery-address-select" onchange="onAddressSelect()"></select>
+            </div>
+            <div class="field" id="delivery-address-manual-box">
+              <label for="delivery-address-text">Calle, número y colonia</label>
+              <input id="delivery-address-text" placeholder="Ej. Calle Morelos #45, Col. Centro">
+            </div>
+            <div class="field">
+              <label for="delivery-address-details">Referencias de entrega (Opcional)</label>
+              <input id="delivery-address-details" placeholder="Ej. Fachada azul, portón negro">
+            </div>
+          </div>
+
           <div class="field" style="margin-top:10px">
             <label for="payment-method">Forma de pago</label>
-            <select id="payment-method">
+            <select id="payment-method" onchange="onPaymentMethodChange()">
               <option value="">Pendiente</option>
               <option value="efectivo">Efectivo</option>
               <option value="tarjeta">Tarjeta</option>
@@ -102,6 +140,18 @@
               <option value="otro">Otro</option>
             </select>
           </div>
+
+          <div id="cash-change-box" class="hidden" style="margin-top:10px;padding:10px;background:#f1f5f9;border-radius:12px;border:1px solid var(--border)">
+            <div class="field">
+              <label for="cash-paid-with">Paga con ($)</label>
+              <input id="cash-paid-with" type="number" min="0" step="10" placeholder="Ej. 200.00" oninput="calculateCashChange()">
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px;font-size:12.5px">
+              <span class="muted">Cambio a devolver:</span>
+              <strong id="cash-change-val" style="color:var(--primary);font-size:14px">$0.00</strong>
+            </div>
+          </div>
+
           <label style="display:flex;align-items:center;gap:9px;margin-top:10px;font-size:12px;font-weight:700">
             <input id="mark-paid" type="checkbox" style="width:auto"> Marcar como pagado al crear
           </label>
@@ -136,6 +186,9 @@
     let cart = [];
     let loading = false;
     let comboEditing = null;
+    let deliveryZones = [];
+    let customersList = [];
+    let selectedCustomerAddresses = [];
 
     if (currentUser) {
       document.getElementById('sidebar-name').textContent = currentUser.name || currentUser.phone || 'Usuario';
@@ -149,7 +202,7 @@
     }
 
     async function loadAll() {
-      await Promise.all([loadProducts(), loadCombos(), loadOrders()]);
+      await Promise.all([loadProducts(), loadCombos(), loadOrders(), loadDeliveryZones(), loadCustomers()]);
       renderProducts();
       renderQuickProducts();
     }
@@ -162,6 +215,140 @@
     async function loadCombos() {
       try { combos = await apiFetch('/combos'); }
       catch (error) { showToast(error.message, 'error'); }
+    }
+
+    async function loadDeliveryZones() {
+      try {
+        deliveryZones = await apiFetch('/deliveries/zones');
+        const select = document.getElementById('delivery-zone');
+        if (select) {
+          const activeZones = (deliveryZones || []).filter((z) => z.active);
+          select.innerHTML = '<option value="">-- Selecciona Zona de Reparto --</option>' +
+            activeZones.map((z) => `<option value="${z.id}" data-fee="${z.fee}">${escapeHtml(z.name)} (${formatCurrency(z.fee)})</option>`).join('');
+          if (activeZones.length > 0) {
+            select.value = activeZones[0].id;
+          }
+        }
+      } catch (error) {
+        console.warn('Error cargando zonas de entrega:', error);
+      }
+    }
+
+    async function loadCustomers() {
+      try {
+        customersList = await apiFetch('/users/customers');
+        const select = document.getElementById('delivery-customer-select');
+        if (select) {
+          select.innerHTML = '<option value="">-- Cliente ocasional / Manual --</option>' +
+            (customersList || []).map((c) => `<option value="${c.id}">${escapeHtml(c.name || 'Sin nombre')} (${escapeHtml(c.phone || 'S/N')})</option>`).join('');
+        }
+      } catch (error) {
+        console.warn('Error cargando clientes:', error);
+      }
+    }
+
+    function onCustomerSelect() {
+      const customerId = document.getElementById('delivery-customer-select').value;
+      const customer = customersList.find((c) => String(c.id) === String(customerId));
+      const addrSelectBox = document.getElementById('delivery-address-select-box');
+      const addrSelect = document.getElementById('delivery-address-select');
+      const nameInput = document.getElementById('delivery-name');
+      const phoneInput = document.getElementById('delivery-phone');
+      const manualAddrBox = document.getElementById('delivery-address-manual-box');
+      const manualAddrInput = document.getElementById('delivery-address-text');
+      const manualDetailsInput = document.getElementById('delivery-address-details');
+
+      if (customer) {
+        nameInput.value = customer.name || '';
+        phoneInput.value = customer.phone || '';
+        selectedCustomerAddresses = customer.addresses || [];
+        if (selectedCustomerAddresses.length > 0) {
+          addrSelectBox.style.display = 'block';
+          addrSelect.innerHTML = '<option value="">-- Usar dirección guardada --</option>' +
+            selectedCustomerAddresses.map((a) => `<option value="${a.id}" ${a.is_default ? 'selected' : ''}>${escapeHtml(a.label ? `[${a.label}] ` : '')}${escapeHtml(a.address)}</option>`).join('') +
+            '<option value="manual">+ Ingresar otra dirección</option>';
+          onAddressSelect();
+        } else {
+          addrSelectBox.style.display = 'none';
+          addrSelect.innerHTML = '';
+          manualAddrBox.style.display = 'block';
+          manualAddrInput.value = '';
+          manualDetailsInput.value = '';
+        }
+      } else {
+        addrSelectBox.style.display = 'none';
+        addrSelect.innerHTML = '';
+        manualAddrBox.style.display = 'block';
+        nameInput.value = '';
+        phoneInput.value = '';
+        manualAddrInput.value = '';
+        manualDetailsInput.value = '';
+      }
+    }
+
+    function onAddressSelect() {
+      const addrSelect = document.getElementById('delivery-address-select');
+      const manualAddrBox = document.getElementById('delivery-address-manual-box');
+      const manualAddrInput = document.getElementById('delivery-address-text');
+      const manualDetailsInput = document.getElementById('delivery-address-details');
+      const selectedAddrId = addrSelect.value;
+
+      if (selectedAddrId && selectedAddrId !== 'manual') {
+        const addr = selectedCustomerAddresses.find((a) => String(a.id) === String(selectedAddrId));
+        if (addr) {
+          manualAddrInput.value = addr.address || '';
+          manualDetailsInput.value = addr.details || '';
+          manualAddrBox.style.display = 'none';
+        }
+      } else {
+        manualAddrBox.style.display = 'block';
+        if (selectedAddrId === 'manual') {
+          manualAddrInput.value = '';
+          manualDetailsInput.value = '';
+        }
+      }
+    }
+
+    function onZoneChange() {
+      renderCart();
+      calculateCashChange();
+    }
+
+    function onPaymentMethodChange() {
+      const method = document.getElementById('payment-method').value;
+      const cashBox = document.getElementById('cash-change-box');
+      if (method === 'efectivo') {
+        cashBox.classList.remove('hidden');
+        calculateCashChange();
+      } else {
+        cashBox.classList.add('hidden');
+      }
+    }
+
+    function calculateCashChange() {
+      const subtotal = cart.reduce((sum, item) => sum + (item.price + item.extra) * item.quantity, 0);
+      const serviceType = document.getElementById('type').value;
+      let deliveryFee = 0;
+      if (serviceType === 'domicilio') {
+        const zoneSelect = document.getElementById('delivery-zone');
+        const selectedOption = zoneSelect.options[zoneSelect.selectedIndex];
+        if (selectedOption && selectedOption.dataset.fee) {
+          deliveryFee = Number(selectedOption.dataset.fee) || 0;
+        }
+      }
+      const total = subtotal + deliveryFee;
+      const paidWith = Number(document.getElementById('cash-paid-with').value) || 0;
+      const changeEl = document.getElementById('cash-change-val');
+      if (paidWith >= total) {
+        changeEl.textContent = formatCurrency(paidWith - total);
+        changeEl.style.color = 'var(--primary)';
+      } else if (paidWith > 0) {
+        changeEl.textContent = `Faltan ${formatCurrency(total - paidWith)}`;
+        changeEl.style.color = 'var(--danger, #dc2626)';
+      } else {
+        changeEl.textContent = '$0.00';
+        changeEl.style.color = 'var(--primary)';
+      }
     }
 
     function renderQuickProducts() {
@@ -248,7 +435,19 @@
 
     function renderCart() {
       const container = document.getElementById('cart');
-      const total = cart.reduce((sum, item) => sum + (item.price + item.extra) * item.quantity, 0);
+      const subtotal = cart.reduce((sum, item) => sum + (item.price + item.extra) * item.quantity, 0);
+      const serviceType = document.getElementById('type').value;
+      let deliveryFee = 0;
+
+      if (serviceType === 'domicilio') {
+        const zoneSelect = document.getElementById('delivery-zone');
+        const selectedOption = zoneSelect ? zoneSelect.options[zoneSelect.selectedIndex] : null;
+        if (selectedOption && selectedOption.dataset.fee) {
+          deliveryFee = Number(selectedOption.dataset.fee) || 0;
+        }
+      }
+
+      const total = subtotal + deliveryFee;
       document.getElementById('total').textContent = formatCurrency(total);
 
       if (!cart.length) {
@@ -256,7 +455,7 @@
         return;
       }
 
-      container.innerHTML = cart.map((item) => `
+      let html = cart.map((item) => `
         <div class="cart-item">
           <div>
             <strong>${escapeHtml(item.name)}</strong>
@@ -270,6 +469,20 @@
           </div>
         </div>
       `).join('');
+
+      if (deliveryFee > 0) {
+        html += `
+          <div class="cart-item" style="border-top:1px dashed var(--border);padding-top:8px">
+            <div>
+              <strong>Envío a domicilio</strong>
+              <small class="muted">Tarifa de zona</small>
+            </div>
+            <strong style="color:var(--primary)">${formatCurrency(deliveryFee)}</strong>
+          </div>
+        `;
+      }
+
+      container.innerHTML = html;
     }
 
     function openCombo(productId) {
@@ -393,11 +606,23 @@
 
     function updateServiceFields() {
       const type = document.getElementById('type').value;
-      const extra = document.getElementById('service-extra');
+      const pickupExtra = document.getElementById('service-extra');
+      const deliveryExtra = document.getElementById('delivery-extra');
       const pickupField = document.getElementById('pickup-field');
-      if (['llevar', 'recoger'].includes(type)) extra.classList.remove('hidden');
-      else extra.classList.add('hidden');
-      pickupField.classList.toggle('hidden', type !== 'recoger');
+
+      if (type === 'domicilio') {
+        deliveryExtra.classList.remove('hidden');
+        pickupExtra.classList.add('hidden');
+      } else if (['llevar', 'recoger'].includes(type)) {
+        deliveryExtra.classList.add('hidden');
+        pickupExtra.classList.remove('hidden');
+        pickupField.classList.toggle('hidden', type !== 'recoger');
+      } else {
+        deliveryExtra.classList.add('hidden');
+        pickupExtra.classList.add('hidden');
+      }
+      renderCart();
+      calculateCashChange();
     }
 
     async function createOrder() {
@@ -410,13 +635,54 @@
       if (!items.length) return showToast('Agrega productos al carrito.', 'error');
 
       const serviceType = document.getElementById('type').value;
-      const customerName = document.getElementById('customer-name').value.trim();
-      const pickupValue = document.getElementById('pickup-at').value;
       const paymentMethod = document.getElementById('payment-method').value || null;
       const markPaid = document.getElementById('mark-paid').checked;
+      let customerName = null;
+      let pickupValue = null;
+      let addressId = null;
+      let deliveryAddress = null;
+      let deliveryDetails = null;
+      let deliveryZoneId = null;
+      let customerUserId = null;
+      let cashPaidWith = null;
 
-      if (serviceType === 'recoger' && !customerName) return showToast('Agrega el nombre para el pedido a recoger.', 'error');
-      if (serviceType === 'recoger' && !pickupValue) return showToast('Indica la hora de recolección.', 'error');
+      if (serviceType === 'domicilio') {
+        const zoneSelect = document.getElementById('delivery-zone');
+        deliveryZoneId = zoneSelect ? Number(zoneSelect.value) || null : null;
+        if (!deliveryZoneId) {
+          return showToast('Selecciona una zona de reparto.', 'error');
+        }
+
+        const customerSelect = document.getElementById('delivery-customer-select');
+        customerUserId = customerSelect && customerSelect.value ? Number(customerSelect.value) : null;
+
+        const nameVal = document.getElementById('delivery-name').value.trim();
+        const phoneVal = document.getElementById('delivery-phone').value.trim();
+        customerName = nameVal ? (phoneVal ? `${nameVal} (${phoneVal})` : nameVal) : (customerUserId ? 'Cliente registrado' : 'Cliente Mostrador');
+
+        const addrSelectBox = document.getElementById('delivery-address-select-box');
+        const addrSelect = document.getElementById('delivery-address-select');
+        if (addrSelectBox.style.display !== 'none' && addrSelect.value && addrSelect.value !== 'manual') {
+          addressId = Number(addrSelect.value);
+        } else {
+          deliveryAddress = document.getElementById('delivery-address-text').value.trim();
+          deliveryDetails = document.getElementById('delivery-address-details').value.trim() || null;
+          if (!deliveryAddress) {
+            return showToast('Ingresa la dirección de entrega.', 'error');
+          }
+        }
+
+        if (paymentMethod === 'efectivo') {
+          const cashVal = document.getElementById('cash-paid-with').value;
+          if (cashVal) cashPaidWith = Number(cashVal);
+        }
+      } else if (['llevar', 'recoger'].includes(serviceType)) {
+        customerName = document.getElementById('customer-name').value.trim();
+        pickupValue = document.getElementById('pickup-at').value;
+        if (serviceType === 'recoger' && !customerName) return showToast('Agrega el nombre para el pedido a recoger.', 'error');
+        if (serviceType === 'recoger' && !pickupValue) return showToast('Indica la hora de recolección.', 'error');
+      }
+
       if (markPaid && !paymentMethod) return showToast('Selecciona la forma de pago.', 'error');
 
       loading = true;
@@ -431,14 +697,25 @@
             type: serviceType,
             service_type: serviceType,
             customer_name: customerName || null,
+            customer_user_id: customerUserId,
             pickup_at: pickupValue ? new Date(pickupValue).toISOString() : null,
+            address_id: addressId,
+            delivery_address: deliveryAddress,
+            delivery_details: deliveryDetails,
+            delivery_zone_id: deliveryZoneId,
             payment_method: paymentMethod,
+            cash_paid_with: cashPaidWith,
             mark_paid: markPaid
           })
         });
         clearCart();
         document.getElementById('customer-name').value = '';
         document.getElementById('pickup-at').value = '';
+        document.getElementById('delivery-name').value = '';
+        document.getElementById('delivery-phone').value = '';
+        document.getElementById('delivery-address-text').value = '';
+        document.getElementById('delivery-address-details').value = '';
+        document.getElementById('cash-paid-with').value = '';
         document.getElementById('mark-paid').checked = false;
         await loadOrders();
         showToast(`Pedido F${String(order.folio || order.id).padStart(3, '0')} creado correctamente.`, 'success');

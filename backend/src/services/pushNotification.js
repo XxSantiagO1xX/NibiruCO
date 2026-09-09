@@ -94,7 +94,39 @@ async function notifyDriverOffer(driverUserId, offer, group, timeoutSeconds) {
   }
 }
 
+/**
+ * Enviar push notification a un cliente cuando el repartidor llega
+ */
+async function notifyCustomerDeliveryArrived(customerUserId, order) {
+  try {
+    if (!customerUserId) return;
+    const userRes = await pool.query(`
+      SELECT id, name, expo_push_token, allow_push
+      FROM users
+      WHERE id = $1
+    `, [customerUserId]);
+
+    if (!userRes.rows.length) return;
+    const user = userRes.rows[0];
+    if (user.allow_push === false || !user.expo_push_token) return;
+
+    const folioText = order?.folio ? `F${String(order.folio).padStart(3, "0")}` : `#${order?.id}`;
+    await sendExpoPushNotification(user.expo_push_token, {
+      title: "🛵 ¡Tu repartidor ya llegó!",
+      body: `Tu pedido ${folioText} está en tu puerta. Ten listo tu PIN de entrega.`,
+      data: {
+        type: "delivery_arrived",
+        order_id: order.id,
+        folio: order.folio
+      }
+    });
+  } catch (err) {
+    console.error("[PUSH] Error en notifyCustomerDeliveryArrived:", err.message);
+  }
+}
+
 module.exports = {
   sendExpoPushNotification,
-  notifyDriverOffer
+  notifyDriverOffer,
+  notifyCustomerDeliveryArrived
 };

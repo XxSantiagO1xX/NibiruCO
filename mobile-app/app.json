@@ -29,6 +29,11 @@
           "backgroundColor": "#ffffff"
         }
       ]
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "mealops-mobile-app"
+      }
+    }
   }
 }

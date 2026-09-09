@@ -5,19 +5,7 @@ const crypto = require("crypto");
 const auth = require("../middleware/auth");
 const roles = require("../middleware/roles");
 const pool = require("../db");
-
-function getTodayKey() {
-  const days = [
-    "sunday",
-    "monday",
-    "tuesday",
-    "wednesday",
-    "thursday",
-    "friday",
-    "saturday"
-  ];
-  return days[new Date().getDay()];
-}
+const { getBusinessDayKey, getBusinessDateStr } = require("../utils/timezone");
 
 function normalizeServiceType(value) {
   const normalized = String(value || "local").toLowerCase();
@@ -175,7 +163,7 @@ router.get(
         LEFT JOIN restaurant_tables rt ON rt.id = ts.table_id
         LEFT JOIN order_items oi ON oi.order_id = o.id
         LEFT JOIN products p ON p.id = oi.product_id
-        WHERE (o.service_date = CURRENT_DATE OR o.created_at::date = CURRENT_DATE)
+        WHERE (o.service_date = $1::date OR o.created_at::date = $1::date)
           AND o.status IN ('pendiente', 'aceptado', 'preparando')
           AND EXISTS (
             SELECT 1
@@ -203,7 +191,7 @@ router.get(
           END,
           COALESCE(o.pickup_at, o.created_at) ASC,
           o.id ASC
-      `);
+      `, [getBusinessDateStr()]);
 
       res.json(result.rows);
     } catch (err) {
@@ -232,7 +220,8 @@ router.post("/", auth, async (req, res) => {
     } = req.body;
 
     const userId = req.user.id;
-    const today = getTodayKey();
+    const overrideDay = req.query.override_day || req.headers["x-override-day"];
+    const today = getBusinessDayKey(overrideDay);
     const staffCanCollect = ["mesero", "admin"].includes(req.user.role);
     let effectiveType = type || "local";
     let serviceType = normalizeServiceType(service_type || type);
@@ -318,14 +307,28 @@ router.post("/", auth, async (req, res) => {
           }
         }
 
+        let effectiveUserId = userId;
+        if (staffCanCollect && req.body.customer_user_id) {
+          effectiveUserId = Number(req.body.customer_user_id);
+        }
+
         if (addressId !== null) {
           const addressResult = await client.query(
-            "SELECT id FROM user_addresses WHERE id = $1 AND user_id = $2",
-            [addressId, userId]
+            "SELECT id FROM user_addresses WHERE id = $1 AND ($2::boolean = TRUE OR user_id = $3)",
+            [addressId, staffCanCollect, userId]
           );
           if (!addressResult.rows.length) {
-            return res.status(404).json({ message: "La dirección no pertenece a esta cuenta" });
+            return res.status(404).json({ message: "La dirección no es válida" });
           }
+        } else if (staffCanCollect && (req.body.delivery_address || req.body.address_text)) {
+          const targetAddress = String(req.body.delivery_address || req.body.address_text).trim();
+          const targetDetails = req.body.delivery_details || req.body.address_details || null;
+
+          const createdAddr = await client.query(
+            `INSERT INTO user_addresses (user_id, label, address, details) VALUES ($1, 'Domicilio POS', $2, $3) RETURNING id`,
+            [effectiveUserId, targetAddress, targetDetails]
+          );
+          addressId = createdAddr.rows[0].id;
         } else if (!staffCanCollect) {
           return res.status(400).json({ message: "Selecciona una dirección para el pedido a domicilio" });
         }
@@ -404,16 +407,19 @@ router.post("/", auth, async (req, res) => {
 
     let folio = null;
     let serviceDate = null;
+    const todayStr = getBusinessDateStr();
     if (!tableSessionId) {
       const folioResult = await client.query(`
         INSERT INTO daily_folio_counters (day, last_folio)
-        VALUES (CURRENT_DATE, 1)
+        VALUES ($1::date, 1)
         ON CONFLICT (day)
         DO UPDATE SET last_folio = daily_folio_counters.last_folio + 1
         RETURNING day, last_folio
-      `);
+      `, [todayStr]);
       folio = Number(folioResult.rows[0].last_folio);
       serviceDate = folioResult.rows[0].day;
+    } else {
+      serviceDate = todayStr;
     }
 
     const paid = Boolean(mark_paid);
@@ -426,15 +432,22 @@ router.post("/", auth, async (req, res) => {
           ? "entregado"
           : "listo";
 
+    const paymentCollectedBy = paid && staffCanCollect ? "business" : null;
+    const paymentCollectorUserId = paid && staffCanCollect ? req.user.id : null;
+    const paymentCollectedAt = paid && staffCanCollect ? new Date() : null;
+    const cashCollectedAmount = paid && staffCanCollect && paymentMethod === "efectivo" ? total : 0;
+
     const orderResult = await client.query(
       `
         INSERT INTO orders
           (user_id, type, total, status, payment_method, address_id, table_session_id,
            service_type, customer_name, pickup_at, folio, service_date, payment_status, paid_at,
-           delivery_pin, delivery_zone_id, delivery_fee, cash_paid_with, cash_change_due, ready_at)
+           delivery_pin, delivery_zone_id, delivery_fee, cash_paid_with, cash_change_due, ready_at,
+           payment_collected_by, payment_collector_user_id, payment_collected_at, cash_collected_amount)
         VALUES ($1, $2, $3, $4::varchar, $5, $6, $7, $8, $9, $10, $11,
-                COALESCE($12, CURRENT_DATE), $13::varchar, CASE WHEN $13::varchar = 'paid' THEN NOW() ELSE NULL END,
-                $14, $15, $16, $17, $18, CASE WHEN $4::varchar = 'listo' THEN NOW() ELSE NULL END)
+                COALESCE($12::date, $19::date), $13::varchar, CASE WHEN $13::varchar = 'paid' THEN NOW() ELSE NULL END,
+                $14, $15, $16, $17, $18, CASE WHEN $4::varchar = 'listo' THEN NOW() ELSE NULL END,
+                $20, $21, $22, $23)
         RETURNING *
       `,
       [
@@ -455,7 +468,12 @@ router.post("/", auth, async (req, res) => {
         deliveryZoneId,
         deliveryFee,
         parsedCashPaidWith,
-        cashChangeDue
+        cashChangeDue,
+        todayStr,
+        paymentCollectedBy,
+        paymentCollectorUserId,
+        paymentCollectedAt,
+        cashCollectedAmount
       ]
     );
 

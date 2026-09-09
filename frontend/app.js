@@ -30,11 +30,12 @@
     'index.html': ['admin', 'mesero'],
     'waiter.html': ['admin', 'mesero'],
     'kds.html': ['admin', 'cocina'],
-    'counter.html': ['admin', 'mesero', 'cocina'],
+    'counter.html': ['admin', 'mesero', 'cocina', 'repartidor'],
     'menu.html': ['admin'],
     'products.html': ['admin'],
     'tables.html': ['admin'],
-    'combos.html': ['admin']
+    'combos.html': ['admin'],
+    'settings.html': ['admin']
   };
 
   if (role && routeRoles[current] && !routeRoles[current].includes(role)) {
@@ -45,15 +46,16 @@
   const nav = document.querySelector('.nav');
   if (nav && role) {
     const definitions = [
-      { href: 'home.html', label: 'Panel', icon: 'logo', roles: ['admin', 'mesero', 'cocina'] },
+      { href: 'home.html', label: 'Panel', icon: 'logo', roles: ['admin', 'mesero', 'cocina', 'repartidor'] },
       { href: 'index.html', label: 'Ventas', icon: 'sales', roles: ['admin', 'mesero'] },
       { href: 'waiter.html', label: 'Mesero', icon: 'waiter', roles: ['admin', 'mesero'] },
       { href: 'kds.html', label: 'Cocina KDS', icon: 'kitchen', roles: ['admin', 'cocina'] },
-      { href: 'counter.html', label: 'Mostrador', icon: 'counter', roles: ['admin', 'mesero', 'cocina'] },
+      { href: 'counter.html', label: 'Mostrador', icon: 'counter', roles: ['admin', 'mesero', 'cocina', 'repartidor'] },
       { href: 'menu.html', label: 'Menú', icon: 'calendar', roles: ['admin'] },
       { href: 'products.html', label: 'Productos', icon: 'products', roles: ['admin'] },
       { href: 'tables.html', label: 'Mesas', icon: 'tables', roles: ['admin'] },
-      { href: 'combos.html', label: 'Comida corrida', icon: 'combo', roles: ['admin'] }
+      { href: 'combos.html', label: 'Combos', icon: 'combo', roles: ['admin'] },
+      { href: 'settings.html', label: 'Configuración', icon: 'settings', roles: ['admin'] }
     ];
     nav.innerHTML = definitions
       .filter((item) => item.roles.includes(role))

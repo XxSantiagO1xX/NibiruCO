@@ -5,6 +5,8 @@ const pool = require("../db");
 const auth = require("../middleware/auth");
 const roles = require("../middleware/roles");
 const dispatchEngine = require("../services/dispatchEngine");
+const pushNotification = require("../services/pushNotification");
+const { getBusinessDateStr } = require("../utils/timezone");
 
 const adminOnly = roles(["admin"]);
 const driverOrAdmin = roles(["repartidor", "admin"]);
@@ -66,6 +68,7 @@ router.get("/drivers", auth, staffRoles, async (req, res) => {
     // Expirar ofertas vencidas antes de responder
     const io = req.app.get("io");
     await dispatchEngine.checkExpiredOffers(io);
+    const businessDayStr = getBusinessDateStr();
 
     const result = await pool.query(`
       SELECT
@@ -74,6 +77,8 @@ router.get("/drivers", auth, staffRoles, async (req, res) => {
         u.phone,
         u.email,
         u.role,
+        u.short_code,
+        u.avatar_url,
         COALESCE(u.driver_status, 'offline') AS driver_status,
         u.driver_status_updated_at,
         u.driver_last_completed_at,
@@ -81,7 +86,7 @@ router.get("/drivers", auth, staffRoles, async (req, res) => {
           (SELECT COUNT(*)::int
            FROM delivery_trips dt
            WHERE dt.driver_user_id = u.id
-             AND dt.created_at >= CURRENT_DATE
+             AND dt.created_at >= $1::date
              AND dt.status = 'completed'),
           0
         ) AS completed_trips_today,
@@ -102,7 +107,10 @@ router.get("/drivers", auth, staffRoles, async (req, res) => {
          ORDER BY dao.id DESC LIMIT 1) AS active_offer_id,
         (SELECT EXTRACT(EPOCH FROM (dao.expires_at - NOW()))::int FROM delivery_assignment_offers dao
          WHERE dao.driver_user_id = u.id AND dao.status = 'pending' AND dao.expires_at > NOW()
-         ORDER BY dao.id DESC LIMIT 1) AS active_offer_remaining_seconds
+         ORDER BY dao.id DESC LIMIT 1) AS active_offer_remaining_seconds,
+        (SELECT s.id FROM driver_shifts s
+         WHERE s.driver_user_id = u.id AND s.status = 'open'
+         ORDER BY s.id DESC LIMIT 1) AS active_shift_id
       FROM users u
       WHERE u.role = 'repartidor'
       ORDER BY
@@ -116,7 +124,7 @@ router.get("/drivers", auth, staffRoles, async (req, res) => {
           ELSE 7
         END,
         u.name ASC
-    `);
+    `, [businessDayStr]);
     res.json(result.rows);
   } catch (err) {
     console.error("GET DRIVERS ERROR:", err);
@@ -648,7 +656,7 @@ router.patch("/my-trip/start", auth, driverOrAdmin, async (req, res) => {
   }
 });
 
-// 8. Marcar llegada al domicilio (Repartidor)
+// 8. Marcar llegada al domicilio (Repartidor) — Dispara notificación en vivo al cliente
 router.patch("/stops/:id/arrived", auth, driverOrAdmin, async (req, res) => {
   try {
     const stopId = Number(req.params.id);
@@ -665,10 +673,40 @@ router.patch("/stops/:id/arrived", auth, driverOrAdmin, async (req, res) => {
     }
 
     const stop = result.rows[0];
+
+    // Obtener datos del pedido y repartidor para notificar al cliente
+    const orderRes = await pool.query(`
+      SELECT o.id, o.folio, o.user_id, o.customer_name, dt.trip_folio, drv.name AS driver_name
+      FROM orders o
+      JOIN delivery_trip_stops dts ON dts.order_id = o.id
+      JOIN delivery_trips dt ON dt.id = dts.trip_id
+      JOIN users drv ON drv.id = dt.driver_user_id
+      WHERE dts.id = $1
+    `, [stopId]);
+
+    const orderData = orderRes.rows[0];
     const io = req.app.get("io");
     if (io) {
-      io.emit("delivery-updated", { trip_id: stop.trip_id });
+      io.emit("stop-arrived", {
+        stop_id: stop.id,
+        trip_id: stop.trip_id,
+        order_id: stop.order_id,
+        folio: orderData?.folio,
+        customer_name: orderData?.customer_name,
+        driver_name: orderData?.driver_name,
+        arrived_at: stop.arrived_at,
+        message: "¡Tu repartidor ya llegó a tu domicilio!"
+      });
+      io.emit("delivery-updated", { trip_id: stop.trip_id, driver_id: req.user.id });
       io.emit("orders-updated");
+      io.emit("counter-updated");
+    }
+
+    // Push notification al cliente
+    if (orderData?.user_id) {
+      pushNotification.notifyCustomerDeliveryArrived(orderData.user_id, orderData).catch((pushErr) => {
+        console.error("Push customer arrived error:", pushErr?.message || pushErr);
+      });
     }
 
     res.json(stop);
@@ -678,19 +716,20 @@ router.patch("/stops/:id/arrived", auth, driverOrAdmin, async (req, res) => {
   }
 });
 
-// 9. Validar PIN de entrega (Repartidor)
+// 9. Validar PIN de entrega (Repartidor) — Con registro de cobro físico y vínculo a turno
 router.post("/stops/:id/verify-pin", auth, driverOrAdmin, async (req, res) => {
   const client = await pool.connect();
   try {
     const stopId = Number(req.params.id);
     const pin = String(req.body.pin || "").trim();
+    const driverUserId = req.user.id;
 
     if (!pin) {
       return res.status(400).json({ message: "Introduce el PIN de entrega proporcionado por el cliente" });
     }
 
     const stopRes = await client.query(`
-      SELECT dts.*, o.delivery_pin, o.total
+      SELECT dts.*, o.delivery_pin, o.total, o.payment_method, o.cash_paid_with, o.cash_change_due
       FROM delivery_trip_stops dts
       JOIN orders o ON o.id = dts.order_id
       WHERE dts.id = $1
@@ -708,25 +747,39 @@ router.post("/stops/:id/verify-pin", auth, driverOrAdmin, async (req, res) => {
 
     await client.query("BEGIN");
 
-    // Marcar parada como entregada
+    // Consultar turno activo del repartidor
+    const shiftRes = await client.query(`
+      SELECT id FROM driver_shifts
+      WHERE driver_user_id = $1 AND status = 'open'
+      ORDER BY id DESC LIMIT 1
+    `, [driverUserId]);
+    const activeShiftId = shiftRes.rows.length ? shiftRes.rows[0].id : null;
+
+    // 1. Marcar parada como entregada
     await client.query(`
       UPDATE delivery_trip_stops
       SET status = 'delivered', delivered_at = NOW()
       WHERE id = $1
     `, [stopId]);
 
-    // Actualizar pedido
+    // 2. Actualizar pedido con estado y fuente de cobro
+    const isCash = stop.payment_method === "efectivo";
     await client.query(`
       UPDATE orders
       SET status = 'entregado',
           payment_status = 'paid',
           paid_at = COALESCE(paid_at, NOW()),
           delivery_pin_validated_at = NOW(),
-          cash_received = total
+          cash_received = total,
+          payment_collected_by = CASE WHEN payment_collected_by IS NULL THEN 'driver' ELSE payment_collected_by END,
+          payment_collector_user_id = CASE WHEN payment_collector_user_id IS NULL THEN $2 ELSE payment_collector_user_id END,
+          payment_collected_at = COALESCE(payment_collected_at, NOW()),
+          cash_collected_amount = CASE WHEN $3 = TRUE THEN total ELSE 0 END,
+          shift_id = COALESCE(shift_id, $4)
       WHERE id = $1
-    `, [stop.order_id]);
+    `, [stop.order_id, driverUserId, isCash, activeShiftId]);
 
-    // Verificar si quedan paradas en el viaje
+    // 3. Verificar si quedan paradas en el viaje
     const remainingRes = await client.query(`
       SELECT COUNT(*)::int AS count
       FROM delivery_trip_stops
@@ -756,7 +809,7 @@ router.post("/stops/:id/verify-pin", auth, driverOrAdmin, async (req, res) => {
 
     const io = req.app.get("io");
     if (io) {
-      io.emit("delivery-updated", { trip_id: stop.trip_id });
+      io.emit("delivery-updated", { trip_id: stop.trip_id, driver_id: driverUserId });
       io.emit("orders-updated");
       io.emit("counter-updated");
     }
@@ -781,7 +834,7 @@ router.post("/stops/:id/verify-pin", auth, driverOrAdmin, async (req, res) => {
   }
 });
 
-// 10. Excepción manual de entrega por Admin
+// 10. Excepción manual de entrega por Admin (Override)
 router.post("/stops/:id/admin-override", auth, adminOnly, async (req, res) => {
   const client = await pool.connect();
   try {
@@ -793,9 +846,10 @@ router.post("/stops/:id/admin-override", auth, adminOnly, async (req, res) => {
     }
 
     const stopRes = await client.query(`
-      SELECT dts.*, o.total
+      SELECT dts.*, o.total, o.payment_method, dt.driver_user_id
       FROM delivery_trip_stops dts
       JOIN orders o ON o.id = dts.order_id
+      JOIN delivery_trips dt ON dt.id = dts.trip_id
       WHERE dts.id = $1
     `, [stopId]);
 
@@ -804,8 +858,16 @@ router.post("/stops/:id/admin-override", auth, adminOnly, async (req, res) => {
     }
 
     const stop = stopRes.rows[0];
+    const driverUserId = stop.driver_user_id;
 
     await client.query("BEGIN");
+
+    const shiftRes = await client.query(`
+      SELECT id FROM driver_shifts
+      WHERE driver_user_id = $1 AND status = 'open'
+      ORDER BY id DESC LIMIT 1
+    `, [driverUserId]);
+    const activeShiftId = shiftRes.rows.length ? shiftRes.rows[0].id : null;
 
     await client.query(`
       UPDATE delivery_trip_stops
@@ -813,6 +875,7 @@ router.post("/stops/:id/admin-override", auth, adminOnly, async (req, res) => {
       WHERE id = $1
     `, [stopId]);
 
+    const isCash = stop.payment_method === "efectivo";
     await client.query(`
       UPDATE orders
       SET status = 'entregado',
@@ -820,9 +883,14 @@ router.post("/stops/:id/admin-override", auth, adminOnly, async (req, res) => {
           paid_at = COALESCE(paid_at, NOW()),
           delivery_admin_override = TRUE,
           delivery_admin_override_reason = $1,
-          cash_received = total
+          cash_received = total,
+          payment_collected_by = CASE WHEN payment_collected_by IS NULL THEN 'driver' ELSE payment_collected_by END,
+          payment_collector_user_id = CASE WHEN payment_collector_user_id IS NULL THEN $3 ELSE payment_collector_user_id END,
+          payment_collected_at = COALESCE(payment_collected_at, NOW()),
+          cash_collected_amount = CASE WHEN $4 = TRUE THEN total ELSE 0 END,
+          shift_id = COALESCE(shift_id, $5)
       WHERE id = $2
-    `, [reason, stop.order_id]);
+    `, [reason, stop.order_id, driverUserId, isCash, activeShiftId]);
 
     const remainingRes = await client.query(`
       SELECT COUNT(*)::int AS count
@@ -853,7 +921,7 @@ router.post("/stops/:id/admin-override", auth, adminOnly, async (req, res) => {
 
     const io = req.app.get("io");
     if (io) {
-      io.emit("delivery-updated", { trip_id: stop.trip_id });
+      io.emit("delivery-updated", { trip_id: stop.trip_id, driver_id: driverUserId });
       io.emit("orders-updated");
       io.emit("counter-updated");
     }
@@ -874,38 +942,222 @@ router.post("/stops/:id/admin-override", auth, adminOnly, async (req, res) => {
   }
 });
 
-// 11. Reportar incidencia en parada (Repartidor)
+// 11. Reportar incidencia en parada (Repartidor) — Crea registro en Centro de Incidencias
 router.post("/stops/:id/report-issue", auth, driverOrAdmin, async (req, res) => {
+  const client = await pool.connect();
   try {
     const stopId = Number(req.params.id);
-    const reason = String(req.body.reason || "Incidencia sin especificar").trim();
+    const category = String(req.body.category || "Problema en entrega").trim();
+    const description = String(req.body.description || req.body.reason || "Incidencia reportada por repartidor").trim();
+    const priority = ["baja", "media", "alta", "urgente"].includes(req.body.priority) ? req.body.priority : "media";
+    const driverUserId = req.user.id;
 
-    const result = await pool.query(`
-      UPDATE delivery_trip_stops
-      SET status = 'failed', failed_at = NOW(), fail_reason = $1
-      WHERE id = $2
-      RETURNING *
-    `, [reason, stopId]);
+    await client.query("BEGIN");
 
-    if (!result.rows.length) {
+    const stopRes = await client.query(`
+      SELECT dts.*, dt.driver_user_id, o.folio
+      FROM delivery_trip_stops dts
+      JOIN delivery_trips dt ON dt.id = dts.trip_id
+      JOIN orders o ON o.id = dts.order_id
+      WHERE dts.id = $1
+    `, [stopId]);
+
+    if (!stopRes.rows.length) {
+      await client.query("ROLLBACK");
       return res.status(404).json({ message: "Parada no encontrada" });
     }
 
-    const stop = result.rows[0];
+    const stop = stopRes.rows[0];
+
+    // 1. Marcar parada como failed
+    await client.query(`
+      UPDATE delivery_trip_stops
+      SET status = 'failed', failed_at = NOW(), fail_reason = $1
+      WHERE id = $2
+    `, [description, stopId]);
+
+    // 2. Insertar en delivery_incidents
+    const incRes = await client.query(`
+      INSERT INTO delivery_incidents
+        (stop_id, trip_id, order_id, driver_user_id, category, description, priority, status)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, 'nueva')
+      RETURNING *
+    `, [stopId, stop.trip_id, stop.order_id, driverUserId, category, description, priority]);
+
+    const incident = incRes.rows[0];
+
+    await client.query("COMMIT");
+
     const io = req.app.get("io");
     if (io) {
-      io.emit("delivery-updated", { trip_id: stop.trip_id });
+      io.emit("incident-created", {
+        incident: {
+          ...incident,
+          folio: stop.folio,
+          driver_name: req.user.name
+        },
+        message: `🚨 Nueva Incidencia [${category}]: Pedido F${String(stop.folio).padStart(3, "0")}`
+      });
+      io.emit("delivery-updated", { trip_id: stop.trip_id, driver_id: driverUserId });
       io.emit("orders-updated");
+      io.emit("counter-updated");
     }
 
-    res.json({ ok: true, message: "Incidencia registrada", stop });
+    res.status(201).json({ ok: true, message: "Incidencia registrada exitosamente", incident });
   } catch (err) {
+    try { await client.query("ROLLBACK"); } catch (_) {}
     console.error("REPORT ISSUE ERROR:", err);
     res.status(500).json({ message: "Error reportando incidencia" });
+  } finally {
+    client.release();
   }
 });
 
-// 12. Actualización de ubicación GPS del repartidor
+// 12. Centro de Incidencias Operativo (Admin)
+router.get("/incidents", auth, staffRoles, async (req, res) => {
+  try {
+    const { status, priority, driver_id } = req.query;
+    const businessDayStr = getBusinessDateStr();
+
+    let query = `
+      SELECT
+        di.*,
+        o.folio AS order_folio,
+        o.total AS order_total,
+        o.customer_name,
+        ua.address AS delivery_address,
+        u.name AS driver_name,
+        u.phone AS driver_phone,
+        u.short_code AS driver_short_code,
+        u.avatar_url AS driver_avatar_url,
+        dt.trip_folio,
+        ru.name AS resolved_by_name
+      FROM delivery_incidents di
+      LEFT JOIN orders o ON o.id = di.order_id
+      LEFT JOIN user_addresses ua ON ua.id = o.address_id
+      LEFT JOIN users u ON u.id = di.driver_user_id
+      LEFT JOIN delivery_trips dt ON dt.id = di.trip_id
+      LEFT JOIN users ru ON ru.id = di.resolved_by
+      WHERE 1=1
+    `;
+    const params = [];
+
+    if (status && status !== "todos") {
+      params.push(status);
+      query += ` AND di.status = $${params.length}`;
+    }
+    if (priority && priority !== "todos") {
+      params.push(priority);
+      query += ` AND di.priority = $${params.length}`;
+    }
+    if (driver_id) {
+      params.push(Number(driver_id));
+      query += ` AND di.driver_user_id = $${params.length}`;
+    }
+
+    query += ` ORDER BY CASE WHEN di.status = 'nueva' THEN 1 WHEN di.status = 'en_revision' THEN 2 ELSE 3 END, di.created_at DESC`;
+
+    const result = await pool.query(query, params);
+
+    // Calcular KPIs
+    const kpisRes = await pool.query(`
+      SELECT
+        COUNT(*) FILTER (WHERE status = 'nueva')::int AS nuevas,
+        COUNT(*) FILTER (WHERE status = 'en_revision')::int AS en_revision,
+        COUNT(*) FILTER (WHERE status = 'resuelta' AND resolved_at::date = $1::date)::int AS resueltas_hoy
+      FROM delivery_incidents
+    `, [businessDayStr]);
+
+    const kpis = kpisRes.rows[0] || { nuevas: 0, en_revision: 0, resueltas_hoy: 0 };
+
+    res.json({
+      incidents: result.rows,
+      kpis
+    });
+  } catch (err) {
+    console.error("GET INCIDENTS ERROR:", err);
+    res.status(500).json({ message: "Error obteniendo incidencias" });
+  }
+});
+
+router.get("/incidents/:id", auth, staffRoles, async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    const result = await pool.query(`
+      SELECT
+        di.*,
+        o.folio AS order_folio,
+        o.total AS order_total,
+        o.customer_name,
+        ua.address AS delivery_address,
+        u.name AS driver_name,
+        u.phone AS driver_phone,
+        u.short_code AS driver_short_code,
+        u.avatar_url AS driver_avatar_url,
+        dt.trip_folio,
+        ru.name AS resolved_by_name
+      FROM delivery_incidents di
+      LEFT JOIN orders o ON o.id = di.order_id
+      LEFT JOIN user_addresses ua ON ua.id = o.address_id
+      LEFT JOIN users u ON u.id = di.driver_user_id
+      LEFT JOIN delivery_trips dt ON dt.id = di.trip_id
+      LEFT JOIN users ru ON ru.id = di.resolved_by
+      WHERE di.id = $1
+    `, [id]);
+
+    if (!result.rows.length) {
+      return res.status(404).json({ message: "Incidencia no encontrada" });
+    }
+
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error("GET INCIDENT ERROR:", err);
+    res.status(500).json({ message: "Error obteniendo detalle de incidencia" });
+  }
+});
+
+router.patch("/incidents/:id", auth, adminOnly, async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    const { status, admin_notes } = req.body;
+
+    const validStatuses = ["nueva", "en_revision", "resuelta", "cerrada"];
+    if (status && !validStatuses.includes(status)) {
+      return res.status(400).json({ message: "Estado de incidencia inválido" });
+    }
+
+    const isResolved = ["resuelta", "cerrada"].includes(status);
+
+    const result = await pool.query(`
+      UPDATE delivery_incidents
+      SET status = COALESCE($1, status),
+          admin_notes = COALESCE($2, admin_notes),
+          resolved_by = CASE WHEN $3 = TRUE THEN $4 ELSE resolved_by END,
+          resolved_at = CASE WHEN $3 = TRUE THEN NOW() ELSE resolved_at END,
+          updated_at = NOW()
+      WHERE id = $5
+      RETURNING *
+    `, [status, admin_notes, isResolved, req.user.id, id]);
+
+    if (!result.rows.length) {
+      return res.status(404).json({ message: "Incidencia no encontrada" });
+    }
+
+    const updated = result.rows[0];
+    const io = req.app.get("io");
+    if (io) {
+      io.emit("incident-updated", updated);
+      if (isResolved) io.emit("incident-resolved", updated);
+    }
+
+    res.json(updated);
+  } catch (err) {
+    console.error("UPDATE INCIDENT ERROR:", err);
+    res.status(500).json({ message: "Error actualizando incidencia" });
+  }
+});
+
+// 13. Actualización de ubicación GPS del repartidor
 router.patch("/my-location", auth, driverOrAdmin, async (req, res) => {
   try {
     const { lat, lng } = req.body;
@@ -941,12 +1193,11 @@ router.patch("/my-location", auth, driverOrAdmin, async (req, res) => {
   }
 });
 
-// 13. Tracking en vivo para el cliente
+// 14. Tracking en vivo para el cliente — Aislamiento de privacidad total y 9 etapas operativas
 router.get("/orders/:id/track", auth, async (req, res) => {
   try {
     const orderId = Number(req.params.id);
     const userId = req.user.id;
-    const isStaff = staffRoles(req, res, () => true);
 
     const orderRes = await pool.query(`
       SELECT
@@ -958,17 +1209,31 @@ router.get("/orders/:id/track", auth, async (req, res) => {
         o.delivery_pin,
         o.user_id,
         o.created_at,
+        o.ready_at,
+        o.delivery_lat AS customer_lat,
+        o.delivery_lng AS customer_lng,
         dts.id AS stop_id,
         dts.stop_order,
         dts.status AS stop_status,
         dts.eta_minutes,
+        dts.eta_min_minutes,
+        dts.eta_max_minutes,
+        dts.estimated_arrival_at,
+        dts.eta_source,
         dts.arrived_at,
+        dts.delivered_at,
         dt.id AS trip_id,
+        dt.trip_folio,
         dt.status AS trip_status,
         dt.current_lat AS driver_lat,
         dt.current_lng AS driver_lng,
         drv.name AS driver_name,
-        drv.phone AS driver_phone
+        drv.phone AS driver_phone,
+        drv.short_code AS driver_short_code,
+        drv.avatar_url AS driver_avatar_url,
+        (SELECT dao.id FROM delivery_assignment_offers dao
+         WHERE o.id = ANY(dao.order_ids) AND dao.status = 'pending' AND dao.expires_at > NOW()
+         LIMIT 1) AS active_offer_id
       FROM orders o
       LEFT JOIN delivery_trip_stops dts ON dts.order_id = o.id
       LEFT JOIN delivery_trips dt ON dt.id = dts.trip_id
@@ -987,7 +1252,7 @@ router.get("/orders/:id/track", auth, async (req, res) => {
       return res.status(403).json({ message: "No tienes permiso para ver este pedido" });
     }
 
-    // Calcular paradas pendientes anteriores en la misma ruta
+    // Calcular paradas previas sin exponer datos sensibles de otros clientes
     let stopsBefore = 0;
     if (order.trip_id && order.stop_order > 1) {
       const stopsBeforeRes = await pool.query(`
@@ -1000,25 +1265,60 @@ router.get("/orders/:id/track", auth, async (req, res) => {
       stopsBefore = stopsBeforeRes.rows[0].count;
     }
 
-    // Calcular rango de ETA
-    const baseEta = order.eta_minutes || 30;
-    const etaMin = Math.max(5, baseEta - 5);
-    const etaMax = baseEta + 10;
+    // Determinar etapa operativa dominante (9 etapas)
+    let trackingStage = "confirmado";
+    if (order.status === "entregado" || order.stop_status === "delivered") {
+      trackingStage = "entregado";
+    } else if (order.stop_status === "arrived") {
+      trackingStage = "repartidor_llego";
+    } else if (order.trip_status === "in_transit") {
+      const remainingEta = order.eta_minutes || 15;
+      if (stopsBefore === 0 && remainingEta <= 5) {
+        trackingStage = "repartidor_cercano";
+      } else {
+        trackingStage = "en_ruta";
+      }
+    } else if (order.trip_status === "assigned") {
+      trackingStage = "esperando_recogida";
+    } else if (order.active_offer_id) {
+      trackingStage = "buscando_repartidor";
+    } else if (order.status === "listo") {
+      trackingStage = "listo";
+    } else if (["preparando", "aceptado"].includes(order.status)) {
+      trackingStage = "preparando";
+    } else {
+      trackingStage = "confirmado";
+    }
+
+    // Formatear rango de ETA
+    const baseEta = order.eta_minutes || 25;
+    const minEta = order.eta_min_minutes || Math.max(1, baseEta - 3);
+    const maxEta = order.eta_max_minutes || (baseEta + 5);
+    const etaRange = `${minEta}–${maxEta} min`;
 
     res.json({
       order_id: order.id,
       folio: order.folio,
       status: order.status,
+      tracking_stage: trackingStage,
+      eta_source: order.eta_source || "heuristic",
+      eta_minutes: baseEta,
+      eta_range: etaRange,
+      estimated_arrival_at: order.estimated_arrival_at,
       delivery_pin: order.delivery_pin,
-      trip_status: order.trip_status || "preparing",
-      stop_status: order.stop_status || "pending",
-      driver_name: order.driver_name || null,
-      driver_phone: order.driver_phone || null,
+      driver_info: order.driver_name ? {
+        name: order.driver_name,
+        short_code: order.driver_short_code || "REP-01",
+        avatar_url: order.driver_avatar_url || null,
+        phone: order.driver_phone
+      } : null,
       driver_lat: order.driver_lat,
       driver_lng: order.driver_lng,
+      customer_lat: order.customer_lat,
+      customer_lng: order.customer_lng,
       stops_before: stopsBefore,
-      eta_range: `${etaMin}–${etaMax} min`,
-      arrived_at: order.arrived_at
+      arrived_at: order.arrived_at,
+      delivered_at: order.delivered_at
     });
   } catch (err) {
     console.error("GET ORDER TRACK ERROR:", err);
@@ -1026,35 +1326,225 @@ router.get("/orders/:id/track", auth, async (req, res) => {
   }
 });
 
-// 14. Resumen de turno y liquidación del repartidor
+// 15. Turnos Operativos de Repartidores & Liquidaciones Reales
+router.post("/shifts/start", auth, driverOrAdmin, async (req, res) => {
+  try {
+    const driverUserId = req.user.role === "admin" && req.body.driver_user_id
+      ? Number(req.body.driver_user_id)
+      : req.user.id;
+    const initialFloat = Number(req.body.initial_cash_float || 0);
+    const businessDayStr = getBusinessDateStr();
+
+    // Verificar si ya tiene un turno abierto
+    const existingRes = await pool.query(`
+      SELECT * FROM driver_shifts
+      WHERE driver_user_id = $1 AND status = 'open'
+      ORDER BY id DESC LIMIT 1
+    `, [driverUserId]);
+
+    if (existingRes.rows.length) {
+      return res.json({
+        ok: true,
+        message: "Turno ya se encontraba abierto",
+        shift: existingRes.rows[0]
+      });
+    }
+
+    const result = await pool.query(`
+      INSERT INTO driver_shifts
+        (driver_user_id, shift_date, started_at, status, initial_cash_float, settlement_status)
+      VALUES ($1, $2::date, NOW(), 'open', $3, 'pendiente')
+      RETURNING *
+    `, [driverUserId, businessDayStr, initialFloat]);
+
+    const shift = result.rows[0];
+    const io = req.app.get("io");
+    if (io) io.emit("shift-started", shift);
+
+    res.status(201).json({
+      ok: true,
+      message: "Turno iniciado exitosamente",
+      shift
+    });
+  } catch (err) {
+    console.error("START SHIFT ERROR:", err);
+    res.status(500).json({ message: "Error iniciando turno de repartidor" });
+  }
+});
+
+router.post("/shifts/end", auth, driverOrAdmin, async (req, res) => {
+  try {
+    const driverUserId = req.user.role === "admin" && req.body.driver_user_id
+      ? Number(req.body.driver_user_id)
+      : req.user.id;
+
+    const result = await pool.query(`
+      UPDATE driver_shifts
+      SET status = 'closed', ended_at = NOW()
+      WHERE driver_user_id = $1 AND status = 'open'
+      RETURNING *
+    `, [driverUserId]);
+
+    if (!result.rows.length) {
+      return res.status(404).json({ message: "No se encontró un turno abierto para cerrar" });
+    }
+
+    const shift = result.rows[0];
+    const io = req.app.get("io");
+    if (io) io.emit("shift-ended", shift);
+
+    res.json({
+      ok: true,
+      message: "Turno cerrado exitosamente",
+      shift
+    });
+  } catch (err) {
+    console.error("END SHIFT ERROR:", err);
+    res.status(500).json({ message: "Error cerrando turno de repartidor" });
+  }
+});
+
+// 16. Resumen Contable Exacto de Turno y Corte de Repartidor
 router.get("/shift-summary", auth, driverOrAdmin, async (req, res) => {
   try {
     const driverId = req.user.role === "admin" && req.query.driver_id
       ? Number(req.query.driver_id)
       : req.user.id;
+    const requestedShiftId = req.query.shift_id ? Number(req.query.shift_id) : null;
+    const businessDayStr = getBusinessDateStr();
 
-    const result = await pool.query(`
+    // Obtener el turno objetivo
+    let shift = null;
+    if (requestedShiftId) {
+      const shiftRes = await pool.query(`SELECT * FROM driver_shifts WHERE id = $1`, [requestedShiftId]);
+      shift = shiftRes.rows[0] || null;
+    } else {
+      const shiftRes = await pool.query(`
+        SELECT * FROM driver_shifts
+        WHERE driver_user_id = $1 AND (status = 'open' OR shift_date = $2::date)
+        ORDER BY CASE WHEN status = 'open' THEN 1 ELSE 2 END, id DESC
+        LIMIT 1
+      `, [driverId, businessDayStr]);
+      shift = shiftRes.rows[0] || null;
+    }
+
+    const shiftId = shift ? shift.id : null;
+    const initialFloat = shift ? Number(shift.initial_cash_float || 0) : 0;
+
+    // Obtener entregas completadas en este turno / fecha
+    const deliveriesRes = await pool.query(`
       SELECT
-        COUNT(dts.id)::int AS total_stops,
+        o.id,
+        o.folio,
+        dt.trip_folio,
+        o.customer_name,
+        COALESCE(o.delivery_pin_validated_at, o.paid_at, o.created_at) AS delivery_time,
+        o.payment_method,
+        o.payment_collected_by,
+        o.total AS order_total,
+        o.cash_paid_with,
+        o.cash_change_due,
+        COALESCE(o.cash_collected_amount, CASE WHEN o.payment_collected_by = 'driver' AND o.payment_method = 'efectivo' THEN o.total ELSE 0 END) AS cash_collected_amount,
+        o.status,
+        di.category AS incident_category
+      FROM orders o
+      LEFT JOIN delivery_trip_stops dts ON dts.order_id = o.id
+      LEFT JOIN delivery_trips dt ON dt.id = dts.trip_id
+      LEFT JOIN delivery_incidents di ON di.order_id = o.id
+      WHERE (
+        ($1::bigint IS NOT NULL AND o.shift_id = $1)
+        OR (
+          $1::bigint IS NULL AND o.delivery_driver_id = $2
+          AND (o.service_date = $3::date OR o.created_at::date = $3::date)
+        )
+      )
+      ORDER BY o.id ASC
+    `, [shiftId, driverId, businessDayStr]);
+
+    const completedDeliveries = deliveriesRes.rows.map((d) => ({
+      ...d,
+      order_total: Number(d.order_total),
+      cash_paid_with: d.cash_paid_with ? Number(d.cash_paid_with) : (d.payment_collected_by === "driver" && d.payment_method === "efectivo" ? Number(d.order_total) : null),
+      cash_change_due: d.cash_change_due ? Number(d.cash_change_due) : 0,
+      cash_collected_amount: Number(d.cash_collected_amount || 0)
+    }));
+
+    // Conteo de paradas
+    const stopsCountRes = await pool.query(`
+      SELECT
+        COUNT(dts.id)::int AS assigned_stops_count,
         COUNT(dts.id) FILTER (WHERE dts.status = 'delivered')::int AS delivered_count,
-        COUNT(dts.id) FILTER (WHERE dts.status = 'failed')::int AS failed_count,
-        COALESCE(SUM(o.cash_received) FILTER (WHERE dts.status = 'delivered'), 0)::numeric AS total_cash_collected,
-        COALESCE(SUM(o.cash_received) FILTER (WHERE dts.status = 'delivered' AND o.driver_settled = FALSE), 0)::numeric AS pending_settlement_cash
+        COUNT(dts.id) FILTER (WHERE dts.status = 'failed')::int AS failed_count
       FROM delivery_trip_stops dts
       JOIN delivery_trips dt ON dt.id = dts.trip_id
-      JOIN orders o ON o.id = dts.order_id
       WHERE dt.driver_user_id = $1
-        AND dt.created_at >= CURRENT_DATE
-    `, [driverId]);
+        AND (dt.created_at >= $2::date OR ($3::bigint IS NOT NULL AND dt.id IN (SELECT DISTINCT trip_id FROM delivery_trip_stops WHERE order_id IN (SELECT id FROM orders WHERE shift_id = $3))))
+    `, [driverId, businessDayStr, shiftId]);
 
-    const summary = result.rows[0];
+    const stopsCounts = stopsCountRes.rows[0] || { assigned_stops_count: 0, delivered_count: 0, failed_count: 0 };
+
+    // Desglose de efectivo
+    const driverCashOrders = completedDeliveries.filter((d) => d.payment_collected_by === "driver" && d.payment_method === "efectivo");
+    const grossCashReceived = driverCashOrders.reduce((sum, d) => sum + (d.cash_paid_with || d.order_total), 0);
+    const totalCashChangeGiven = driverCashOrders.reduce((sum, d) => sum + (d.cash_change_due || 0), 0);
+    const netCashForBusiness = driverCashOrders.reduce((sum, d) => sum + d.cash_collected_amount, 0);
+
+    const prepaidBusinessOrders = completedDeliveries.filter((d) => d.payment_collected_by === "business" || ["tarjeta", "transferencia", "pago_en_app"].includes(d.payment_method));
+    const prepaidBusinessAmount = prepaidBusinessOrders.reduce((sum, d) => sum + d.order_total, 0);
+
+    const totalCashExpected = netCashForBusiness + initialFloat;
+
+    // Obtener abonos registrados
+    let settlementEntries = [];
+    if (shiftId) {
+      const entriesRes = await pool.query(`
+        SELECT dse.*, u.name AS received_by_name
+        FROM driver_settlement_entries dse
+        JOIN users u ON u.id = dse.received_by
+        WHERE dse.shift_id = $1
+        ORDER BY dse.created_at ASC
+      `, [shiftId]);
+      settlementEntries = entriesRes.rows.map((e) => ({
+        ...e,
+        amount: Number(e.amount)
+      }));
+    }
+
+    const totalCashSettled = settlementEntries.reduce((sum, e) => sum + e.amount, 0);
+    const pendingSettlement = Math.max(0, totalCashExpected - totalCashSettled);
+    const difference = totalCashSettled - totalCashExpected;
+
+    let settlementStatus = "pendiente";
+    if (totalCashSettled >= totalCashExpected && totalCashExpected > 0) {
+      settlementStatus = "liquidado";
+    } else if (totalCashSettled > 0) {
+      settlementStatus = "parcial";
+    } else if (difference < 0 && shift?.status === "closed") {
+      settlementStatus = "diferencia";
+    }
+
     res.json({
+      shift_id: shiftId,
       driver_id: driverId,
-      total_stops: summary.total_stops,
-      delivered_count: summary.delivered_count,
-      failed_count: summary.failed_count,
-      total_cash_collected: Number(summary.total_cash_collected),
-      pending_settlement_cash: Number(summary.pending_settlement_cash)
+      shift_date: shift?.shift_date || businessDayStr,
+      started_at: shift?.started_at || null,
+      ended_at: shift?.ended_at || null,
+      status: shift?.status || "open",
+      assigned_stops_count: stopsCounts.assigned_stops_count,
+      delivered_count: stopsCounts.delivered_count,
+      failed_count: stopsCounts.failed_count,
+      gross_cash_received: grossCashReceived,
+      total_cash_change_given: totalCashChangeGiven,
+      net_cash_for_business: netCashForBusiness,
+      prepaid_business_amount: prepaidBusinessAmount,
+      initial_cash_float: initialFloat,
+      total_cash_expected: totalCashExpected,
+      total_cash_settled: totalCashSettled,
+      pending_settlement: pendingSettlement,
+      difference,
+      settlement_status: settlementStatus,
+      settlement_entries: settlementEntries,
+      completed_deliveries: completedDeliveries
     });
   } catch (err) {
     console.error("SHIFT SUMMARY ERROR:", err);
@@ -1062,34 +1552,97 @@ router.get("/shift-summary", auth, driverOrAdmin, async (req, res) => {
   }
 });
 
-// 15. Liquidar turno de repartidor en caja (Admin)
-router.post("/settle-shift", auth, adminOnly, async (req, res) => {
+// 17. Registrar abono de liquidación en caja (Admin)
+router.post("/shifts/:id/settle", auth, adminOnly, async (req, res) => {
+  const client = await pool.connect();
   try {
-    const driverUserId = Number(req.body.driver_user_id);
-    if (!driverUserId) {
-      return res.status(400).json({ message: "ID de repartidor requerido" });
+    const shiftId = Number(req.params.id);
+    const amount = Number(req.body.amount);
+    const notes = String(req.body.notes || "").trim();
+    const receivedBy = req.user.id;
+
+    if (!amount || amount <= 0) {
+      return res.status(400).json({ message: "Monto de liquidación debe ser mayor a cero" });
     }
 
-    const result = await pool.query(`
+    await client.query("BEGIN");
+
+    const shiftRes = await client.query(`SELECT * FROM driver_shifts WHERE id = $1`, [shiftId]);
+    if (!shiftRes.rows.length) {
+      await client.query("ROLLBACK");
+      return res.status(404).json({ message: "Turno no encontrado" });
+    }
+
+    const shift = shiftRes.rows[0];
+
+    // 1. Insertar movimiento en driver_settlement_entries
+    const entryRes = await client.query(`
+      INSERT INTO driver_settlement_entries (shift_id, driver_user_id, amount, received_by, notes)
+      VALUES ($1, $2, $3, $4, $5)
+      RETURNING *
+    `, [shiftId, shift.driver_user_id, amount, receivedBy, notes]);
+
+    const entry = entryRes.rows[0];
+
+    // 2. Recalcular total liquidado del turno
+    const sumRes = await client.query(`
+      SELECT SUM(amount)::numeric AS total_settled
+      FROM driver_settlement_entries
+      WHERE shift_id = $1
+    `, [shiftId]);
+
+    const totalSettled = Number(sumRes.rows[0].total_settled || 0);
+
+    // 3. Actualizar resumen en driver_shifts
+    await client.query(`
+      UPDATE driver_shifts
+      SET total_cash_settled = $1,
+          settlement_status = CASE WHEN $1 >= total_cash_expected AND total_cash_expected > 0 THEN 'liquidado' ELSE 'parcial' END
+      WHERE id = $2
+    `, [totalSettled, shiftId]);
+
+    // 4. Marcar pedidos como driver_settled
+    await client.query(`
       UPDATE orders
       SET driver_settled = TRUE
-      WHERE delivery_driver_id = $1
-        AND status = 'entregado'
-        AND driver_settled = FALSE
-      RETURNING id, total
-    `, [driverUserId]);
+      WHERE shift_id = $1
+    `, [shiftId]);
 
-    const settledTotal = result.rows.reduce((sum, r) => sum + Number(r.total), 0);
+    await client.query("COMMIT");
 
-    res.json({
+    const io = req.app.get("io");
+    if (io) {
+      io.emit("shift-settled", {
+        shift_id: shiftId,
+        driver_user_id: shift.driver_user_id,
+        entry
+      });
+    }
+
+    res.status(201).json({
       ok: true,
-      settled_orders_count: result.rows.length,
-      settled_total: settledTotal,
-      message: `Corte liquidado: ${result.rows.length} pedidos por un total de $${settledTotal.toFixed(2)}`
+      message: `Abono de $${amount.toFixed(2)} registrado con éxito`,
+      entry,
+      total_settled: totalSettled
     });
   } catch (err) {
+    try { await client.query("ROLLBACK"); } catch (_) {}
     console.error("SETTLE SHIFT ERROR:", err);
-    res.status(500).json({ message: "Error liquidando turno" });
+    res.status(500).json({ message: "Error registrando liquidación" });
+  } finally {
+    client.release();
+  }
+});
+
+// 18. Reconciliación Administrativa de Viajes Stale
+router.post("/admin/reconcile-stale-trips", auth, adminOnly, async (req, res) => {
+  try {
+    const io = req.app.get("io");
+    await dispatchEngine.reconcileStaleTrips(pool, io);
+    res.json({ ok: true, message: "Viajes inconsistentes reconciliados exitosamente" });
+  } catch (err) {
+    console.error("RECONCILE STALE TRIPS ERROR:", err);
+    res.status(500).json({ message: "Error reconciliando viajes" });
   }
 });
 

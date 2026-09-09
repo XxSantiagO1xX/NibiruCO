@@ -18,6 +18,14 @@ const autoDispatchSqlPath = path.resolve(
   __dirname,
   "../sql/2026-09-09-mealops-auto-dispatch.sql"
 );
+const settingsRbacSqlPath = path.resolve(
+  __dirname,
+  "../sql/2026-09-09-mealops-settings-rbac.sql"
+);
+const routesIncidentsSqlPath = path.resolve(
+  __dirname,
+  "../sql/2026-09-09-mealops-routes-incidents-settlements.sql"
+);
 
 async function ensureOperationalSchema() {
   const client = await pool.connect();
@@ -27,12 +35,16 @@ async function ensureOperationalSchema() {
     const sql2 = fs.readFileSync(multiRoleSqlPath, "utf8");
     const sql3 = fs.readFileSync(counterKdsSqlPath, "utf8");
     const sql4 = fs.readFileSync(autoDispatchSqlPath, "utf8");
+    const sql5 = fs.readFileSync(settingsRbacSqlPath, "utf8");
+    const sql6 = fs.readFileSync(routesIncidentsSqlPath, "utf8");
 
     await client.query("BEGIN");
     await client.query(sql1);
     await client.query(sql2);
     await client.query(sql3);
     await client.query(sql4);
+    await client.query(sql5);
+    await client.query(sql6);
 
     const tableCount = await client.query(
       "SELECT COUNT(*)::int AS count FROM restaurant_tables"

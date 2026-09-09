@@ -6,6 +6,16 @@
   --primary: #f56a12;
   --primary-hover: #dd5707;
   --primary-soft: #fff0e6;
+  --role-admin: #0284c7;
+  --role-admin-soft: #e0f2fe;
+  --role-mesero: #16a34a;
+  --role-mesero-soft: #dcfce7;
+  --role-cocina: #ea580c;
+  --role-cocina-soft: #ffedd5;
+  --role-repartidor: #9333ea;
+  --role-repartidor-soft: #f3e8ff;
+  --role-cliente: #64748b;
+  --role-cliente-soft: #f1f5f9;
   --text: #191714;
   --muted: #736f69;
   --border: #e8e4de;

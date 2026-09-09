@@ -1,35 +1,102 @@
 import { Linking, Platform } from "react-native";
 
 /**
- * Abre la app de navegación preferida (Waze como prioridad, fallback a Google Maps / Apple Maps).
+ * Normaliza los parámetros de navegación aceptando:
+ * - (lat, lng, address)
+ * - (address, lat, lng)
+ * - ({ address, lat, lng, latitude, longitude })
  */
-export function openWazeNavigation(address, lat, lng) {
-  const cleanAddress = (address || "").trim();
-  const hasCoords = lat && lng && !Number.isNaN(Number(lat)) && !Number.isNaN(Number(lng));
+function parseNavArgs(arg1, arg2, arg3) {
+  let address = "";
+  let lat = null;
+  let lng = null;
+
+  if (arg1 && typeof arg1 === "object") {
+    address = arg1.address || "";
+    lat = arg1.latitude !== undefined ? arg1.latitude : arg1.lat;
+    lng = arg1.longitude !== undefined ? arg1.longitude : arg1.lng;
+  } else if (
+    (typeof arg1 === "number" || (!Number.isNaN(Number(arg1)) && String(arg1).includes("."))) &&
+    (typeof arg2 === "number" || (!Number.isNaN(Number(arg2)) && String(arg2).includes(".")))
+  ) {
+    // (lat, lng, address)
+    lat = arg1;
+    lng = arg2;
+    address = typeof arg3 === "string" ? arg3 : "";
+  } else {
+    // (address, lat, lng)
+    address = typeof arg1 === "string" ? arg1 : "";
+    lat = arg2;
+    lng = arg3;
+  }
+
+  const cleanAddress = String(address || "").trim();
+  const validLat = lat !== null && lat !== undefined && !Number.isNaN(Number(lat)) ? Number(lat) : null;
+  const validLng = lng !== null && lng !== undefined && !Number.isNaN(Number(lng)) ? Number(lng) : null;
+  const hasCoords = validLat !== null && validLng !== null;
+
+  return { address: cleanAddress, lat: validLat, lng: validLng, hasCoords };
+}
+
+/**
+ * Abre la app de navegación con Waze (o fallback a Google Maps).
+ */
+export async function openWazeNavigation(arg1, arg2, arg3) {
+  const { address, lat, lng, hasCoords } = parseNavArgs(arg1, arg2, arg3);
 
   const wazeUrl = hasCoords
     ? `waze://?ll=${lat},${lng}&navigate=yes`
-    : `waze://?q=${encodeURIComponent(cleanAddress)}&navigate=yes`;
+    : `waze://?q=${encodeURIComponent(address)}&navigate=yes`;
 
-  const webWazeFallback = hasCoords
-    ? `https://waze.com/ul?ll=${lat},${lng}&navigate=yes`
-    : `https://waze.com/ul?q=${encodeURIComponent(cleanAddress)}&navigate=yes`;
-
-  const googleMapsUrl = hasCoords
+  const googleUrl = hasCoords
     ? `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`
-    : `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(cleanAddress)}`;
+    : `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(address)}`;
 
-  Linking.canOpenURL(wazeUrl)
-    .then((supported) => {
-      if (supported) {
-        return Linking.openURL(wazeUrl);
-      }
-      // Fallback
-      return Linking.openURL(googleMapsUrl);
-    })
-    .catch(() => {
-      Linking.openURL(googleMapsUrl);
-    });
+  try {
+    const supported = await Linking.canOpenURL(wazeUrl);
+    if (supported) {
+      await Linking.openURL(wazeUrl);
+    } else {
+      await Linking.openURL(googleUrl);
+    }
+  } catch (err) {
+    console.warn("Error abriendo Waze, intentando Google Maps fallback:", err);
+    try {
+      await Linking.openURL(googleUrl);
+    } catch (fallbackErr) {
+      console.error("Error abriendo navegador de mapas:", fallbackErr);
+    }
+  }
+}
+
+/**
+ * Abre Google Maps directamente.
+ */
+export async function openGoogleMapsNavigation(arg1, arg2, arg3) {
+  const { address, lat, lng, hasCoords } = parseNavArgs(arg1, arg2, arg3);
+
+  const googleAppUrl = hasCoords
+    ? Platform.OS === "android"
+      ? `google.navigation:q=${lat},${lng}`
+      : `comgooglemaps://?daddr=${lat},${lng}&directionsmode=driving`
+    : Platform.OS === "android"
+      ? `google.navigation:q=${encodeURIComponent(address)}`
+      : `comgooglemaps://?daddr=${encodeURIComponent(address)}&directionsmode=driving`;
+
+  const webUrl = hasCoords
+    ? `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`
+    : `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(address)}`;
+
+  try {
+    const supported = await Linking.canOpenURL(googleAppUrl);
+    if (supported) {
+      await Linking.openURL(googleAppUrl);
+    } else {
+      await Linking.openURL(webUrl);
+    }
+  } catch (_) {
+    await Linking.openURL(webUrl).catch(() => {});
+  }
 }
 
 /**
@@ -39,6 +106,7 @@ export function openPhoneCall(phoneNumber) {
   if (!phoneNumber) return;
   const cleanPhone = String(phoneNumber).replace(/[^0-9+]/g, "");
   Linking.openURL(`tel:${cleanPhone}`).catch((err) => {
-    console.log("No se pudo iniciar la llamada:", err);
+    console.warn("No se pudo iniciar la llamada:", err);
   });
 }
+

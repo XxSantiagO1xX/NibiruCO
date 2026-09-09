@@ -47,7 +47,7 @@
     <main class="main">
       <header class="page-header">
         <div>
-          <h1>Combos y comida corrida</h1>
+          <h1>Combos</h1>
           <p>Crea una comida con precio fijo y define qué puede elegir el cliente en cada tiempo.</p>
         </div>
         <div class="header-actions">
@@ -83,6 +83,20 @@
         <div id="combo-empty" class="muted">Crea un combo para comenzar.</div>
         <div id="combo-editor" class="hidden">
           
+          <!-- EDICIÓN DE COMBO BÁSICO -->
+          <div class="card card-pad" style="background: var(--bg-subtle, #f8fafc); border: 1px solid var(--border); margin-bottom: 20px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 12px;">
+              <strong>✏️ Datos del combo</strong>
+              <button class="btn btn-sm btn-danger-soft" onclick="deleteCurrentCombo()">Eliminar este combo</button>
+            </div>
+            <div class="form-grid">
+              <div class="field"><label for="edit-combo-name">Nombre</label><input id="edit-combo-name" placeholder="Ej. Comida completa"></div>
+              <div class="field"><label for="edit-combo-price">Precio base</label><input id="edit-combo-price" type="number" min="0" step="0.01" placeholder="95.00"></div>
+            </div>
+            <div class="spacer-12"></div>
+            <button class="btn btn-sm btn-secondary" onclick="updateCurrentCombo()">Guardar nombre y precio</button>
+          </div>
+
           <!-- ASIGNACIÓN A MENÚ SEMANAL -->
           <div class="card card-pad" style="background: var(--bg-subtle, #f8fafc); border: 1px dashed var(--border); margin-bottom: 20px;">
             <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
@@ -161,14 +175,62 @@
       selectedComboId = Number(select.value);
       document.getElementById('combo-empty').classList.add('hidden');
       document.getElementById('combo-editor').classList.remove('hidden');
+
+      const current = currentCombo();
+      if (current) {
+        document.getElementById('edit-combo-name').value = current.name || '';
+        document.getElementById('edit-combo-price').value = current.price || 0;
+      }
+
       renderGroups();
       renderComboDays();
     }
 
     function selectCombo() {
       selectedComboId = Number(document.getElementById('combo-select').value);
+      const current = currentCombo();
+      if (current) {
+        document.getElementById('edit-combo-name').value = current.name || '';
+        document.getElementById('edit-combo-price').value = current.price || 0;
+      }
       renderGroups();
       renderComboDays();
+    }
+
+    async function updateCurrentCombo() {
+      if (!selectedComboId) return;
+      const name = document.getElementById('edit-combo-name').value.trim();
+      const price = Number(document.getElementById('edit-combo-price').value);
+
+      if (!name || !Number.isFinite(price) || price <= 0) {
+        return showToast('Ingresa un nombre y precio válido.', 'error');
+      }
+
+      try {
+        await apiFetch(`/combos/${selectedComboId}`, {
+          method: 'PUT',
+          body: JSON.stringify({ name, price })
+        });
+        await loadData(selectedComboId);
+        showToast('Datos del combo actualizados.', 'success');
+      } catch (error) {
+        showToast(error.message, 'error');
+      }
+    }
+
+    async function deleteCurrentCombo() {
+      if (!selectedComboId) return;
+      const current = currentCombo();
+      if (!confirm(`¿Eliminar definitivamente el combo "${current?.name || ''}" y todas sus opciones?`)) return;
+
+      try {
+        await apiFetch(`/combos/${selectedComboId}`, { method: 'DELETE' });
+        selectedComboId = null;
+        await loadData();
+        showToast('Combo eliminado con éxito.', 'success');
+      } catch (error) {
+        showToast(error.message, 'error');
+      }
     }
 
     function currentCombo() {
@@ -321,7 +383,11 @@
                   <strong>${escapeHtml(option.name)}</strong>
                   <small>${Number(option.extra_price) > 0 ? `+ ${formatCurrency(option.extra_price)} extra` : 'Sin costo extra'} · ${option.active ? 'Activa' : 'Inactiva'}</small>
                 </div>
-                <button class="btn btn-sm ${option.active ? 'btn-secondary' : 'btn-primary'}" onclick="toggleOption(${group.id}, ${option.id}, ${option.active ? 'false' : 'true'})">${option.active ? 'Desactivar' : 'Activar'}</button>
+                <div style="display: flex; gap: 6px; align-items: center;">
+                  <button class="btn btn-sm btn-ghost" title="Modificar precio extra" onclick="editOptionPrice(${group.id}, ${option.id}, ${option.extra_price})">✏️ Extra</button>
+                  <button class="btn btn-sm ${option.active ? 'btn-secondary' : 'btn-primary'}" onclick="toggleOption(${group.id}, ${option.id}, ${option.active ? 'false' : 'true'})">${option.active ? 'Desactivar' : 'Activar'}</button>
+                  <button class="btn btn-sm btn-danger-soft" title="Eliminar opción" onclick="deleteOption(${group.id}, ${option.id})">✕</button>
+                </div>
               </div>
             `;
             }).join('') || '<div class="muted">Sin opciones todavía.</div>'}
@@ -370,6 +436,37 @@
           body: JSON.stringify({ active })
         });
         await loadData(selectedComboId);
+      } catch (error) {
+        showToast(error.message, 'error');
+      }
+    }
+
+    async function editOptionPrice(groupId, optionId, currentPrice) {
+      const val = prompt('Nuevo precio adicional para esta opción ($):', currentPrice || '0');
+      if (val === null) return;
+      const extraPrice = Number(val);
+      if (!Number.isFinite(extraPrice) || extraPrice < 0) {
+        return showToast('Ingresa un precio extra válido.', 'error');
+      }
+
+      try {
+        await apiFetch(`/combos/groups/${groupId}/options/${optionId}/price`, {
+          method: 'PATCH',
+          body: JSON.stringify({ extra_price: extraPrice })
+        });
+        await loadData(selectedComboId);
+        showToast('Precio extra actualizado.', 'success');
+      } catch (error) {
+        showToast(error.message, 'error');
+      }
+    }
+
+    async function deleteOption(groupId, optionId) {
+      if (!confirm('¿Eliminar esta opción del grupo?')) return;
+      try {
+        await apiFetch(`/combos/groups/${groupId}/options/${optionId}`, { method: 'DELETE' });
+        await loadData(selectedComboId);
+        showToast('Opción eliminada.', 'success');
       } catch (error) {
         showToast(error.message, 'error');
       }

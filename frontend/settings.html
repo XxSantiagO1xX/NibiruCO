@@ -1,0 +1,1245 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>MealOps · Configuración del Sistema</title>
+  <link rel="stylesheet" href="../css/styles.css">
+  <link rel="stylesheet" href="../css/theme.css" data-mealops-theme="true">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    .settings-nav {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 24px;
+      border-bottom: 2px solid var(--border);
+      padding-bottom: 12px;
+      overflow-x: auto;
+    }
+    .settings-tab {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 18px;
+      border-radius: 12px;
+      background: transparent;
+      border: 1px solid transparent;
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--muted);
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.15s ease;
+    }
+    .settings-tab:hover {
+      background: var(--bg-subtle, #f8fafc);
+      color: var(--text);
+    }
+    .settings-tab.active {
+      background: #ffffff;
+      color: var(--primary);
+      border-color: var(--border);
+      box-shadow: var(--shadow-sm);
+    }
+    .tab-content {
+      display: none;
+    }
+    .tab-content.active {
+      display: block;
+    }
+
+    /* Staff Cards Grid */
+    .staff-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      gap: 18px;
+    }
+    .staff-card {
+      background: #ffffff;
+      border: 1.5px solid var(--border);
+      border-radius: 20px;
+      padding: 18px;
+      box-shadow: var(--shadow-sm);
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+    .staff-card:hover {
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-md);
+    }
+    .staff-card.inactive {
+      opacity: 0.65;
+      background: #f8fafc;
+      border-style: dashed;
+    }
+    .staff-header {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 14px;
+    }
+    .staff-avatar {
+      width: 52px;
+      height: 52px;
+      border-radius: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      font-weight: 900;
+      color: #ffffff;
+      background: var(--primary);
+      flex-shrink: 0;
+      overflow: hidden;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    }
+    .staff-avatar img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    .staff-info {
+      flex: 1;
+      min-width: 0;
+    }
+    .staff-name {
+      font-size: 16px;
+      font-weight: 800;
+      color: var(--text);
+      margin: 0 0 4px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .staff-code {
+      display: inline-block;
+      font-size: 11px;
+      font-weight: 800;
+      color: #475569;
+      background: #f1f5f9;
+      padding: 2px 8px;
+      border-radius: 6px;
+      letter-spacing: 0.5px;
+    }
+    .staff-meta {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      padding: 12px;
+      background: #f8fafc;
+      border-radius: 12px;
+      margin-bottom: 14px;
+      font-size: 12.5px;
+    }
+    .staff-meta-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .staff-actions {
+      display: flex;
+      gap: 8px;
+      margin-top: auto;
+      flex-wrap: wrap;
+    }
+    .role-badge-admin { background: #e0f2fe; color: #0284c7; }
+    .role-badge-mesero { background: #dcfce7; color: #16a34a; }
+    .role-badge-cocina { background: #ffedd5; color: #ea580c; }
+    .role-badge-repartidor { background: #f3e8ff; color: #9333ea; }
+
+    /* RBAC Matrix Table */
+    .rbac-table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      overflow: hidden;
+      background: #ffffff;
+    }
+    .rbac-table th, .rbac-table td {
+      padding: 14px 18px;
+      border-bottom: 1px solid var(--border);
+      text-align: left;
+    }
+    .rbac-table th {
+      background: #f8fafc;
+      font-size: 12px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: #64748b;
+    }
+    .rbac-table tr:last-child td {
+      border-bottom: none;
+    }
+    .rbac-category-row {
+      background: #f1f5f9;
+      font-weight: 800;
+      font-size: 13px;
+      color: #334155;
+    }
+    .rbac-check {
+      text-align: center;
+    }
+    .rbac-check input {
+      width: 18px;
+      height: 18px;
+      cursor: pointer;
+    }
+
+    /* Incidents & Settlements Cards & KPIs */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 14px;
+      margin-bottom: 20px;
+    }
+    .kpi-card {
+      background: #ffffff;
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 16px 20px;
+      box-shadow: var(--shadow-sm);
+    }
+    .kpi-label { font-size: 11px; font-weight: 800; text-transform: uppercase; color: var(--muted); letter-spacing: .05em; }
+    .kpi-value { font-size: 28px; font-weight: 900; margin-top: 4px; color: var(--text); }
+
+    .filter-pills {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 18px;
+    }
+    .filter-pill {
+      padding: 6px 14px;
+      border-radius: 999px;
+      background: #ffffff;
+      border: 1px solid var(--border);
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--muted);
+      cursor: pointer;
+      transition: all .15s ease;
+    }
+    .filter-pill.active {
+      background: var(--primary);
+      color: #ffffff;
+      border-color: var(--primary);
+    }
+
+    .incident-item {
+      background: #ffffff;
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 18px;
+      margin-bottom: 12px;
+      box-shadow: var(--shadow-sm);
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .incident-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .badge-incident {
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+    .badge-nueva { background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; }
+    .badge-en_revision { background: #fffbeb; color: #d97706; border: 1px solid #fde68a; }
+    .badge-resuelta { background: #ecfdf3; color: #16a34a; border: 1px solid #bbf7d0; }
+    .badge-cancelada { background: #f1f5f9; color: #64748b; border: 1px solid #e2e8f0; }
+
+    .shift-card {
+      background: #ffffff;
+      border: 1.5px solid var(--border);
+      border-radius: 20px;
+      padding: 20px;
+      margin-bottom: 16px;
+      box-shadow: var(--shadow-sm);
+    }
+    .financial-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 10px;
+      margin: 14px 0;
+      padding: 14px;
+      background: #f8fafc;
+      border-radius: 14px;
+    }
+    .financial-item small { display: block; font-size: 10.5px; color: var(--muted); font-weight: 700; text-transform: uppercase; }
+    .financial-item strong { display: block; font-size: 16px; font-weight: 900; margin-top: 2px; }
+
+    /* Modals */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.65);
+      backdrop-filter: blur(3px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      z-index: 999;
+    }
+    .modal-backdrop.hidden {
+      display: none;
+    }
+    .modal-box {
+      background: #ffffff;
+      border-radius: 24px;
+      width: min(580px, 100%);
+      max-height: 90vh;
+      overflow-y: auto;
+      padding: 24px;
+      box-shadow: var(--shadow-lg);
+    }
+    .modal-box h2 {
+      margin: 0 0 16px;
+      font-size: 20px;
+      font-weight: 800;
+    }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-mark"><svg class="ui-icon" width="24" height="24" viewBox="0 0 32 32"><use href="assets/icons.svg#logo"></use></svg></div>
+        <div class="brand-copy"><strong>MealOps</strong><span>Restaurant operations</span></div>
+      </div>
+      <nav class="nav">
+        <!-- Generado dinámicamente por app.js -->
+      </nav>
+      <div class="sidebar-footer">
+        <button class="btn btn-ghost" onclick="logout()">Cerrar sesión</button>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="page-header">
+        <div>
+          <h1>Configuración del Sistema</h1>
+          <p>Personal, matriz de permisos RBAC, incidencias, liquidaciones y parámetros operativos.</p>
+        </div>
+        <div class="header-actions">
+          <button class="btn btn-secondary" onclick="window.location.href='home.html'">Panel Principal</button>
+        </div>
+      </header>
+
+      <!-- Settings Navigation Tabs -->
+      <div class="settings-nav">
+        <button class="settings-tab active" onclick="switchTab('staff')">👥 Personal & Colaboradores</button>
+        <button class="settings-tab" onclick="switchTab('rbac')">🛡️ Matriz de Permisos (RBAC)</button>
+        <button class="settings-tab" onclick="switchTab('incidents')">🚨 Centro de Incidencias</button>
+        <button class="settings-tab" onclick="switchTab('settlements')">💵 Cortes & Liquidaciones</button>
+        <button class="settings-tab" onclick="switchTab('operation')">⚙️ Operación & Despacho</button>
+        <button class="settings-tab" onclick="switchTab('restaurant')">🏪 Restaurante & Horarios</button>
+      </div>
+
+      <!-- TAB 1: PERSONAL Y COLABORADORES -->
+      <section id="tab-staff" class="tab-content active">
+        <div class="card card-pad" style="margin-bottom: 20px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+            <div>
+              <h2 class="section-title" style="margin:0">Equipo de Trabajo</h2>
+              <p class="muted" style="margin:4px 0 0;font-size:12px">Administra colaboradores, avatares, roles, códigos cortos y estados activos.</p>
+            </div>
+            <button class="btn btn-primary" onclick="openStaffModal()">+ Nuevo Colaborador</button>
+          </div>
+        </div>
+
+        <div id="staff-container" class="staff-grid">
+          <div class="muted">Cargando lista de colaboradores...</div>
+        </div>
+      </section>
+
+      <!-- TAB 2: MATRIZ DE PERMISOS (RBAC) -->
+      <section id="tab-rbac" class="tab-content">
+        <div class="card card-pad" style="margin-bottom: 20px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+            <div>
+              <h2 class="section-title" style="margin:0">Matriz de Permisos por Rol</h2>
+              <p class="muted" style="margin:4px 0 0;font-size:12px">Define qué funciones tiene permitidas cada rol por defecto en MealOps.</p>
+            </div>
+            <button class="btn btn-primary" onclick="saveRbacMatrix()">Guardar Matriz de Permisos</button>
+          </div>
+        </div>
+
+        <div class="card" style="overflow-x: auto;">
+          <table class="rbac-table" id="rbac-matrix-table">
+            <thead>
+              <tr>
+                <th>Función / Permiso</th>
+                <th class="rbac-check" style="color:#0284c7">Admin</th>
+                <th class="rbac-check" style="color:#16a34a">Mesero</th>
+                <th class="rbac-check" style="color:#ea580c">Cocina</th>
+                <th class="rbac-check" style="color:#9333ea">Repartidor</th>
+              </tr>
+            </thead>
+            <tbody id="rbac-tbody">
+              <!-- Renderizado dinámicamente -->
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- TAB 3: CENTRO DE INCIDENCIAS -->
+      <section id="tab-incidents" class="tab-content">
+        <div class="kpi-grid">
+          <div class="kpi-card">
+            <div class="kpi-label">Nuevas Incidencias</div>
+            <div class="kpi-value" id="kpi-incidents-nuevas" style="color:#dc2626">0</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">En Revisión</div>
+            <div class="kpi-value" id="kpi-incidents-revision" style="color:#d97706">0</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">Resueltas Hoy</div>
+            <div class="kpi-value" id="kpi-incidents-resueltas" style="color:#16a34a">0</div>
+          </div>
+        </div>
+
+        <div class="card card-pad" style="margin-bottom: 16px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+            <h2 class="section-title" style="margin:0">Incidencias de Entrega y Reparto</h2>
+            <div class="filter-pills" style="margin-bottom:0">
+              <button class="filter-pill active" onclick="filterIncidents('all')">Todas</button>
+              <button class="filter-pill" onclick="filterIncidents('nueva')">Nuevas</button>
+              <button class="filter-pill" onclick="filterIncidents('en_revision')">En Revisión</button>
+              <button class="filter-pill" onclick="filterIncidents('resuelta')">Resueltas</button>
+            </div>
+          </div>
+        </div>
+
+        <div id="incidents-container">
+          <div class="muted">Cargando incidencias...</div>
+        </div>
+      </section>
+
+      <!-- TAB 4: CORTES Y LIQUIDACIONES DE REPARTIDORES -->
+      <section id="tab-settlements" class="tab-content">
+        <div class="card card-pad" style="margin-bottom: 16px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+            <div>
+              <h2 class="section-title" style="margin:0">Cortes de Turno y Control de Efectivo</h2>
+              <p class="muted" style="margin:4px 0 0;font-size:12.5px">Audita el efectivo cobrado por los repartidores, el cambio entregado y concilia los viajes.</p>
+            </div>
+            <button class="btn btn-secondary" onclick="reconcileStaleTripsAdmin()">⚡ Reconciliar Viajes Incompletos</button>
+          </div>
+        </div>
+
+        <div id="shifts-container">
+          <div class="muted">Cargando turnos y liquidaciones...</div>
+        </div>
+      </section>
+
+      <!-- TAB 5: OPERACIÓN & DESPACHO -->
+      <section id="tab-operation" class="tab-content">
+        <div class="card card-pad">
+          <h2 class="section-title">Flujo Operativo y Despacho Automático</h2>
+          <p class="muted" style="font-size:12.5px;margin-bottom:20px">Reglas de salida para Mostrador, KDS y reparto a domicilio.</p>
+
+          <div class="form-grid">
+            <div class="field">
+              <label for="op-dispatch-mode">Modo de Despacho a Domicilio</label>
+              <select id="op-dispatch-mode">
+                <option value="automatic">Automático (Asignación y Ofertas Inteligentes)</option>
+                <option value="manual">Manual (Exclusivo Administrador)</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="op-offer-timeout">Tiempo límite de oferta a chofer (segundos)</label>
+              <input id="op-offer-timeout" type="number" min="5" max="120" value="20">
+            </div>
+            <div class="field">
+              <label for="op-grouping-window">Ventana de agrupación inteligente (segundos)</label>
+              <input id="op-grouping-window" type="number" min="0" max="600" value="120">
+            </div>
+            <div class="field">
+              <label for="op-max-orders">Máximo de pedidos por viaje</label>
+              <input id="op-max-orders" type="number" min="1" max="6" value="3">
+            </div>
+          </div>
+
+          <div class="spacer-16"></div>
+          <div style="padding:14px;background:#f8fafc;border-radius:14px;border:1px solid var(--border);display:flex;flex-direction:column;gap:10px">
+            <label style="display:flex;align-items:center;gap:10px;font-size:13px;font-weight:700;cursor:pointer">
+              <input type="checkbox" id="op-auto-dispatch-enabled" style="width:auto"> Despacho automático activado globalmente
+            </label>
+            <label style="display:flex;align-items:center;gap:10px;font-size:13px;font-weight:700;cursor:pointer">
+              <input type="checkbox" id="op-direct-counter" style="width:auto" checked> Salida directa a Mostrador para platillos que no requieren estufa/plancha
+            </label>
+            <label style="display:flex;align-items:center;gap:10px;font-size:13px;font-weight:700;cursor:pointer">
+              <input type="checkbox" id="op-sound-alerts" style="width:auto" checked> Alertas sonoras en Mostrador y KDS para nuevos pedidos
+            </label>
+          </div>
+
+          <div class="spacer-24"></div>
+          <button class="btn btn-primary" onclick="saveOperationalSettings()">Guardar Parámetros de Operación</button>
+        </div>
+      </section>
+
+      <!-- TAB 6: RESTAURANTE & HORARIOS -->
+      <section id="tab-restaurant" class="tab-content">
+        <div class="card card-pad">
+          <h2 class="section-title">Datos del Restaurante y Horarios</h2>
+          <p class="muted" style="font-size:12.5px;margin-bottom:20px">Información general de la sucursal y huso horario operativo.</p>
+
+          <div class="form-grid">
+            <div class="field">
+              <label for="rest-name">Nombre Comercial</label>
+              <input id="rest-name" placeholder="MealOps Cocina Económica">
+            </div>
+            <div class="field">
+              <label for="rest-phone">Teléfono de Atención</label>
+              <input id="rest-phone" placeholder="555-0199">
+            </div>
+            <div class="field" style="grid-column: 1 / -1;">
+              <label for="rest-address">Dirección del Local</label>
+              <input id="rest-address" placeholder="Av. Principal 123, Centro">
+            </div>
+            <div class="field">
+              <label for="rest-timezone">Zona Horaria del Negocio</label>
+              <select id="rest-timezone">
+                <option value="America/Mexico_City">America/Mexico_City (Centro de México)</option>
+                <option value="America/Cancun">America/Cancun (Sureste)</option>
+                <option value="America/Tijuana">America/Tijuana (Noroeste)</option>
+                <option value="America/Hermosillo">America/Hermosillo (Sonora)</option>
+                <option value="America/Bogota">America/Bogota (Colombia)</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="rest-hours">Horarios de Atención</label>
+              <input id="rest-hours" placeholder="08:00 - 18:00">
+            </div>
+          </div>
+
+          <div class="spacer-24"></div>
+          <button class="btn btn-primary" onclick="saveRestaurantInfo()">Guardar Información del Restaurante</button>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- MODAL COLABORADOR CON FOTO -->
+  <div id="staff-modal" class="modal-backdrop hidden">
+    <div class="modal-box">
+      <h2 id="staff-modal-title">Colaborador</h2>
+      <input type="hidden" id="staff-edit-id">
+      <div class="form-grid">
+        <div class="field" style="grid-column: 1 / -1;">
+          <label for="staff-form-name">Nombre Completo</label>
+          <input id="staff-form-name" placeholder="Ej. Carlos Mendoza">
+        </div>
+        <div class="field">
+          <label for="staff-form-phone">Teléfono (10 dígitos)</label>
+          <input id="staff-form-phone" placeholder="5551234567">
+        </div>
+        <div class="field">
+          <label for="staff-form-password">Contraseña <small id="pwd-help" class="muted">(Dejar vacío para mantener)</small></label>
+          <input id="staff-form-password" type="password" placeholder="••••••••">
+        </div>
+        <div class="field">
+          <label for="staff-form-role">Rol Operativo</label>
+          <select id="staff-form-role">
+            <option value="mesero">Mesero (Salón)</option>
+            <option value="cocina">Cocina (KDS)</option>
+            <option value="repartidor">Repartidor (Despacho móvil)</option>
+            <option value="admin">Administrador (Control total)</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="staff-form-code">ID Corto <small class="muted">(Ej. REP-01)</small></label>
+          <input id="staff-form-code" placeholder="Auto si se deja vacío">
+        </div>
+        <div class="field" style="grid-column: 1 / -1;">
+          <label for="staff-form-avatar">Foto / Avatar del Colaborador</label>
+          <input id="staff-form-avatar" type="file" accept="image/png,image/jpeg,image/webp">
+        </div>
+      </div>
+
+      <div class="spacer-16"></div>
+      <label style="display:flex;align-items:center;gap:10px;font-size:13px;font-weight:700;cursor:pointer">
+        <input type="checkbox" id="staff-form-active" style="width:auto" checked> Cuenta activa (Permitir acceso y turnos)
+      </label>
+
+      <div class="spacer-24"></div>
+      <div style="display: flex; justify-content: flex-end; gap: 10px;">
+        <button class="btn btn-secondary" onclick="closeStaffModal()">Cancelar</button>
+        <button class="btn btn-primary" onclick="submitStaffForm()">Guardar Colaborador</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL PERMISOS ESPECÍFICOS DE USUARIO -->
+  <div id="user-perms-modal" class="modal-backdrop hidden">
+    <div class="modal-box">
+      <h2 id="user-perms-title">Permisos de Usuario</h2>
+      <p class="muted" style="font-size:12.5px;margin-bottom:16px">Configura excepciones específicas para este colaborador por encima de su rol.</p>
+      <input type="hidden" id="user-perms-id">
+      <div id="user-perms-list" style="display:flex;flex-direction:column;gap:10px;max-height:360px;overflow-y:auto;padding-right:8px">
+        <!-- Dinámico -->
+      </div>
+      <div class="spacer-24"></div>
+      <div style="display: flex; justify-content: flex-end; gap: 10px;">
+        <button class="btn btn-secondary" onclick="closeUserPermsModal()">Cerrar</button>
+        <button class="btn btn-primary" onclick="saveUserPermsOverrides()">Guardar Permisos</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL RESOLUCIÓN DE INCIDENCIA -->
+  <div id="incident-modal" class="modal-backdrop hidden">
+    <div class="modal-box">
+      <h2>Resolver Incidencia</h2>
+      <input type="hidden" id="incident-resolve-id">
+      <div class="form-grid">
+        <div class="field" style="grid-column: 1 / -1;">
+          <label for="incident-resolve-status">Estado de la Incidencia</label>
+          <select id="incident-resolve-status">
+            <option value="resuelta">✅ Resuelta (Cerrada)</option>
+            <option value="en_revision">⏳ En Revisión</option>
+            <option value="cancelada">❌ Cancelada / Descartada</option>
+          </select>
+        </div>
+        <div class="field" style="grid-column: 1 / -1;">
+          <label for="incident-resolve-notes">Notas de Resolución / Acción Tomada</label>
+          <textarea id="incident-resolve-notes" rows="4" style="width:100%;border-radius:12px;border:1px solid var(--border);padding:10px;" placeholder="Detalles de la solución acordada con el cliente o repartidor..."></textarea>
+        </div>
+      </div>
+      <div class="spacer-24"></div>
+      <div style="display: flex; justify-content: flex-end; gap: 10px;">
+        <button class="btn btn-secondary" onclick="closeIncidentModal()">Cancelar</button>
+        <button class="btn btn-primary" onclick="submitIncidentResolution()">Guardar Resolución</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL LIQUIDAR TURNO -->
+  <div id="settle-modal" class="modal-backdrop hidden">
+    <div class="modal-box">
+      <h2>Liquidar Corte de Turno</h2>
+      <input type="hidden" id="settle-shift-id">
+      <div id="settle-shift-summary-preview" style="margin-bottom:16px;"></div>
+      <div class="form-grid">
+        <div class="field">
+          <label for="settle-amount">Efectivo Físico Recibido ($ MXN)</label>
+          <input id="settle-amount" type="number" step="0.5" placeholder="0.00">
+        </div>
+        <div class="field">
+          <label for="settle-notes">Observaciones de Caja</label>
+          <input id="settle-notes" placeholder="Cuadró exacto / faltante justificado...">
+        </div>
+      </div>
+      <div class="spacer-24"></div>
+      <div style="display: flex; justify-content: flex-end; gap: 10px;">
+        <button class="btn btn-secondary" onclick="closeSettleModal()">Cancelar</button>
+        <button class="btn btn-primary" onclick="submitShiftSettlement()">Confirmar Liquidación</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast-container"></div>
+  <script src="app.js"></script>
+  <script>
+    requireAuth(['admin']);
+
+    let staffList = [];
+    let permissionsCatalog = [];
+    let rolePermissionsMap = {};
+    let currentSystemSettings = {};
+    let allIncidents = [];
+    let incidentFilter = 'all';
+
+    function switchTab(tabId) {
+      document.querySelectorAll('.settings-tab').forEach((t) => t.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach((c) => c.classList.remove('active'));
+      const activeBtn = Array.from(document.querySelectorAll('.settings-tab')).find(b => b.getAttribute('onclick') && b.getAttribute('onclick').includes(tabId));
+      if (activeBtn) activeBtn.classList.add('active');
+      const activeContent = document.getElementById('tab-' + tabId);
+      if (activeContent) activeContent.classList.add('active');
+
+      if (tabId === 'incidents') loadIncidents();
+      if (tabId === 'settlements') loadSettlements();
+    }
+
+    async function loadAllSettings() {
+      try {
+        const [settingsData, permsData, staffData] = await Promise.all([
+          apiFetch('/settings'),
+          apiFetch('/settings/permissions'),
+          apiFetch('/users/staff')
+        ]);
+
+        currentSystemSettings = settingsData;
+        permissionsCatalog = permsData.permissions || [];
+        rolePermissionsMap = permsData.role_permissions || {};
+        staffList = staffData || [];
+
+        renderStaff();
+        renderRbacMatrix();
+        populateOperationForm();
+        populateRestaurantForm();
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    }
+
+    function renderStaff() {
+      const container = document.getElementById('staff-container');
+      if (!staffList.length) {
+        container.innerHTML = '<div class="card card-pad muted">No hay colaboradores registrados.</div>';
+        return;
+      }
+
+      const roleColors = {
+        admin: { bg: '#0284c7', label: 'Administrador', class: 'role-badge-admin' },
+        mesero: { bg: '#16a34a', label: 'Mesero', class: 'role-badge-mesero' },
+        cocina: { bg: '#ea580c', label: 'Cocina', class: 'role-badge-cocina' },
+        repartidor: { bg: '#9333ea', label: 'Repartidor', class: 'role-badge-repartidor' }
+      };
+
+      const driverStatusLabels = {
+        disponible: '🟢 Disponible',
+        pausa: '🟡 En pausa',
+        oferta_pendiente: '🔔 Oferta recibida',
+        esperando_recogida: '📦 Esperando en mostrador',
+        en_ruta: '🚴 En ruta de entrega',
+        regresando: '🔄 Regresando',
+        offline: '⚪ Fuera de turno'
+      };
+
+      container.innerHTML = staffList.map((member) => {
+        const roleInfo = roleColors[member.role] || { bg: '#64748b', label: member.role, class: '' };
+        const initials = (member.name || 'U').split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase();
+        const shortCode = member.short_code || ('EMP-' + member.id);
+        const avatarHtml = member.avatar_url
+          ? '<img src="' + member.avatar_url + '" alt="' + escapeHtml(member.name) + '">'
+          : initials;
+
+        return '<article class="staff-card ' + (member.active ? '' : 'inactive') + '">' +
+          '<div class="staff-header">' +
+            '<div class="staff-avatar" style="background:' + roleInfo.bg + '">' + avatarHtml + '</div>' +
+            '<div class="staff-info">' +
+              '<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">' +
+                '<span class="staff-code">' + shortCode + '</span>' +
+                '<span class="badge ' + roleInfo.class + '">' + roleInfo.label + '</span>' +
+              '</div>' +
+              '<h3 class="staff-name">' + escapeHtml(member.name) + '</h3>' +
+            '</div>' +
+          '</div>' +
+          '<div class="staff-meta">' +
+            '<div class="staff-meta-row">' +
+              '<span class="muted">Teléfono:</span>' +
+              '<strong>' + escapeHtml(member.phone || 'Sin registrar') + '</strong>' +
+            '</div>' +
+            (member.role === 'repartidor' ? (
+              '<div class="staff-meta-row">' +
+                '<span class="muted">Estado de turno:</span>' +
+                '<strong style="font-size:12px">' + (driverStatusLabels[member.driver_status] || member.driver_status) + '</strong>' +
+              '</div>' +
+              '<div class="staff-meta-row">' +
+                '<span class="muted">Viajes hoy:</span>' +
+                '<strong>' + (member.completed_trips_count || 0) + ' completados</strong>' +
+              '</div>'
+            ) : '') +
+            '<div class="staff-meta-row">' +
+              '<span class="muted">Estatus:</span>' +
+              '<strong style="color:' + (member.active ? '#16a34a' : '#dc2626') + '">' + (member.active ? '🟢 Activo' : '🔴 Inactivo / Baja') + '</strong>' +
+            '</div>' +
+          '</div>' +
+          '<div class="staff-actions">' +
+            '<button class="btn btn-sm btn-secondary" onclick="openStaffModal(' + member.id + ')">✏️ Editar</button>' +
+            '<button class="btn btn-sm btn-ghost" onclick="openUserPermsModal(' + member.id + ')">🛡️ Permisos</button>' +
+            (member.avatar_url ? (
+              '<button class="btn btn-sm btn-danger-soft" onclick="deleteStaffAvatar(' + member.id + ')">🗑️ Quitar Foto</button>'
+            ) : '') +
+            (member.active ? (
+              '<button class="btn btn-sm btn-danger-soft" onclick="toggleStaffActive(' + member.id + ', false)">Desactivar</button>'
+            ) : (
+              '<button class="btn btn-sm btn-primary" onclick="toggleStaffActive(' + member.id + ', true)">Reactivar</button>'
+            )) +
+          '</div>' +
+        '</article>';
+      }).join('');
+    }
+
+    function renderRbacMatrix() {
+      const tbody = document.getElementById('rbac-tbody');
+      const categories = [...new Set(permissionsCatalog.map(p => p.category))];
+      const rolesList = ['admin', 'mesero', 'cocina', 'repartidor'];
+
+      let html = '';
+      for (const cat of categories) {
+        html += '<tr class="rbac-category-row"><td colspan="5">📁 ' + escapeHtml(cat) + '</td></tr>';
+        const permsInCat = permissionsCatalog.filter(p => p.category === cat);
+        for (const perm of permsInCat) {
+          html += '<tr>' +
+            '<td>' +
+              '<strong>' + escapeHtml(perm.name) + '</strong>' +
+              '<div class="muted" style="font-size:11px">' + escapeHtml(perm.description || '') + '</div>' +
+            '</td>' +
+            rolesList.map(r => {
+              const isChecked = (rolePermissionsMap[r] || []).includes(perm.code);
+              const isAdmin = r === 'admin';
+              return '<td class="rbac-check">' +
+                '<input type="checkbox" data-role="' + r + '" data-code="' + perm.code + '" ' + (isChecked ? 'checked' : '') + ' ' + (isAdmin ? 'disabled' : '') + '>' +
+              '</td>';
+            }).join('') +
+          '</tr>';
+        }
+      }
+      tbody.innerHTML = html;
+    }
+
+    async function saveRbacMatrix() {
+      try {
+        const rolesList = ['mesero', 'cocina', 'repartidor'];
+        for (const role of rolesList) {
+          const checked = Array.from(document.querySelectorAll('input[data-role="' + role + '"]:checked')).map(cb => cb.dataset.code);
+          await apiFetch('/settings/permissions/roles', {
+            method: 'PATCH',
+            body: JSON.stringify({ role, permissions: checked })
+          });
+        }
+        showToast('Matriz de permisos de roles actualizada con éxito.', 'success');
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    }
+
+    // Incidents Management
+    async function loadIncidents() {
+      try {
+        const res = await apiFetch('/deliveries/incidents');
+        allIncidents = res.incidents || [];
+        const kpis = res.kpis || { nuevas: 0, en_revision: 0, resueltas_hoy: 0 };
+        document.getElementById('kpi-incidents-nuevas').textContent = kpis.nuevas;
+        document.getElementById('kpi-incidents-revision').textContent = kpis.en_revision;
+        document.getElementById('kpi-incidents-resueltas').textContent = kpis.resueltas_hoy;
+        renderIncidents();
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    }
+
+    function filterIncidents(status) {
+      incidentFilter = status;
+      document.querySelectorAll('#tab-incidents .filter-pill').forEach(btn => {
+        btn.classList.toggle('active', btn.getAttribute('onclick').includes(status));
+      });
+      renderIncidents();
+    }
+
+    function renderIncidents() {
+      const container = document.getElementById('incidents-container');
+      const filtered = incidentFilter === 'all' ? allIncidents : allIncidents.filter(i => i.status === incidentFilter);
+
+      if (!filtered.length) {
+        container.innerHTML = '<div class="card card-pad muted">No hay incidencias en esta categoría.</div>';
+        return;
+      }
+
+      container.innerHTML = filtered.map(inc => {
+        const badgeClass = 'badge-' + inc.status;
+        const folioStr = inc.order_folio ? 'F' + String(inc.order_folio).padStart(3, '0') : '#' + inc.order_id;
+        const tripStr = inc.trip_folio ? ' · Viaje #' + inc.trip_folio : '';
+
+        return '<article class="incident-item">' +
+          '<div class="incident-head">' +
+            '<div>' +
+              '<strong>Pedido ' + folioStr + tripStr + '</strong> · ' +
+              '<span class="muted">' + (inc.customer_name || 'Cliente') + ' (' + (inc.customer_phone || 'Sin tel') + ')</span>' +
+            '</div>' +
+            '<span class="badge-incident ' + badgeClass + '">' + inc.status.replace('_', ' ') + '</span>' +
+          '</div>' +
+          '<div style="font-size:13px;background:#f8fafc;padding:10px 14px;border-radius:12px;">' +
+            '<div><strong>Motivo:</strong> ' + escapeHtml(inc.reason) + '</div>' +
+            (inc.driver_notes ? '<div class="muted" style="margin-top:4px;"><strong>Nota Chofer:</strong> ' + escapeHtml(inc.driver_notes) + '</div>' : '') +
+            (inc.resolution_notes ? '<div style="margin-top:4px;color:#16a34a;"><strong>Resolución:</strong> ' + escapeHtml(inc.resolution_notes) + '</div>' : '') +
+          '</div>' +
+          '<div style="display:flex;justify-content:space-between;align-items:center;font-size:11.5px;color:var(--muted);">' +
+            '<span>Reportado por: ' + escapeHtml(inc.reporter_name || 'Repartidor') + ' (' + new Date(inc.created_at).toLocaleTimeString() + ')</span>' +
+            (inc.status !== 'resuelta' && inc.status !== 'cancelada' ? (
+              '<button class="btn btn-sm btn-primary" onclick="openIncidentModal(' + inc.id + ')">Resolver Incidencia</button>'
+            ) : '') +
+          '</div>' +
+        '</article>';
+      }).join('');
+    }
+
+    function openIncidentModal(id) {
+      document.getElementById('incident-resolve-id').value = id;
+      document.getElementById('incident-resolve-status').value = 'resuelta';
+      document.getElementById('incident-resolve-notes').value = '';
+      document.getElementById('incident-modal').classList.remove('hidden');
+    }
+
+    function closeIncidentModal() {
+      document.getElementById('incident-modal').classList.add('hidden');
+    }
+
+    async function submitIncidentResolution() {
+      const id = document.getElementById('incident-resolve-id').value;
+      const status = document.getElementById('incident-resolve-status').value;
+      const resolution_notes = document.getElementById('incident-resolve-notes').value.trim();
+
+      try {
+        await apiFetch('/deliveries/incidents/' + id, {
+          method: 'PATCH',
+          body: JSON.stringify({ status, resolution_notes })
+        });
+        showToast('Incidencia actualizada correctamente.', 'success');
+        closeIncidentModal();
+        await loadIncidents();
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    }
+
+    // Settlements Management
+    async function loadSettlements() {
+      try {
+        const drivers = await apiFetch('/deliveries/drivers');
+        const container = document.getElementById('shifts-container');
+
+        if (!drivers.length) {
+          container.innerHTML = '<div class="card card-pad muted">No hay repartidores registrados.</div>';
+          return;
+        }
+
+        // Fetch shift summaries for each driver
+        const shiftCardsHtml = await Promise.all(drivers.map(async (d) => {
+          try {
+            const summary = await apiFetch('/deliveries/shift-summary?driver_user_id=' + d.id);
+            const shift = summary.shift;
+            if (!shift) {
+              return '<article class="shift-card">' +
+                '<div style="display:flex;justify-content:space-between;align-items:center;">' +
+                  '<div><strong>' + escapeHtml(d.name) + '</strong> (' + (d.short_code || 'REP-' + d.id) + ')</div>' +
+                  '<span class="badge" style="background:#f1f5f9;color:#64748b">Sin turno activo</span>' +
+                '</div>' +
+              '</article>';
+            }
+
+            const gross = formatCurrency(summary.gross_cash_received || 0);
+            const change = formatCurrency(summary.total_cash_change_given || 0);
+            const netCash = formatCurrency(summary.net_cash_for_business || 0);
+            const expected = formatCurrency(summary.expected_cash || 0);
+            const settled = formatCurrency(summary.settled_cash || 0);
+            const diff = formatCurrency(summary.difference || 0);
+
+            return '<article class="shift-card">' +
+              '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">' +
+                '<div>' +
+                  '<h3 style="margin:0;font-size:16px;">' + escapeHtml(d.name) + ' <small class="muted">(' + (d.short_code || 'REP-' + d.id) + ')</small></h3>' +
+                  '<div class="muted" style="font-size:12px;margin-top:2px;">Turno #' + shift.id + ' · Iniciado: ' + new Date(shift.started_at).toLocaleTimeString() + '</div>' +
+                '</div>' +
+                '<span class="badge" style="background:' + (shift.status === 'abierto' ? '#dcfce7;color:#16a34a' : '#f3e8ff;color:#9333ea') + '">' + shift.status.toUpperCase() + '</span>' +
+              '</div>' +
+              '<div class="financial-grid">' +
+                '<div class="financial-item"><small>Efectivo Bruto</small><strong>' + gross + '</strong></div>' +
+                '<div class="financial-item"><small>Cambio Entregado</small><strong style="color:#d97706">-' + change + '</strong></div>' +
+                '<div class="financial-item"><small>Neto para Caja</small><strong style="color:#16a34a">' + netCash + '</strong></div>' +
+                '<div class="financial-item"><small>Esperado en Caja</small><strong>' + expected + '</strong></div>' +
+                '<div class="financial-item"><small>Liquidado</small><strong>' + settled + '</strong></div>' +
+                '<div class="financial-item"><small>Diferencia</small><strong style="color:' + (summary.difference < 0 ? '#dc2626' : '#16a34a') + '">' + diff + '</strong></div>' +
+              '</div>' +
+              '<div style="display:flex;justify-content:flex-end;gap:10px;margin-top:10px;">' +
+                '<button class="btn btn-sm btn-primary" onclick="openSettleModal(' + shift.id + ', ' + (summary.net_cash_for_business || 0) + ')">💵 Liquidar y Cuadrar Turno</button>' +
+              '</div>' +
+            '</article>';
+          } catch (e) {
+            return '<article class="shift-card"><div class="muted">Error al cargar turno de ' + escapeHtml(d.name) + '</div></article>';
+          }
+        }));
+
+        container.innerHTML = shiftCardsHtml.join('');
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    }
+
+    function openSettleModal(shiftId, netExpected) {
+      document.getElementById('settle-shift-id').value = shiftId;
+      document.getElementById('settle-amount').value = netExpected || 0;
+      document.getElementById('settle-notes').value = '';
+      document.getElementById('settle-shift-summary-preview').innerHTML = '<div style="background:#f8fafc;padding:10px 14px;border-radius:12px;font-size:13px"><strong>Neto esperado para el negocio:</strong> ' + formatCurrency(netExpected) + '</div>';
+      document.getElementById('settle-modal').classList.remove('hidden');
+    }
+
+    function closeSettleModal() {
+      document.getElementById('settle-modal').classList.add('hidden');
+    }
+
+    async function submitShiftSettlement() {
+      const shiftId = document.getElementById('settle-shift-id').value;
+      const amount = Number(document.getElementById('settle-amount').value || 0);
+      const notes = document.getElementById('settle-notes').value.trim();
+
+      try {
+        await apiFetch('/deliveries/shifts/' + shiftId + '/settle', {
+          method: 'POST',
+          body: JSON.stringify({ amount, notes })
+        });
+        showToast('Liquidación registrada con éxito.', 'success');
+        closeSettleModal();
+        await loadSettlements();
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    }
+
+    async function reconcileStaleTripsAdmin() {
+      if (!confirm('¿Deseas ejecutar la reconciliación preventiva de viajes pendientes/huérfanos?')) return;
+      try {
+        const res = await apiFetch('/deliveries/admin/reconcile-stale-trips', { method: 'POST' });
+        showToast(res.message || 'Viajes reconciliados.', 'success');
+        await loadSettlements();
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    }
+
+    async function deleteStaffAvatar(userId) {
+      if (!confirm('¿Eliminar la foto de perfil de este colaborador?')) return;
+      try {
+        await apiFetch('/users/staff/' + userId + '/avatar', { method: 'DELETE' });
+        showToast('Avatar eliminado.', 'success');
+        await loadAllSettings();
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    }
+
+    function populateOperationForm() {
+      const op = currentSystemSettings.operational_flow || {};
+      const disp = currentSystemSettings.dispatch_config || {};
+
+      document.getElementById('op-dispatch-mode').value = disp.dispatch_mode || 'automatic';
+      document.getElementById('op-offer-timeout').value = disp.offer_timeout_seconds || 20;
+      document.getElementById('op-grouping-window').value = disp.grouping_window_seconds || 120;
+      document.getElementById('op-max-orders').value = disp.max_orders_per_trip || 3;
+      document.getElementById('op-auto-dispatch-enabled').checked = disp.auto_dispatch_enabled !== false;
+      document.getElementById('op-direct-counter').checked = op.direct_counter_for_ready_items !== false;
+      document.getElementById('op-sound-alerts').checked = op.sound_alerts_enabled !== false;
+    }
+
+    async function saveOperationalSettings() {
+      try {
+        const operational_flow = {
+          kds_mode: 'kitchen_only',
+          direct_counter_for_ready_items: document.getElementById('op-direct-counter').checked,
+          sound_alerts_enabled: document.getElementById('op-sound-alerts').checked
+        };
+        const dispatch_config = {
+          dispatch_mode: document.getElementById('op-dispatch-mode').value,
+          offer_timeout_seconds: Number(document.getElementById('op-offer-timeout').value || 20),
+          grouping_window_seconds: Number(document.getElementById('op-grouping-window').value || 120),
+          max_orders_per_trip: Number(document.getElementById('op-max-orders').value || 3),
+          auto_dispatch_enabled: document.getElementById('op-auto-dispatch-enabled').checked
+        };
+
+        await apiFetch('/settings', {
+          method: 'PATCH',
+          body: JSON.stringify({ operational_flow, dispatch_config })
+        });
+        showToast('Parámetros de operación guardados.', 'success');
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    }
+
+    function populateRestaurantForm() {
+      const rest = currentSystemSettings.restaurant_info || {};
+      document.getElementById('rest-name').value = rest.name || '';
+      document.getElementById('rest-phone').value = rest.phone || '';
+      document.getElementById('rest-address').value = rest.address || '';
+      document.getElementById('rest-timezone').value = rest.timezone || 'America/Mexico_City';
+      document.getElementById('rest-hours').value = rest.operating_hours || '';
+    }
+
+    async function saveRestaurantInfo() {
+      try {
+        const restaurant_info = {
+          name: document.getElementById('rest-name').value.trim(),
+          phone: document.getElementById('rest-phone').value.trim(),
+          address: document.getElementById('rest-address').value.trim(),
+          timezone: document.getElementById('rest-timezone').value,
+          operating_hours: document.getElementById('rest-hours').value.trim()
+        };
+        await apiFetch('/settings', {
+          method: 'PATCH',
+          body: JSON.stringify({ restaurant_info })
+        });
+        showToast('Información del restaurante actualizada.', 'success');
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    }
+
+    // Modal Colaborador
+    function openStaffModal(editId = null) {
+      document.getElementById('staff-edit-id').value = editId || '';
+      document.getElementById('staff-modal-title').textContent = editId ? 'Editar Colaborador' : 'Nuevo Colaborador';
+      document.getElementById('pwd-help').style.display = editId ? 'inline' : 'none';
+      document.getElementById('staff-form-avatar').value = '';
+
+      if (editId) {
+        const member = staffList.find(s => Number(s.id) === Number(editId));
+        if (member) {
+          document.getElementById('staff-form-name').value = member.name || '';
+          document.getElementById('staff-form-phone').value = member.phone || '';
+          document.getElementById('staff-form-password').value = '';
+          document.getElementById('staff-form-role').value = member.role || 'mesero';
+          document.getElementById('staff-form-code').value = member.short_code || '';
+          document.getElementById('staff-form-active').checked = member.active !== false;
+        }
+      } else {
+        document.getElementById('staff-form-name').value = '';
+        document.getElementById('staff-form-phone').value = '';
+        document.getElementById('staff-form-password').value = '';
+        document.getElementById('staff-form-role').value = 'mesero';
+        document.getElementById('staff-form-code').value = '';
+        document.getElementById('staff-form-active').checked = true;
+      }
+      document.getElementById('staff-modal').classList.remove('hidden');
+    }
+
+    function closeStaffModal() {
+      document.getElementById('staff-modal').classList.add('hidden');
+    }
+
+    async function submitStaffForm() {
+      const editId = document.getElementById('staff-edit-id').value;
+      const name = document.getElementById('staff-form-name').value.trim();
+      const phone = document.getElementById('staff-form-phone').value.trim();
+      const password = document.getElementById('staff-form-password').value;
+      const role = document.getElementById('staff-form-role').value;
+      const short_code = document.getElementById('staff-form-code').value.trim() || undefined;
+      const active = document.getElementById('staff-form-active').checked;
+      const avatarFile = document.getElementById('staff-form-avatar').files[0];
+
+      if (!name || !phone) return showToast('Nombre y teléfono son requeridos.', 'error');
+      if (!editId && !password) return showToast('Ingresa una contraseña inicial.', 'error');
+
+      try {
+        let savedId = editId;
+        if (editId) {
+          await apiFetch('/users/staff/' + editId, {
+            method: 'PATCH',
+            body: JSON.stringify({ name, phone, password: password || undefined, role, short_code, active })
+          });
+          showToast('Colaborador actualizado.', 'success');
+        } else {
+          const created = await apiFetch('/users/staff', {
+            method: 'POST',
+            body: JSON.stringify({ name, phone, password, role, short_code })
+          });
+          savedId = created.user?.id || created.id;
+          showToast('Colaborador creado exitosamente.', 'success');
+        }
+
+        // Upload avatar if selected
+        if (avatarFile && savedId) {
+          const formData = new FormData();
+          formData.append('avatar', avatarFile);
+          await apiFetch('/users/staff/' + savedId + '/avatar', {
+            method: 'POST',
+            body: formData
+          });
+          showToast('Avatar subido correctamente.', 'success');
+        }
+
+        closeStaffModal();
+        await loadAllSettings();
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    }
+
+    async function toggleStaffActive(userId, active) {
+      try {
+        await apiFetch('/users/staff/' + userId, {
+          method: 'PATCH',
+          body: JSON.stringify({ active })
+        });
+        showToast(active ? 'Colaborador reactivado.' : 'Colaborador desactivado.', 'success');
+        await loadAllSettings();
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    }
+
+    // Modal Permisos de Usuario
+    function openUserPermsModal(userId) {
+      const member = staffList.find(s => Number(s.id) === Number(userId));
+      if (!member) return;
+
+      document.getElementById('user-perms-id').value = userId;
+      document.getElementById('user-perms-title').textContent = 'Permisos de ' + member.name;
+
+      const rolePerms = new Set(rolePermissionsMap[member.role] || []);
+      const userCustomOverrides = member.custom_permissions || [];
+
+      const listContainer = document.getElementById('user-perms-list');
+      listContainer.innerHTML = permissionsCatalog.map(p => {
+        const isRoleDefault = rolePerms.has(p.code);
+        const override = userCustomOverrides.find(o => o.code === p.code);
+        const isGranted = override ? override.granted : isRoleDefault;
+
+        return '<label style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:#f8fafc;border-radius:10px;font-size:13px">' +
+          '<div>' +
+            '<strong>' + escapeHtml(p.name) + '</strong>' +
+            '<small class="muted" style="display:block">' + escapeHtml(p.category) + ' · ' + (isRoleDefault ? 'Por defecto en rol' : 'No incluido en rol') + '</small>' +
+          '</div>' +
+          '<input type="checkbox" data-user-perm="' + p.code + '" ' + (isGranted ? 'checked' : '') + ' style="width:18px;height:18px">' +
+        '</label>';
+      }).join('');
+
+      document.getElementById('user-perms-modal').classList.remove('hidden');
+    }
+
+    function closeUserPermsModal() {
+      document.getElementById('user-perms-modal').classList.add('hidden');
+    }
+
+    async function saveUserPermsOverrides() {
+      const userId = document.getElementById('user-perms-id').value;
+      if (!userId) return;
+
+      const checkboxes = Array.from(document.querySelectorAll('input[data-user-perm]'));
+      const custom_permissions = checkboxes.map(cb => ({
+        code: cb.dataset.userPerm,
+        granted: cb.checked
+      }));
+
+      try {
+        await apiFetch('/users/staff/' + userId, {
+          method: 'PATCH',
+          body: JSON.stringify({ custom_permissions })
+        });
+        showToast('Permisos personalizados del usuario guardados.', 'success');
+        closeUserPermsModal();
+        await loadAllSettings();
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    }
+
+    loadAllSettings();
+  </script>
+</body>
+</html>

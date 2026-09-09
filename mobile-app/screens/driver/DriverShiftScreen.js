@@ -1,3 +1,4 @@
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useState, useEffect, useContext, useCallback } from "react";
 import {
   View,
@@ -6,7 +7,6 @@ import {
   TouchableOpacity,
   StyleSheet,
   RefreshControl,
-  SafeAreaView,
   ActivityIndicator,
   Alert
 } from "react-native";
@@ -24,6 +24,8 @@ export default function DriverShiftScreen({ navigation }) {
   const [summary, setSummary] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+
+  const [actionLoading, setActionLoading] = useState(false);
 
   const loadSummary = useCallback(async () => {
     if (!token) return;
@@ -49,6 +51,48 @@ export default function DriverShiftScreen({ navigation }) {
     loadSummary();
   };
 
+  const handleStartShift = async () => {
+    setActionLoading(true);
+    try {
+      await axios.post(`${API_URL}/deliveries/shifts/start`, {}, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      Alert.alert("Turno Iniciado", "Tu turno de reparto ha iniciado exitosamente.");
+      loadSummary();
+    } catch (err) {
+      Alert.alert("Error", err?.response?.data?.message || "No se pudo iniciar el turno.");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleEndShift = () => {
+    Alert.alert(
+      "Finalizar Turno",
+      "¿Deseas cerrar tu turno actual y preparar el corte de caja?",
+      [
+        { text: "Cancelar", style: "cancel" },
+        {
+          text: "Sí, finalizar turno",
+          onPress: async () => {
+            setActionLoading(true);
+            try {
+              await axios.post(`${API_URL}/deliveries/shifts/end`, {}, {
+                headers: { Authorization: `Bearer ${token}` }
+              });
+              Alert.alert("Turno Finalizado", "Tu turno ha finalizado. Presenta tu corte en mostrador.");
+              loadSummary();
+            } catch (err) {
+              Alert.alert("Error", err?.response?.data?.message || "No se pudo finalizar el turno.");
+            } finally {
+              setActionLoading(false);
+            }
+          }
+        }
+      ]
+    );
+  };
+
   if (loading) {
     return (
       <SafeAreaView style={styles.safeArea}>
@@ -61,10 +105,16 @@ export default function DriverShiftScreen({ navigation }) {
     );
   }
 
+  const shift = summary?.shift;
+  const isShiftActive = shift?.status === "abierto";
   const deliveredCount = summary?.delivered_count || 0;
-  const cashCollected = Number(summary?.cash_collected || 0);
-  const cashSettled = Number(summary?.cash_settled || 0);
-  const pendingSettlement = Number(summary?.pending_settlement || 0);
+  const grossCash = Number(summary?.gross_cash_received ?? summary?.cash_collected ?? 0);
+  const changeGiven = Number(summary?.total_cash_change_given ?? 0);
+  const netCash = Number(summary?.net_cash_for_business ?? (grossCash - changeGiven));
+  const expectedCash = Number(summary?.expected_cash ?? netCash);
+  const cashSettled = Number(summary?.settled_cash ?? summary?.cash_settled ?? 0);
+  const pendingSettlement = Number(summary?.pending_settlement ?? (expectedCash - cashSettled));
+  const difference = Number(summary?.difference ?? (cashSettled - expectedCash));
   const orders = Array.isArray(summary?.orders) ? summary.orders : [];
 
   return (
@@ -91,29 +141,77 @@ export default function DriverShiftScreen({ navigation }) {
           />
         }
       >
+        {/* Shift Action Banner */}
+        <View style={styles.shiftHeaderCard}>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.shiftStatusLabel}>ESTADO DEL TURNO</Text>
+            <Text style={styles.shiftStatusVal}>
+              {shift ? (isShiftActive ? "🟢 Turno Activo" : `⚪ Turno #${shift.id} (${shift.status})`) : "⚪ Sin Turno Iniciado"}
+            </Text>
+            {shift?.started_at && (
+              <Text style={styles.shiftTimeText}>
+                Iniciado: {new Date(shift.started_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              </Text>
+            )}
+          </View>
+          {isShiftActive ? (
+            <TouchableOpacity
+              style={[styles.endShiftBtn, actionLoading && { opacity: 0.6 }]}
+              onPress={handleEndShift}
+              disabled={actionLoading}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="log-out-outline" size={16} color="#ffffff" />
+              <Text style={styles.endShiftBtnText}>Cerrar Turno</Text>
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity
+              style={[styles.startShiftBtn, actionLoading && { opacity: 0.6 }]}
+              onPress={handleStartShift}
+              disabled={actionLoading}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="play" size={16} color="#ffffff" />
+              <Text style={styles.startShiftBtnText}>Iniciar Turno</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+
         {/* Main Settlement Box */}
         <View style={styles.mainCard}>
-          <Text style={styles.cardHeaderTitle}>Efectivo a Entregar en Caja</Text>
+          <Text style={styles.cardHeaderTitle}>Neto a Entregar en Caja</Text>
           <Text style={styles.pendingAmount}>${pendingSettlement.toFixed(2)}</Text>
           <Text style={styles.pendingSub}>
             {pendingSettlement > 0
-              ? "Presenta este importe en caja para cerrar tu corte."
-              : "Todo el efectivo recaudado está liquidado al día."}
+              ? "Presenta este importe neto en mostrador para cerrar tu corte."
+              : "Todo el efectivo recaudado está liquidado y al día."}
           </Text>
 
           <View style={styles.statsGrid}>
             <View style={styles.statBox}>
-              <Text style={styles.statLabel}>Entregas Hoy</Text>
+              <Text style={styles.statLabel}>Entregas</Text>
               <Text style={styles.statVal}>{deliveredCount}</Text>
             </View>
             <View style={styles.statBox}>
-              <Text style={styles.statLabel}>Total Cobrado</Text>
-              <Text style={styles.statVal}>${cashCollected.toFixed(2)}</Text>
+              <Text style={styles.statLabel}>Cobrado Bruto</Text>
+              <Text style={styles.statVal}>${grossCash.toFixed(2)}</Text>
             </View>
             <View style={styles.statBox}>
-              <Text style={styles.statLabel}>Ya Liquidado</Text>
-              <Text style={[styles.statVal, { color: colors.success }]}>
-                ${cashSettled.toFixed(2)}
+              <Text style={styles.statLabel}>Cambio Dado</Text>
+              <Text style={[styles.statVal, { color: colors.warning }]}>-${changeGiven.toFixed(2)}</Text>
+            </View>
+            <View style={styles.statBox}>
+              <Text style={styles.statLabel}>Neto Negocio</Text>
+              <Text style={[styles.statVal, { color: colors.primary }]}>${netCash.toFixed(2)}</Text>
+            </View>
+            <View style={styles.statBox}>
+              <Text style={styles.statLabel}>Liquidado</Text>
+              <Text style={[styles.statVal, { color: colors.success }]}>${cashSettled.toFixed(2)}</Text>
+            </View>
+            <View style={styles.statBox}>
+              <Text style={styles.statLabel}>Diferencia</Text>
+              <Text style={[styles.statVal, { color: difference < 0 ? colors.danger : colors.success }]}>
+                ${difference.toFixed(2)}
               </Text>
             </View>
           </View>
@@ -248,28 +346,87 @@ const styles = StyleSheet.create({
     marginTop: 4,
     marginBottom: 16
   },
+  shiftHeaderCard: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    backgroundColor: colors.surface,
+    padding: 16,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: colors.borderLight
+  },
+  shiftStatusLabel: {
+    fontSize: 10,
+    fontWeight: "900",
+    color: colors.muted,
+    letterSpacing: 0.5
+  },
+  shiftStatusVal: {
+    fontSize: 14,
+    fontWeight: "800",
+    color: colors.text,
+    marginTop: 2
+  },
+  shiftTimeText: {
+    fontSize: 11,
+    color: colors.muted,
+    marginTop: 2
+  },
+  startShiftBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: colors.primary,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 14
+  },
+  startShiftBtnText: {
+    color: "#ffffff",
+    fontSize: 12.5,
+    fontWeight: "800"
+  },
+  endShiftBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: colors.danger,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 14
+  },
+  endShiftBtnText: {
+    color: "#ffffff",
+    fontSize: 12.5,
+    fontWeight: "800"
+  },
   statsGrid: {
     flexDirection: "row",
+    flexWrap: "wrap",
     gap: 8,
     width: "100%",
     borderTopWidth: 1,
     borderTopColor: colors.borderLight,
-    paddingTop: 16
+    paddingTop: 16,
+    justifyContent: "space-between"
   },
   statBox: {
-    flex: 1,
+    width: "31%",
     backgroundColor: colors.surfaceMuted,
     borderRadius: 14,
-    padding: 10,
-    alignItems: "center"
+    padding: 8,
+    alignItems: "center",
+    marginBottom: 4
   },
   statLabel: {
-    fontSize: 10,
+    fontSize: 9.5,
     fontWeight: "700",
-    color: colors.muted
+    color: colors.muted,
+    textAlign: "center"
   },
   statVal: {
-    fontSize: 15,
+    fontSize: 13.5,
     fontWeight: "900",
     color: colors.text,
     marginTop: 3

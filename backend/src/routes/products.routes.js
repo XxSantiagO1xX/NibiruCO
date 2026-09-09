@@ -3,13 +3,9 @@ const router = express.Router();
 const pool = require("../db");
 const auth = require("../middleware/auth");
 const roles = require("../middleware/roles");
+const { getBusinessDayKey } = require("../utils/timezone");
 
 const adminOnly = roles(["admin"]);
-
-function getTodayKey() {
-  const days = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
-  return days[new Date().getDay()];
-}
 
 async function attachComboData(products, client = pool) {
   if (!Array.isArray(products) || !products.length) return products;
@@ -98,7 +94,8 @@ router.get("/all", auth, adminOnly, async (req, res) => {
 
 router.get("/", async (req, res) => {
   try {
-    const today = getTodayKey();
+    const overrideDay = req.query.override_day || req.headers["x-override-day"];
+    const today = getBusinessDayKey(overrideDay);
     const result = await pool.query(
       `
         SELECT p.*

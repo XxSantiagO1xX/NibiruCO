@@ -3,6 +3,7 @@ const router = express.Router();
 const pool = require("../db");
 const auth = require("../middleware/auth");
 const roles = require("../middleware/roles");
+const { getBusinessDateStr } = require("../utils/timezone");
 
 const waiterRoles = roles(["mesero", "admin"]);
 const adminOnly = roles(["admin"]);
@@ -414,9 +415,10 @@ router.get("/waiter-assignments", auth, waiterRoles, async (req, res) => {
   try {
     const waiterId = req.user.role === "mesero"
       ? req.user.id
-      : req.query.waiter_id ? Number(req.query.waiter_id) : null;
+      : req.query.waiter_user_id ? Number(req.query.waiter_user_id) : null;
+    const businessDayStr = getBusinessDateStr();
 
-    const query = `
+    let query = `
       SELECT
         wta.id,
         wta.waiter_user_id,
@@ -430,13 +432,13 @@ router.get("/waiter-assignments", auth, waiterRoles, async (req, res) => {
       FROM waiter_table_assignments wta
       JOIN users u ON u.id = wta.waiter_user_id
       JOIN restaurant_tables t ON t.id = wta.table_id
-      WHERE wta.shift_date = CURRENT_DATE
+      WHERE wta.shift_date = $1::date
         AND wta.active = TRUE
-        ${waiterId ? "AND wta.waiter_user_id = $1" : ""}
+        ${waiterId ? "AND wta.waiter_user_id = $2" : ""}
       ORDER BY t.sort_order, t.name
     `;
 
-    const params = waiterId ? [waiterId] : [];
+    const params = waiterId ? [businessDayStr, waiterId] : [businessDayStr];
     const result = await pool.query(query, params);
     res.json(result.rows);
   } catch (err) {
@@ -453,16 +455,17 @@ router.post("/waiter-assignments", auth, adminOnly, async (req, res) => {
       return res.status(400).json({ message: "Mesero y lista de mesas requeridos" });
     }
 
+    const businessDayStr = getBusinessDateStr();
     await client.query("BEGIN");
 
     for (const tableId of table_ids) {
       await client.query(`
         INSERT INTO waiter_table_assignments
           (waiter_user_id, table_id, shift_date, assigned_by, active)
-        VALUES ($1, $2, CURRENT_DATE, $3, TRUE)
+        VALUES ($1, $2, $3::date, $4, TRUE)
         ON CONFLICT (waiter_user_id, table_id, shift_date)
         DO UPDATE SET active = TRUE
-      `, [waiter_user_id, tableId, req.user.id]);
+      `, [waiter_user_id, tableId, businessDayStr, req.user.id]);
     }
 
     await client.query("COMMIT");

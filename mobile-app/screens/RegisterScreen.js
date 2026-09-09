@@ -1,3 +1,4 @@
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useState, useContext } from "react";
 import {
   View,
@@ -9,8 +10,7 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
-  ScrollView,
-  SafeAreaView
+  ScrollView
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { AppContext } from "../context/AppContext";

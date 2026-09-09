@@ -421,7 +421,7 @@
 
     const socket = io(API, { transports: ['websocket', 'polling'] });
     socket.on('connect', () => {
-      document.getElementById('counter-sync').innerHTML = '<span class="role-dot"></span>● Sincronizado en Vivo';
+      document.getElementById('counter-sync').innerHTML = '<span class="role-dot"></span>Sincronizado en Vivo';
     });
     socket.on('disconnect', () => {
       document.getElementById('counter-sync').innerHTML = '<span class="role-dot" style="background:#dc2626"></span>Reconectando…';
@@ -494,10 +494,11 @@
         statusBadgeHtml = `<span class="status-badge-hub badge-hub-delivered">✅ Entregado</span>`;
       } else if (isReady) {
         if (serviceType === 'domicilio') {
+          const tripBadge = order.trip_folio ? ` · Viaje #${order.trip_folio}` : '';
           if (stage === 'en_ruta') {
-            statusBadgeHtml = `<span class="status-badge-hub badge-hub-transit">🚚 En ruta</span>`;
+            statusBadgeHtml = `<span class="status-badge-hub badge-hub-transit">🚚 En ruta${tripBadge}</span>`;
           } else if (stage === 'esperando_recogida' || order.driver_name) {
-            statusBadgeHtml = `<span class="status-badge-hub badge-hub-ready">🛵 ${escapeHtml(order.driver_name || 'Repartidor')} asignado · esperando recogida</span>`;
+            statusBadgeHtml = `<span class="status-badge-hub badge-hub-ready">🛵 ${escapeHtml(order.driver_name || 'Repartidor')} asignado${tripBadge}</span>`;
           } else if (stage === 'oferta_enviada' && summary.active_offer) {
             statusBadgeHtml = `<span class="status-badge-hub badge-hub-prep" style="background:#fef3c7;color:#b45309;border-color:#fde68a">🛵 Oferta enviada a ${escapeHtml(summary.active_offer.driver_name || 'Chofer')} (${summary.active_offer.seconds_left}s)</span>`;
           } else {
@@ -557,14 +558,15 @@
 
       if (serviceType === 'domicilio') {
         let driverInfo = '';
+        const tripLabel = order.trip_folio ? ` · <strong>Viaje #${order.trip_folio}</strong>` : '';
         if (isDelivered) {
           driverInfo = order.driver_name
-            ? `🛵 <strong>Entregado por:</strong> ${escapeHtml(order.driver_name)}`
-            : `✅ <strong>Entrega finalizada</strong>`;
+            ? `🛵 <strong>Entregado por:</strong> ${escapeHtml(order.driver_name)}${tripLabel}`
+            : `✅ <strong>Entrega finalizada</strong>${tripLabel}`;
         } else if (stage === 'en_ruta') {
-          driverInfo = `🚚 <strong>En ruta con:</strong> ${escapeHtml(order.driver_name || 'Repartidor')} ${order.delivery_pin ? `· <strong>PIN:</strong> ${order.delivery_pin}` : ''}`;
+          driverInfo = `🚚 <strong>En ruta con:</strong> ${escapeHtml(order.driver_name || 'Repartidor')}${tripLabel} ${order.delivery_pin ? `· <strong>PIN:</strong> ${order.delivery_pin}` : ''}`;
         } else if (stage === 'esperando_recogida' || order.driver_name) {
-          driverInfo = `🛵 <strong>Repartidor asignado:</strong> ${escapeHtml(order.driver_name)} ${order.delivery_pin ? `· <strong>PIN:</strong> ${order.delivery_pin}` : ''}`;
+          driverInfo = `🛵 <strong>Repartidor asignado:</strong> ${escapeHtml(order.driver_name)}${tripLabel} ${order.delivery_pin ? `· <strong>PIN:</strong> ${order.delivery_pin}` : ''}`;
         } else if (stage === 'oferta_enviada' && summary.active_offer) {
           driverInfo = `🛵 <strong>Oferta exclusiva:</strong> ${escapeHtml(summary.active_offer.driver_name)} (${summary.active_offer.seconds_left}s restantes)`;
         } else if (isReady) {

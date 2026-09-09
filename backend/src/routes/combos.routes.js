@@ -190,14 +190,117 @@ router.patch("/groups/:groupId/options/:optionId", auth, adminOnly, async (req, 
   }
 });
 
-router.delete("/groups/:groupId", auth, adminOnly, async (req, res) => {
+router.put("/:productId", auth, adminOnly, async (req, res) => {
   try {
-    const result = await pool.query("DELETE FROM combo_groups WHERE id = $1 RETURNING id", [Number(req.params.groupId)]);
-    if (!result.rows.length) return res.status(404).json({ message: "Grupo no encontrado" });
-    res.json({ ok: true });
+    const productId = Number(req.params.productId);
+    const name = String(req.body.name || "").trim();
+    const price = Number(req.body.price);
+
+    if (!Number.isInteger(productId) || !name || !Number.isFinite(price) || price <= 0) {
+      return res.status(400).json({ message: "Nombre y precio válido son requeridos" });
+    }
+
+    const result = await pool.query(
+      `
+        UPDATE products
+        SET name = $1, price = $2
+        WHERE id = $3 AND product_kind = 'combo'
+        RETURNING *
+      `,
+      [name, price, productId]
+    );
+
+    if (!result.rows.length) {
+      return res.status(404).json({ message: "Combo no encontrado" });
+    }
+
+    res.json(await getCombo(productId));
   } catch (err) {
     console.error(err);
-    res.status(500).json({ message: "Error eliminando grupo" });
+    res.status(500).json({ message: "Error actualizando combo" });
+  }
+});
+
+router.delete("/:productId", auth, adminOnly, async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const productId = Number(req.params.productId);
+    if (!Number.isInteger(productId)) {
+      return res.status(400).json({ message: "ID de combo inválido" });
+    }
+
+    await client.query("BEGIN");
+    await client.query("DELETE FROM menu WHERE product_id = $1", [productId]);
+    const result = await client.query(
+      "DELETE FROM products WHERE id = $1 AND product_kind = 'combo' RETURNING id",
+      [productId]
+    );
+
+    if (!result.rows.length) {
+      await client.query("ROLLBACK");
+      return res.status(404).json({ message: "Combo no encontrado" });
+    }
+
+    await client.query("COMMIT");
+    res.json({ ok: true, message: "Combo eliminado" });
+  } catch (err) {
+    try { await client.query("ROLLBACK"); } catch (_) {}
+    console.error(err);
+    res.status(500).json({ message: "Error eliminando combo" });
+  } finally {
+    client.release();
+  }
+});
+
+router.delete("/groups/:groupId/options/:optionId", auth, adminOnly, async (req, res) => {
+  try {
+    const groupId = Number(req.params.groupId);
+    const optionId = Number(req.params.optionId);
+
+    const result = await pool.query(
+      "DELETE FROM combo_group_options WHERE group_id = $1 AND id = $2 RETURNING id",
+      [groupId, optionId]
+    );
+
+    if (!result.rows.length) {
+      return res.status(404).json({ message: "Opción no encontrada" });
+    }
+
+    res.json({ ok: true, message: "Opción eliminada del grupo" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Error eliminando opción" });
+  }
+});
+
+router.patch("/groups/:groupId/options/:optionId/price", auth, adminOnly, async (req, res) => {
+  try {
+    const groupId = Number(req.params.groupId);
+    const optionId = Number(req.params.optionId);
+    const extraPrice = Number(req.body.extra_price || 0);
+
+    if (!Number.isFinite(extraPrice) || extraPrice < 0) {
+      return res.status(400).json({ message: "Precio extra inválido" });
+    }
+
+    const result = await pool.query(
+      `
+        UPDATE combo_group_options
+        SET extra_price = $1
+        WHERE group_id = $2 AND id = $3
+        RETURNING *
+      `,
+      [extraPrice, groupId, optionId]
+    );
+
+    if (!result.rows.length) {
+      return res.status(404).json({ message: "Opción no encontrada" });
+    }
+
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Error actualizando precio extra" });
   }
 });
 

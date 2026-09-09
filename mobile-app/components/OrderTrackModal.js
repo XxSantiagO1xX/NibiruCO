@@ -1,3 +1,4 @@
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useState, useEffect, useCallback } from "react";
 import {
   View,
@@ -6,13 +7,26 @@ import {
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
-  SafeAreaView
+  ScrollView,
+  Image
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import axios from "axios";
 import { API_URL } from "../config/api";
 import colors from "../theme/colors";
 import { openPhoneCall } from "../utils/navigation";
+
+const STAGES = [
+  { key: "recibido", label: "Recibido", icon: "receipt-outline" },
+  { key: "confirmado", label: "Confirmado", icon: "checkmark-circle-outline" },
+  { key: "preparando", label: "En Cocina", icon: "flame-outline" },
+  { key: "listo", label: "Listo", icon: "cube-outline" },
+  { key: "buscando_repartidor", label: "Buscando Chofer", icon: "search-outline" },
+  { key: "repartidor_asignado", label: "Chofer Asignado", icon: "person-outline" },
+  { key: "repartidor_recogiendo", label: "Recogiendo", icon: "bag-check-outline" },
+  { key: "en_camino", label: "En Camino", icon: "bicycle-outline" },
+  { key: "entregado", label: "Entregado", icon: "home-outline" },
+];
 
 export default function OrderTrackModal({
   visible,
@@ -49,8 +63,19 @@ export default function OrderTrackModal({
   if (!visible) return null;
 
   const isArrived = trackingData?.stop_status === "arrived";
-  const isInTransit = trackingData?.trip_status === "in_transit";
+  const isInTransit = trackingData?.trip_status === "in_transit" || trackingData?.operational_stage === "en_camino";
+  const isDelivered = trackingData?.status === "entregado" || trackingData?.operational_stage === "entregado";
   const stopsBefore = Number(trackingData?.stops_before || 0);
+
+  const currentStageKey = trackingData?.operational_stage || "recibido";
+  const currentStageIndex = STAGES.findIndex(s => s.key === currentStageKey);
+  const activeIndex = currentStageIndex >= 0 ? currentStageIndex : 0;
+
+  const driver = trackingData?.driver || {};
+  const driverName = driver.name || trackingData?.driver_name;
+  const driverPhone = driver.phone || trackingData?.driver_phone;
+  const driverAvatar = driver.avatar_url;
+  const avatarFullUrl = driverAvatar ? (driverAvatar.startsWith("http") ? driverAvatar : `${API_URL}${driverAvatar}`) : null;
 
   return (
     <Modal
@@ -86,9 +111,9 @@ export default function OrderTrackModal({
               <Text style={styles.loadingText}>Cargando estado en tiempo real...</Text>
             </View>
           ) : (
-            <View style={styles.content}>
+            <ScrollView style={styles.scrollView} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
               {/* PIN Card Highlight */}
-              {trackingData?.delivery_pin ? (
+              {trackingData?.delivery_pin && !isDelivered ? (
                 <View style={styles.pinCard}>
                   <View style={styles.pinIconCircle}>
                     <Ionicons name="key" size={22} color={colors.primary} />
@@ -104,28 +129,83 @@ export default function OrderTrackModal({
               ) : null}
 
               {/* Status Banner */}
-              <View style={[styles.statusCard, isArrived ? styles.statusCardArrived : isInTransit ? styles.statusCardTransit : styles.statusCardPrep]}>
+              <View style={[styles.statusCard, isDelivered ? styles.statusCardDelivered : isArrived ? styles.statusCardArrived : isInTransit ? styles.statusCardTransit : styles.statusCardPrep]}>
                 <Ionicons
-                  name={isArrived ? "home" : isInTransit ? "bicycle" : "restaurant"}
+                  name={isDelivered ? "checkmark-done-circle" : isArrived ? "home" : isInTransit ? "bicycle" : "restaurant"}
                   size={24}
-                  color={isArrived ? colors.success : isInTransit ? colors.primary : colors.warning}
+                  color={isDelivered ? colors.success : isArrived ? colors.success : isInTransit ? colors.primary : colors.warning}
                 />
                 <View style={{ flex: 1 }}>
                   <Text style={styles.statusTitle}>
-                    {isArrived
-                      ? "¡El repartidor ha llegado!"
-                      : isInTransit
-                      ? "En camino a tu dirección"
-                      : "Preparando y armando tu pedido"}
+                    {trackingData?.operational_stage_label || (
+                      isDelivered
+                        ? "¡Pedido entregado con éxito!"
+                        : isArrived
+                        ? "¡El repartidor ha llegado a tu puerta!"
+                        : isInTransit
+                        ? "En camino a tu dirección"
+                        : "Preparando y armando tu pedido"
+                    )}
                   </Text>
-                  <Text style={styles.statusEta}>
-                    Tiempo estimado: <Text style={{ fontWeight: "800" }}>{trackingData?.eta_range || "25–35 min"}</Text>
-                  </Text>
+                  {!isDelivered && (
+                    <Text style={styles.statusEta}>
+                      Tiempo estimado: <Text style={{ fontWeight: "800" }}>{trackingData?.eta_range || (trackingData?.eta_minutes ? `${trackingData.eta_minutes} min` : "20–30 min")}</Text>
+                    </Text>
+                  )}
+                </View>
+              </View>
+
+              {/* 9-Stage Progress Timeline */}
+              <View style={styles.timelineCard}>
+                <Text style={styles.timelineTitle}>Progreso de tu Pedido</Text>
+                <View style={styles.timelineSteps}>
+                  {STAGES.map((st, idx) => {
+                    const isDone = idx < activeIndex;
+                    const isCurrent = idx === activeIndex;
+                    return (
+                      <View key={st.key} style={styles.stepRow}>
+                        <View style={styles.stepIndicatorCol}>
+                          <View
+                            style={[
+                              styles.stepCircle,
+                              isDone && styles.stepCircleDone,
+                              isCurrent && styles.stepCircleCurrent
+                            ]}
+                          >
+                            <Ionicons
+                              name={isDone ? "checkmark" : st.icon}
+                              size={12}
+                              color={isDone || isCurrent ? "#ffffff" : colors.muted}
+                            />
+                          </View>
+                          {idx < STAGES.length - 1 && (
+                            <View
+                              style={[
+                                styles.stepLine,
+                                isDone && styles.stepLineDone
+                              ]}
+                            />
+                          )}
+                        </View>
+                        <View style={styles.stepTextCol}>
+                          <Text
+                            style={[
+                              styles.stepLabel,
+                              isCurrent && styles.stepLabelCurrent,
+                              isDone && styles.stepLabelDone
+                            ]}
+                          >
+                            {st.label}
+                          </Text>
+                        </View>
+                      </View>
+                    );
+                  })}
                 </View>
               </View>
 
               {/* Prior Stops notice */}
-              {stopsBefore > 0 && isInTransit && !isArrived ? (
+              {stopsBefore > 0 && isInTransit && !isArrived && !isDelivered ? (
                 <View style={styles.stopsNotice}>
                   <Ionicons name="navigate-circle-outline" size={20} color={colors.info} />
                   <Text style={styles.stopsNoticeText}>
@@ -135,19 +215,26 @@ export default function OrderTrackModal({
               ) : null}
 
               {/* Driver Contact */}
-              {trackingData?.driver_name ? (
+              {driverName && !isDelivered ? (
                 <View style={styles.driverCard}>
                   <View style={styles.driverAvatar}>
-                    <Ionicons name="person" size={20} color="#ffffff" />
+                    {avatarFullUrl ? (
+                      <Image source={{ uri: avatarFullUrl }} style={styles.driverAvatarImg} />
+                    ) : (
+                      <Ionicons name="person" size={20} color="#ffffff" />
+                    )}
                   </View>
                   <View style={styles.driverInfo}>
                     <Text style={styles.driverRole}>Tu Repartidor Asignado</Text>
-                    <Text style={styles.driverName}>{trackingData.driver_name}</Text>
+                    <Text style={styles.driverName}>{driverName}</Text>
+                    {driver.short_code ? (
+                      <Text style={styles.driverCode}>ID: {driver.short_code}</Text>
+                    ) : null}
                   </View>
-                  {trackingData.driver_phone ? (
+                  {driverPhone ? (
                     <TouchableOpacity
                       style={styles.callBtn}
-                      onPress={() => openPhoneCall(trackingData.driver_phone)}
+                      onPress={() => openPhoneCall(driverPhone)}
                       activeOpacity={0.8}
                     >
                       <Ionicons name="call" size={16} color="#ffffff" />
@@ -163,9 +250,9 @@ export default function OrderTrackModal({
                 activeOpacity={0.8}
               >
                 <Ionicons name="refresh" size={16} color={colors.primary} />
-                <Text style={styles.refreshBtnText}>Actualizar Ubicación</Text>
+                <Text style={styles.refreshBtnText}>Actualizar Estado</Text>
               </TouchableOpacity>
-            </View>
+            </ScrollView>
           )}
         </SafeAreaView>
       </View>
@@ -309,6 +396,83 @@ const styles = StyleSheet.create({
     color: colors.muted,
     marginTop: 3
   },
+  statusCardDelivered: {
+    backgroundColor: colors.successSoft,
+    borderColor: colors.successBorder
+  },
+  timelineCard: {
+    backgroundColor: colors.surface,
+    borderRadius: 20,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: colors.borderLight
+  },
+  timelineTitle: {
+    fontSize: 13,
+    fontWeight: "800",
+    color: colors.text,
+    marginBottom: 12,
+    textTransform: "uppercase",
+    letterSpacing: 0.5
+  },
+  timelineSteps: {
+    paddingLeft: 4
+  },
+  stepRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    minHeight: 32
+  },
+  stepIndicatorCol: {
+    alignItems: "center",
+    width: 22,
+    marginRight: 10
+  },
+  stepCircle: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: colors.surfaceMuted,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    alignItems: "center",
+    justifyContent: "center"
+  },
+  stepCircleDone: {
+    backgroundColor: colors.success,
+    borderColor: colors.success
+  },
+  stepCircleCurrent: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary
+  },
+  stepLine: {
+    width: 2,
+    height: 14,
+    backgroundColor: colors.borderLight,
+    marginVertical: 2
+  },
+  stepLineDone: {
+    backgroundColor: colors.success
+  },
+  stepTextCol: {
+    flex: 1,
+    paddingTop: 1
+  },
+  stepLabel: {
+    fontSize: 12,
+    color: colors.muted,
+    fontWeight: "600"
+  },
+  stepLabelCurrent: {
+    color: colors.primary,
+    fontWeight: "800",
+    fontSize: 12.5
+  },
+  stepLabelDone: {
+    color: colors.text,
+    fontWeight: "700"
+  },
   stopsNotice: {
     flexDirection: "row",
     alignItems: "center",
@@ -337,12 +501,18 @@ const styles = StyleSheet.create({
     gap: 12
   },
   driverAvatar: {
-    width: 40,
-    height: 40,
+    width: 44,
+    height: 44,
     borderRadius: 14,
     backgroundColor: colors.primary,
     alignItems: "center",
-    justifyContent: "center"
+    justifyContent: "center",
+    overflow: "hidden"
+  },
+  driverAvatarImg: {
+    width: "100%",
+    height: "100%",
+    resizeMode: "cover"
   },
   driverInfo: {
     flex: 1
@@ -358,6 +528,12 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     color: colors.text,
     marginTop: 2
+  },
+  driverCode: {
+    fontSize: 10.5,
+    fontWeight: "700",
+    color: colors.primary,
+    marginTop: 1
   },
   callBtn: {
     flexDirection: "row",

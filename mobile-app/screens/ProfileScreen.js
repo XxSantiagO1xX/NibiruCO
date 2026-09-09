@@ -1,3 +1,4 @@
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useContext } from "react";
 import {
   View,
@@ -5,8 +6,8 @@ import {
   TouchableOpacity,
   StyleSheet,
   Alert,
-  SafeAreaView,
-  ScrollView
+  ScrollView,
+  Image
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { AppContext } from "../context/AppContext";
@@ -60,12 +61,18 @@ export default function ProfileScreen({ navigation }) {
 
   const roleText =
     user.role === "admin"
-      ? "Administrador"
+      ? "Administrador MealOps"
+      : user.role === "repartidor"
+      ? "Repartidor / Despacho Móvil"
       : user.role === "cocina"
-      ? "Cocina / Chef"
+      ? "Cocina / Chef KDS"
       : user.role === "mesero"
-      ? "Mesero / Sala"
+      ? "Mesero / Servicio en Sala"
       : "Cliente MealOps";
+
+  const avatarUrl = user.avatar_url
+    ? (user.avatar_url.startsWith("http") ? user.avatar_url : `${API_URL}${user.avatar_url}`)
+    : null;
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -75,14 +82,21 @@ export default function ProfileScreen({ navigation }) {
         {/* User Card */}
         <View style={styles.userCard}>
           <View style={styles.userAvatar}>
-            <Text style={styles.avatarText}>
-              {(user.name || "U")[0].toUpperCase()}
-            </Text>
+            {avatarUrl ? (
+              <Image source={{ uri: avatarUrl }} style={styles.avatarImg} />
+            ) : (
+              <Text style={styles.avatarText}>
+                {(user.name || "U")[0].toUpperCase()}
+              </Text>
+            )}
           </View>
 
           <View style={styles.userInfo}>
             <Text style={styles.userName}>{user.name || "Usuario"}</Text>
             <Text style={styles.userPhone}>{user.phone}</Text>
+            {user.short_code ? (
+              <Text style={styles.userCode}>ID: {user.short_code}</Text>
+            ) : null}
             {user.email ? (
               <Text style={styles.userEmail}>{user.email}</Text>
             ) : null}
@@ -95,8 +109,64 @@ export default function ProfileScreen({ navigation }) {
         </View>
 
         {/* Menu Options Section */}
-        <Text style={styles.sectionTitle}>Opciones de Cuenta</Text>
+        <Text style={styles.sectionTitle}>Opciones Operativas y de Cuenta</Text>
         <View style={styles.menuCard}>
+          {user.role === "repartidor" && (
+            <>
+              <TouchableOpacity
+                style={styles.menuRow}
+                onPress={() => navigation.navigate("Reparto")}
+                activeOpacity={0.7}
+              >
+                <View style={[styles.menuIconCircle, { backgroundColor: colors.primarySoft }]}>
+                  <Ionicons name="bicycle-outline" size={18} color={colors.primary} />
+                </View>
+                <View style={styles.menuTextCol}>
+                  <Text style={styles.menuTitle}>Mi Ruta de Reparto</Text>
+                  <Text style={styles.menuSubtitle}>Ver viajes, paradas y ofertas activas</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color={colors.textSubtle} />
+              </TouchableOpacity>
+              <View style={styles.menuDivider} />
+
+              <TouchableOpacity
+                style={styles.menuRow}
+                onPress={() => navigation.navigate("Corte")}
+                activeOpacity={0.7}
+              >
+                <View style={[styles.menuIconCircle, { backgroundColor: colors.successSoft }]}>
+                  <Ionicons name="cash-outline" size={18} color={colors.success} />
+                </View>
+                <View style={styles.menuTextCol}>
+                  <Text style={styles.menuTitle}>Corte de Turno</Text>
+                  <Text style={styles.menuSubtitle}>Control de efectivo y liquidaciones</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color={colors.textSubtle} />
+              </TouchableOpacity>
+              <View style={styles.menuDivider} />
+            </>
+          )}
+
+          {user.role === "admin" && (
+            <>
+              <TouchableOpacity
+                style={styles.menuRow}
+                onPress={() => navigation.navigate("AdminDeliveryDispatch")}
+                activeOpacity={0.7}
+              >
+                <View style={[styles.menuIconCircle, { backgroundColor: colors.primarySoft }]}>
+                  <Ionicons name="shield-checkmark-outline" size={18} color={colors.primary} />
+                </View>
+                <View style={styles.menuTextCol}>
+                  <Text style={styles.menuTitle}>Control de Despacho</Text>
+                  <Text style={styles.menuSubtitle}>Monitoreo de pedidos y repartidores</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color={colors.textSubtle} />
+              </TouchableOpacity>
+              <View style={styles.menuDivider} />
+            </>
+          )}
+
           <TouchableOpacity
             style={styles.menuRow}
             onPress={() => navigation.navigate("Addresses")}
@@ -244,7 +314,13 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.3,
     shadowRadius: 6,
-    elevation: 3
+    elevation: 3,
+    overflow: "hidden"
+  },
+  avatarImg: {
+    width: "100%",
+    height: "100%",
+    resizeMode: "cover"
   },
   avatarText: {
     color: "#ffffff",
@@ -264,6 +340,12 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: colors.muted,
     marginTop: 2
+  },
+  userCode: {
+    fontSize: 11,
+    fontWeight: "800",
+    color: colors.primary,
+    marginTop: 1
   },
   userEmail: {
     fontSize: 11,

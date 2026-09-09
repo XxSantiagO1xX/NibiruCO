@@ -3,16 +3,7 @@ const router = express.Router();
 const pool = require("../db");
 const auth = require("../middleware/auth");
 const roles = require("../middleware/roles");
-
-const VALID_DAYS = [
-  "monday",
-  "tuesday",
-  "wednesday",
-  "thursday",
-  "friday",
-  "saturday",
-  "sunday"
-];
+const { VALID_DAYS } = require("../utils/timezone");
 
 router.get("/", async (req, res) => {
   try {

@@ -5,12 +5,14 @@ const pool = require("../db");
 const auth = require("../middleware/auth");
 const roles = require("../middleware/roles");
 const dispatchEngine = require("../services/dispatchEngine");
+const { getBusinessDateStr } = require("../utils/timezone");
 
 const counterRoles = roles(["mesero", "cocina", "repartidor", "admin"]);
 
 // 1. OBTENER TODOS LOS PEDIDOS DE MOSTRADOR (NÚCLEO OPERATIVO CENTRAL)
 router.get("/orders", auth, counterRoles, async (req, res) => {
   try {
+    const businessDayStr = getBusinessDateStr();
     const result = await pool.query(`
       SELECT
         o.id,
@@ -45,6 +47,7 @@ router.get("/orders", auth, counterRoles, async (req, res) => {
         ua.address,
         ua.details,
         dt.id AS trip_id,
+        dt.trip_folio,
         dt.status AS trip_status,
         drv.name AS driver_name,
         drv.phone AS driver_phone,
@@ -89,7 +92,7 @@ router.get("/orders", auth, counterRoles, async (req, res) => {
       LEFT JOIN users wu ON wu.id = ts.opened_by
       LEFT JOIN waiter_table_assignments wta
         ON wta.table_id = rt.id
-       AND wta.shift_date = CURRENT_DATE
+       AND wta.shift_date = $1::date
        AND wta.active = TRUE
       LEFT JOIN users shift_wu ON shift_wu.id = wta.waiter_user_id
       LEFT JOIN delivery_trip_stops dts ON dts.order_id = o.id
@@ -97,16 +100,16 @@ router.get("/orders", auth, counterRoles, async (req, res) => {
       LEFT JOIN users drv ON drv.id = COALESCE(dt.driver_user_id, o.delivery_driver_id)
       LEFT JOIN delivery_assignment_offers dao
         ON dao.status = 'pending'
-       AND o.status NOT IN ('entregado', 'cancelado')
-       AND o.id = ANY(dao.order_ids)
-       AND dao.expires_at > NOW()
+        AND o.status NOT IN ('entregado', 'cancelado')
+        AND o.id = ANY(dao.order_ids)
+        AND dao.expires_at > NOW()
       LEFT JOIN users offer_drv ON offer_drv.id = dao.driver_user_id
       LEFT JOIN order_items oi ON oi.order_id = o.id
       LEFT JOIN products p ON p.id = oi.product_id
-      WHERE o.service_date = CURRENT_DATE
-         OR o.created_at::date = CURRENT_DATE
+      WHERE o.service_date = $1::date
+         OR o.created_at::date = $1::date
       GROUP BY
-        o.id, u.id, ua.id, ts.id, rt.id, wu.id, wta.id, shift_wu.id, dt.id, drv.id, dao.id, dao.driver_user_id, offer_drv.name, dao.expires_at
+        o.id, u.id, ua.id, ts.id, rt.id, wu.id, wta.id, shift_wu.id, dt.id, dt.trip_folio, drv.id, dao.id, dao.driver_user_id, offer_drv.name, dao.expires_at
       ORDER BY
         CASE
           WHEN o.status = 'listo' THEN 1
@@ -115,7 +118,7 @@ router.get("/orders", auth, counterRoles, async (req, res) => {
         END,
         COALESCE(o.pickup_at, o.created_at) ASC,
         o.id ASC
-    `);
+    `, [businessDayStr]);
 
     const orders = result.rows.map((order) => {
       const items = Array.isArray(order.items) ? order.items : [];
@@ -370,10 +373,14 @@ router.patch("/orders/:id/deliver", auth, counterRoles, async (req, res) => {
 
     const result = await client.query(`
       UPDATE orders
-      SET status = 'entregado'
+      SET status = 'entregado',
+          payment_status = CASE WHEN payment_status = 'paid' THEN payment_status ELSE 'paid' END,
+          payment_collected_by = COALESCE(payment_collected_by, 'business'),
+          payment_collector_user_id = COALESCE(payment_collector_user_id, $2),
+          payment_collected_at = COALESCE(payment_collected_at, NOW())
       WHERE id = $1 AND status = 'listo'
       RETURNING *
-    `, [id]);
+    `, [id, req.user.id]);
 
     if (!result.rows.length) {
       await client.query("ROLLBACK");
@@ -445,14 +452,15 @@ router.patch("/orders/:id/deliver", auth, counterRoles, async (req, res) => {
 router.post("/orders/:id/notify-waiter", auth, counterRoles, async (req, res) => {
   try {
     const id = Number(req.params.id);
+    const businessDayStr = getBusinessDateStr();
     const orderRes = await pool.query(`
       SELECT o.id, o.folio, rt.name AS table_name, ts.opened_by AS waiter_id, wta.waiter_user_id AS shift_waiter_id
       FROM orders o
       LEFT JOIN table_sessions ts ON ts.id = o.table_session_id
       LEFT JOIN restaurant_tables rt ON rt.id = ts.table_id
-      LEFT JOIN waiter_table_assignments wta ON wta.table_id = rt.id AND wta.shift_date = CURRENT_DATE AND wta.active = TRUE
+      LEFT JOIN waiter_table_assignments wta ON wta.table_id = rt.id AND wta.shift_date = $2::date AND wta.active = TRUE
       WHERE o.id = $1
-    `, [id]);
+    `, [id, businessDayStr]);
 
     if (!orderRes.rows.length) return res.status(404).json({ message: "Pedido no encontrado" });
     const order = orderRes.rows[0];

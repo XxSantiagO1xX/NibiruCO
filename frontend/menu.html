@@ -56,7 +56,7 @@
       <header class="page-header">
         <div>
           <h1>Menú semanal</h1>
-          <p>Selecciona los productos y combos de comida corrida que estarán disponibles cada día.</p>
+          <p>Selecciona los productos y combos que estarán disponibles cada día.</p>
         </div>
         <div class="header-actions">
           <a href="combos.html" class="btn btn-secondary" style="margin-right: 8px;">Administrar combos</a>
@@ -83,7 +83,7 @@
 
       <div class="menu-tabs">
         <button class="menu-tab active" id="tab-all" onclick="setFilter('all')">Todos los artículos</button>
-        <button class="menu-tab" id="tab-combos" onclick="setFilter('combos')">✨ Combos y Comida corrida</button>
+        <button class="menu-tab" id="tab-combos" onclick="setFilter('combos')">🍱 Combos</button>
         <button class="menu-tab" id="tab-regular" onclick="setFilter('regular')">🍽️ Platillos individuales</button>
       </div>
 
@@ -164,7 +164,7 @@
                 <strong>${escapeHtml(product.name)}</strong>
                 ${isCombo ? `<span class="badge badge-combo">Combo (${groupCount} grupos)</span>` : ''}
               </div>
-              <small>${formatCurrency(product.price)} · ${product.available ? 'Disponible' : 'Agotado'} · ${isCombo ? 'Comida corrida configurable' : (product.kitchen_required ? 'Cocina' : 'Entrega directa')}</small>
+              <small>${formatCurrency(product.price)} · ${product.available ? 'Disponible' : 'Agotado'} · ${isCombo ? 'Combo configurable' : (product.kitchen_required ? 'Cocina' : 'Entrega directa')}</small>
             </div>
             <div class="list-actions">
               <span class="badge ${active ? 'badge-success' : 'badge-neutral'}">${active ? 'En el menú' : 'Fuera del menú'}</span>
