@@ -4,6 +4,11 @@ require("dotenv").config({
   path: path.resolve(__dirname, "../.env")
 });
 
+if (!process.env.JWT_SECRET || !process.env.JWT_SECRET.trim()) {
+  console.error("FATAL: La variable de entorno JWT_SECRET no está configurada. El servidor MealOps no puede iniciar.");
+  process.exit(1);
+}
+
 const express = require("express");
 const cors = require("cors");
 const http = require("http");
@@ -13,7 +18,7 @@ const app = express();
 const pool = require("./db");
 const ensureOperationalSchema = require("./schema");
 const jwt = require("jsonwebtoken");
-const JWT_SECRET = process.env.JWT_SECRET || "mealops_secret_key_2026";
+const JWT_SECRET = process.env.JWT_SECRET;
 
 const allowedOrigins = (process.env.CORS_ORIGINS || "")
   .split(",")
