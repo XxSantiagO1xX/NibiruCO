@@ -103,6 +103,34 @@ app.set("io", io);
 
 io.on("connection", (socket) => {
   console.log("Cliente conectado:", socket.id);
+
+  // Private room subscription for client user
+  socket.on("join-user", (userId) => {
+    if (userId) {
+      socket.join(`user_${userId}`);
+    }
+  });
+
+  // Private room subscription for order tracking
+  socket.on("join-order", (orderId) => {
+    if (orderId) {
+      socket.join(`order_${orderId}`);
+    }
+  });
+
+  socket.on("leave-order", (orderId) => {
+    if (orderId) {
+      socket.leave(`order_${orderId}`);
+    }
+  });
+
+  // Room subscription for driver trip
+  socket.on("join-trip", (tripId) => {
+    if (tripId) {
+      socket.join(`trip_${tripId}`);
+    }
+  });
+
   socket.on("disconnect", () => {
     console.log("Cliente desconectado:", socket.id);
   });

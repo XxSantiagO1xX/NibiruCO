@@ -657,9 +657,31 @@ router.patch("/my-trip/start", auth, driverOrAdmin, async (req, res) => {
 });
 
 // 8. Marcar llegada al domicilio (Repartidor) — Dispara notificación en vivo al cliente
+// 8. Marcar llegada a la parada (Repartidor) — Evento "Ya llegué"
 router.patch("/stops/:id/arrived", auth, driverOrAdmin, async (req, res) => {
   try {
     const stopId = Number(req.params.id);
+
+    // Obtener parada y validar autorización
+    const stopRes = await pool.query(`
+      SELECT dts.*, dt.driver_user_id, o.id AS order_id, o.folio, o.user_id AS customer_user_id, drv.name AS driver_name
+      FROM delivery_trip_stops dts
+      JOIN delivery_trips dt ON dt.id = dts.trip_id
+      JOIN orders o ON o.id = dts.order_id
+      JOIN users drv ON drv.id = dt.driver_user_id
+      WHERE dts.id = $1
+    `, [stopId]);
+
+    if (!stopRes.rows.length) {
+      return res.status(404).json({ message: "Parada no encontrada" });
+    }
+
+    const stop = stopRes.rows[0];
+
+    // Validación de pertenencia si el usuario es repartidor (admin tiene override)
+    if (req.user.role === "repartidor" && Number(stop.driver_user_id) !== Number(req.user.id)) {
+      return res.status(403).json({ message: "No tienes autorización para modificar paradas de otro repartidor" });
+    }
 
     const result = await pool.query(`
       UPDATE delivery_trip_stops
@@ -668,48 +690,47 @@ router.patch("/stops/:id/arrived", auth, driverOrAdmin, async (req, res) => {
       RETURNING *
     `, [stopId]);
 
-    if (!result.rows.length) {
-      return res.status(404).json({ message: "Parada no encontrada" });
-    }
+    const updatedStop = result.rows[0];
 
-    const stop = result.rows[0];
-
-    // Obtener datos del pedido y repartidor para notificar al cliente
-    const orderRes = await pool.query(`
-      SELECT o.id, o.folio, o.user_id, o.customer_name, dt.trip_folio, drv.name AS driver_name
-      FROM orders o
-      JOIN delivery_trip_stops dts ON dts.order_id = o.id
-      JOIN delivery_trips dt ON dt.id = dts.trip_id
-      JOIN users drv ON drv.id = dt.driver_user_id
-      WHERE dts.id = $1
-    `, [stopId]);
-
-    const orderData = orderRes.rows[0];
     const io = req.app.get("io");
     if (io) {
-      io.emit("stop-arrived", {
-        stop_id: stop.id,
-        trip_id: stop.trip_id,
-        order_id: stop.order_id,
-        folio: orderData?.folio,
-        customer_name: orderData?.customer_name,
-        driver_name: orderData?.driver_name,
-        arrived_at: stop.arrived_at,
-        message: "¡Tu repartidor ya llegó a tu domicilio!"
-      });
-      io.emit("delivery-updated", { trip_id: stop.trip_id, driver_id: req.user.id });
+      // Evento privado enviado únicamente a los rooms del pedido y del cliente dueño
+      if (stop.order_id) {
+        io.to(`order_${stop.order_id}`).emit("stop-arrived", {
+          stop_id: updatedStop.id,
+          order_id: stop.order_id,
+          arrived_at: updatedStop.arrived_at,
+          tracking_stage: "repartidor_llego",
+          message: "¡Tu repartidor ya llegó a tu domicilio!"
+        });
+      }
+      if (stop.customer_user_id) {
+        io.to(`user_${stop.customer_user_id}`).emit("stop-arrived", {
+          stop_id: updatedStop.id,
+          order_id: stop.order_id,
+          arrived_at: updatedStop.arrived_at,
+          tracking_stage: "repartidor_llego",
+          message: "¡Tu repartidor ya llegó a tu domicilio!"
+        });
+      }
+
+      // Señales genéricas operativas para choferes y mostrador (sin datos privados del cliente)
+      io.emit("delivery-updated", { trip_id: updatedStop.trip_id, driver_id: stop.driver_user_id });
       io.emit("orders-updated");
       io.emit("counter-updated");
     }
 
     // Push notification al cliente
-    if (orderData?.user_id) {
-      pushNotification.notifyCustomerDeliveryArrived(orderData.user_id, orderData).catch((pushErr) => {
+    if (stop.customer_user_id) {
+      pushNotification.notifyCustomerDeliveryArrived(stop.customer_user_id, {
+        folio: stop.folio,
+        driver_name: stop.driver_name
+      }).catch((pushErr) => {
         console.error("Push customer arrived error:", pushErr?.message || pushErr);
       });
     }
 
-    res.json(stop);
+    res.json(updatedStop);
   } catch (err) {
     console.error("STOP ARRIVED ERROR:", err);
     res.status(500).json({ message: "Error marcando llegada" });
@@ -729,8 +750,9 @@ router.post("/stops/:id/verify-pin", auth, driverOrAdmin, async (req, res) => {
     }
 
     const stopRes = await client.query(`
-      SELECT dts.*, o.delivery_pin, o.total, o.payment_method, o.cash_paid_with, o.cash_change_due
+      SELECT dts.*, dt.driver_user_id, o.delivery_pin, o.total, o.payment_method, o.cash_paid_with, o.cash_change_due, o.user_id AS customer_user_id
       FROM delivery_trip_stops dts
+      JOIN delivery_trips dt ON dt.id = dts.trip_id
       JOIN orders o ON o.id = dts.order_id
       WHERE dts.id = $1
     `, [stopId]);
@@ -740,6 +762,11 @@ router.post("/stops/:id/verify-pin", auth, driverOrAdmin, async (req, res) => {
     }
 
     const stop = stopRes.rows[0];
+
+    // Validación de pertenencia si el usuario es repartidor (admin tiene override)
+    if (req.user.role === "repartidor" && Number(stop.driver_user_id) !== Number(driverUserId)) {
+      return res.status(403).json({ message: "No tienes autorización para modificar paradas de otro repartidor" });
+    }
 
     if (stop.delivery_pin !== pin) {
       return res.status(400).json({ message: "PIN incorrecto. Pídele al cliente que revise su app de MealOps." });
@@ -968,6 +995,12 @@ router.post("/stops/:id/report-issue", auth, driverOrAdmin, async (req, res) => 
     }
 
     const stop = stopRes.rows[0];
+
+    // Validación de pertenencia si el usuario es repartidor (admin tiene override)
+    if (req.user.role === "repartidor" && Number(stop.driver_user_id) !== Number(driverUserId)) {
+      await client.query("ROLLBACK");
+      return res.status(403).json({ message: "No tienes autorización para reportar incidencias en paradas de otro repartidor" });
+    }
 
     // 1. Marcar parada como failed
     await client.query(`
@@ -1224,6 +1257,7 @@ router.get("/orders/:id/track", auth, async (req, res) => {
         dts.delivered_at,
         dt.id AS trip_id,
         dt.trip_folio,
+        dt.driver_user_id AS driver_id,
         dt.status AS trip_status,
         dt.current_lat AS driver_lat,
         dt.current_lng AS driver_lng,
@@ -1231,6 +1265,7 @@ router.get("/orders/:id/track", auth, async (req, res) => {
         drv.phone AS driver_phone,
         drv.short_code AS driver_short_code,
         drv.avatar_url AS driver_avatar_url,
+        drv.driver_status AS driver_status,
         (SELECT dao.id FROM delivery_assignment_offers dao
          WHERE o.id = ANY(dao.order_ids) AND dao.status = 'pending' AND dao.expires_at > NOW()
          LIMIT 1) AS active_offer_id
@@ -1265,7 +1300,7 @@ router.get("/orders/:id/track", auth, async (req, res) => {
       stopsBefore = stopsBeforeRes.rows[0].count;
     }
 
-    // Determinar etapa operativa dominante (9 etapas)
+    // Determinar etapa operativa dominante (10 etapas unificadas conceptuales)
     let trackingStage = "confirmado";
     if (order.status === "entregado" || order.stop_status === "delivered") {
       trackingStage = "entregado";
@@ -1279,7 +1314,11 @@ router.get("/orders/:id/track", auth, async (req, res) => {
         trackingStage = "en_ruta";
       }
     } else if (order.trip_status === "assigned") {
-      trackingStage = "esperando_recogida";
+      if (order.driver_status === "esperando_recogida") {
+        trackingStage = "esperando_recogida";
+      } else {
+        trackingStage = "repartidor_asignado";
+      }
     } else if (order.active_offer_id) {
       trackingStage = "buscando_repartidor";
     } else if (order.status === "listo") {
@@ -1307,6 +1346,7 @@ router.get("/orders/:id/track", auth, async (req, res) => {
       estimated_arrival_at: order.estimated_arrival_at,
       delivery_pin: order.delivery_pin,
       driver_info: order.driver_name ? {
+        id: order.driver_id,
         name: order.driver_name,
         short_code: order.driver_short_code || "REP-01",
         avatar_url: order.driver_avatar_url || null,

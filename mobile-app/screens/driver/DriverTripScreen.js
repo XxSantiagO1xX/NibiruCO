@@ -24,7 +24,14 @@ import EmptyState from "../../components/EmptyState";
 import DriverVerifyPinModal from "./DriverVerifyPinModal";
 import DriverIssueModal from "./DriverIssueModal";
 import DriverOfferModal from "./DriverOfferModal";
-import { openWazeNavigation, openPhoneCall } from "../../utils/navigation";
+import {
+  openPreferredNavigation,
+  openWazeNavigation,
+  openGoogleMapsNavigation,
+  openPhoneCall,
+  getNavPreference,
+  setNavPreference
+} from "../../utils/navigation";
 
 export default function DriverTripScreen({ navigation }) {
   const { token, user, refreshUser, tripsUpdateSignal, orderUpdateSignal, offerUpdateSignal } = useContext(AppContext);
@@ -38,6 +45,7 @@ export default function DriverTripScreen({ navigation }) {
   const [refreshing, setRefreshing] = useState(false);
   const [startingTrip, setStartingTrip] = useState(false);
   const [respondingOffer, setRespondingOffer] = useState(false);
+  const [navPreference, setNavPreferenceState] = useState("waze");
 
   // Modals state
   const [pinModalVisible, setPinModalVisible] = useState(false);
@@ -312,10 +320,23 @@ export default function DriverTripScreen({ navigation }) {
     );
   }
 
+  useEffect(() => {
+    getNavPreference().then((pref) => setNavPreferenceState(pref));
+  }, []);
+
+  const handleToggleNavPreference = async () => {
+    const nextPref = navPreference === "waze" ? "google_maps" : "waze";
+    await setNavPreference(nextPref);
+    setNavPreferenceState(nextPref);
+  };
+
   const trip = tripData?.trip;
   const stops = Array.isArray(tripData?.stops) ? tripData.stops : [];
   const isInTransit = trip?.status === "in_transit";
   const isAssigned = trip?.status === "assigned";
+  const tripFolioDisplay = trip?.trip_folio
+    ? `Viaje #${String(trip.trip_folio).padStart(2, "0")}`
+    : `Viaje #${trip?.id || "Activo"}`;
 
   // Total cash to collect
   const totalCashToCollect = stops.reduce((sum, s) => {
@@ -337,7 +358,7 @@ export default function DriverTripScreen({ navigation }) {
                 ESPERANDO RECOGIDA
               </Text>
             </View>
-            <Text style={styles.dominantSubtitle}>Viaje #{trip?.id || "Activo"}</Text>
+            <Text style={styles.dominantSubtitle}>{tripFolioDisplay}</Text>
           </View>
           <Text style={styles.dominantTitle}>
             Pasa a Mostrador a recoger {stops.length} {stops.length === 1 ? "pedido" : "pedidos"}
@@ -651,7 +672,7 @@ export default function DriverTripScreen({ navigation }) {
             <View style={styles.tripCard}>
               <View style={styles.tripHeaderRow}>
                 <View>
-                  <Text style={styles.tripId}>Viaje #{trip.id}</Text>
+                  <Text style={styles.tripId}>{tripFolioDisplay}</Text>
                   <Text style={styles.stopsCount}>
                     {stops.length} {stops.length === 1 ? "entrega agrupada" : "entregas agrupadas"}
                   </Text>
@@ -676,6 +697,26 @@ export default function DriverTripScreen({ navigation }) {
                     {isInTransit ? "En Ruta" : "Listo en Restaurante"}
                   </Text>
                 </View>
+              </View>
+
+              {/* Navigation Preference Bar */}
+              <View style={styles.navPrefRow}>
+                <Text style={styles.navPrefLabel}>Navegación GPS:</Text>
+                <TouchableOpacity
+                  style={styles.navPrefBadge}
+                  onPress={handleToggleNavPreference}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons
+                    name={navPreference === "google_maps" ? "map" : "navigate"}
+                    size={13}
+                    color={colors.primary}
+                  />
+                  <Text style={styles.navPrefValue}>
+                    {navPreference === "google_maps" ? "Google Maps" : "Waze"}
+                  </Text>
+                  <Ionicons name="swap-horizontal" size={12} color={colors.muted} />
+                </TouchableOpacity>
               </View>
 
               {/* Cash collection alert */}
@@ -806,11 +847,11 @@ export default function DriverTripScreen({ navigation }) {
                   {/* Actions if pending */}
                   {!isDelivered && !isFailed && (
                     <View style={styles.stopActions}>
-                      {/* Waze / Maps */}
+                      {/* Preferred GPS Navigation */}
                       <TouchableOpacity
                         style={styles.wazeBtn}
                         onPress={() =>
-                          openWazeNavigation(
+                          openPreferredNavigation(
                             stop.latitude,
                             stop.longitude,
                             stop.address
@@ -818,8 +859,14 @@ export default function DriverTripScreen({ navigation }) {
                         }
                         activeOpacity={0.8}
                       >
-                        <Ionicons name="navigate" size={16} color="#ffffff" />
-                        <Text style={styles.wazeBtnText}>Navegar Waze</Text>
+                        <Ionicons
+                          name={navPreference === "google_maps" ? "map" : "navigate"}
+                          size={16}
+                          color="#ffffff"
+                        />
+                        <Text style={styles.wazeBtnText}>
+                          {navPreference === "google_maps" ? "Google Maps" : "Navegar Waze"}
+                        </Text>
                       </TouchableOpacity>
 
                       {/* Arrived button */}
@@ -1124,6 +1171,38 @@ const styles = StyleSheet.create({
   tripStatusText: {
     fontSize: 11,
     fontWeight: "800"
+  },
+  navPrefRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: colors.surfaceMuted,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.borderLight
+  },
+  navPrefLabel: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: colors.muted
+  },
+  navPrefBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    backgroundColor: colors.surface,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.border
+  },
+  navPrefValue: {
+    fontSize: 12,
+    fontWeight: "800",
+    color: colors.primary
   },
   cashAlertBox: {
     flexDirection: "row",

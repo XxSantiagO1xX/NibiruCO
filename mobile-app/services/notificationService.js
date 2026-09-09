@@ -59,15 +59,19 @@ export async function registerForPushNotificationsAsync(token, apiBaseUrl) {
         Constants?.expoConfig?.extra?.eas?.projectId ??
         Constants?.easConfig?.projectId;
 
+      if (!projectId) {
+        console.log("[NOTIFICATIONS] Proyecto no vinculado a EAS (projectId no definido). Para push nativo ejecuta 'eas init' / 'eas project:init'. Continuando en modo local/Expo Go.");
+      }
+
       const pushTokenData = await Notifications.getExpoPushTokenAsync(
         projectId ? { projectId } : undefined
       );
       pushToken = pushTokenData?.data;
     } catch (tokenErr) {
-      console.log("[NOTIFICATIONS] Aviso: Push remoto no disponible en este entorno (normal en Expo Go):", tokenErr.message);
+      console.log("[NOTIFICATIONS] Aviso: Push remoto no disponible en este entorno (normal en Expo Go / desarrollo local):", tokenErr.message);
     }
   } else {
-    console.log("[NOTIFICATIONS] Ejecutando en simulador.");
+    console.log("[NOTIFICATIONS] Ejecutando en simulador o entorno no-físico.");
   }
 
   if (pushToken && token && apiBaseUrl) {

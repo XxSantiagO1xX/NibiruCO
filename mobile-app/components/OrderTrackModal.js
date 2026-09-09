@@ -1,5 +1,5 @@
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useContext } from "react";
 import {
   View,
   Text,
@@ -12,20 +12,23 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import axios from "axios";
+import { AppContext } from "../context/AppContext";
 import { API_URL } from "../config/api";
 import colors from "../theme/colors";
 import { openPhoneCall } from "../utils/navigation";
 
+// 10 Etapas Operativas Unificadas
 const STAGES = [
-  { key: "recibido", label: "Recibido", icon: "receipt-outline" },
   { key: "confirmado", label: "Confirmado", icon: "checkmark-circle-outline" },
   { key: "preparando", label: "En Cocina", icon: "flame-outline" },
   { key: "listo", label: "Listo", icon: "cube-outline" },
   { key: "buscando_repartidor", label: "Buscando Chofer", icon: "search-outline" },
   { key: "repartidor_asignado", label: "Chofer Asignado", icon: "person-outline" },
-  { key: "repartidor_recogiendo", label: "Recogiendo", icon: "bag-check-outline" },
-  { key: "en_camino", label: "En Camino", icon: "bicycle-outline" },
-  { key: "entregado", label: "Entregado", icon: "home-outline" },
+  { key: "esperando_recogida", label: "En Sucursal", icon: "bag-check-outline" },
+  { key: "en_ruta", label: "En Ruta", icon: "bicycle-outline" },
+  { key: "repartidor_cercano", label: "Chofer Cercano", icon: "navigate-outline" },
+  { key: "repartidor_llego", label: "¡Ya Llegó!", icon: "home-outline" },
+  { key: "entregado", label: "Entregado", icon: "checkmark-done-circle-outline" },
 ];
 
 export default function OrderTrackModal({
@@ -34,6 +37,7 @@ export default function OrderTrackModal({
   token,
   onClose
 }) {
+  const { socket } = useContext(AppContext);
   const [trackingData, setTrackingData] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -51,31 +55,100 @@ export default function OrderTrackModal({
     }
   }, [orderId, token]);
 
+  // Suscripción en vivo por Socket.io (Room del pedido) + polling de respaldo
   useEffect(() => {
-    if (visible) {
+    if (visible && orderId) {
       setLoading(true);
       loadTracking();
-      const interval = setInterval(loadTracking, 8000);
-      return () => clearInterval(interval);
+
+      // Unirse al room privado del pedido
+      if (socket) {
+        socket.emit("join-order", orderId);
+
+        const handleStopArrived = (data) => {
+          if (data && (Number(data.order_id) === Number(orderId) || !data.order_id)) {
+            setTrackingData((prev) => prev ? {
+              ...prev,
+              tracking_stage: "repartidor_llego",
+              arrived_at: data.arrived_at || new Date().toISOString()
+            } : prev);
+            loadTracking();
+          }
+        };
+
+        const handleOrderUpdated = (data) => {
+          if (!data || Number(data.id) === Number(orderId) || Number(data.order_id) === Number(orderId)) {
+            loadTracking();
+          }
+        };
+
+        socket.on("stop-arrived", handleStopArrived);
+        socket.on("order-updated", handleOrderUpdated);
+        socket.on("orders-updated", loadTracking);
+        socket.on("delivery-updated", loadTracking);
+
+        const interval = setInterval(loadTracking, 8000);
+
+        return () => {
+          clearInterval(interval);
+          socket.emit("leave-order", orderId);
+          socket.off("stop-arrived", handleStopArrived);
+          socket.off("order-updated", handleOrderUpdated);
+          socket.off("orders-updated", loadTracking);
+          socket.off("delivery-updated", loadTracking);
+        };
+      } else {
+        const interval = setInterval(loadTracking, 8000);
+        return () => clearInterval(interval);
+      }
     }
-  }, [visible, loadTracking]);
+  }, [visible, orderId, socket, loadTracking]);
 
   if (!visible) return null;
 
-  const isArrived = trackingData?.stop_status === "arrived";
-  const isInTransit = trackingData?.trip_status === "in_transit" || trackingData?.operational_stage === "en_camino";
-  const isDelivered = trackingData?.status === "entregado" || trackingData?.operational_stage === "entregado";
+  const stageKey = trackingData?.tracking_stage || "confirmado";
+  const isArrived = stageKey === "repartidor_llego" || trackingData?.stop_status === "arrived";
+  const isDelivered = stageKey === "entregado" || trackingData?.status === "entregado";
+  const isInTransit = stageKey === "en_ruta" || stageKey === "repartidor_cercano" || trackingData?.trip_status === "in_transit";
+  const isNearby = stageKey === "repartidor_cercano";
   const stopsBefore = Number(trackingData?.stops_before || 0);
 
-  const currentStageKey = trackingData?.operational_stage || "recibido";
-  const currentStageIndex = STAGES.findIndex(s => s.key === currentStageKey);
+  const currentStageIndex = STAGES.findIndex((s) => s.key === stageKey);
   const activeIndex = currentStageIndex >= 0 ? currentStageIndex : 0;
 
-  const driver = trackingData?.driver || {};
-  const driverName = driver.name || trackingData?.driver_name;
-  const driverPhone = driver.phone || trackingData?.driver_phone;
-  const driverAvatar = driver.avatar_url;
+  // Datos normalizados del chofer
+  const driver = trackingData?.driver_info || null;
+  const driverName = driver?.name || null;
+  const driverPhone = driver?.phone || null;
+  const driverShortCode = driver?.short_code || null;
+  const driverAvatar = driver?.avatar_url || null;
   const avatarFullUrl = driverAvatar ? (driverAvatar.startsWith("http") ? driverAvatar : `${API_URL}${driverAvatar}`) : null;
+
+  const getStageTitle = () => {
+    switch (stageKey) {
+      case "entregado":
+        return "¡Pedido entregado con éxito!";
+      case "repartidor_llego":
+        return "¡El repartidor ha llegado a tu puerta!";
+      case "repartidor_cercano":
+        return "¡Tu repartidor está muy cerca de tu domicilio!";
+      case "en_ruta":
+        return "Tu pedido va en camino a tu dirección";
+      case "esperando_recogida":
+        return "El repartidor está en sucursal recogiendo tu pedido";
+      case "repartidor_asignado":
+        return "Repartidor asignado, en camino a la sucursal";
+      case "buscando_repartidor":
+        return "Buscando repartidor disponible en la zona";
+      case "listo":
+        return "Tu pedido está listo y empaquetado";
+      case "preparando":
+        return "En cocina preparando tus platillos";
+      case "confirmado":
+      default:
+        return "Pedido recibido y confirmado";
+    }
+  };
 
   return (
     <Modal
@@ -129,23 +202,42 @@ export default function OrderTrackModal({
               ) : null}
 
               {/* Status Banner */}
-              <View style={[styles.statusCard, isDelivered ? styles.statusCardDelivered : isArrived ? styles.statusCardArrived : isInTransit ? styles.statusCardTransit : styles.statusCardPrep]}>
+              <View
+                style={[
+                  styles.statusCard,
+                  isDelivered
+                    ? styles.statusCardDelivered
+                    : isArrived
+                    ? styles.statusCardArrived
+                    : isInTransit
+                    ? styles.statusCardTransit
+                    : styles.statusCardPrep
+                ]}
+              >
                 <Ionicons
-                  name={isDelivered ? "checkmark-done-circle" : isArrived ? "home" : isInTransit ? "bicycle" : "restaurant"}
+                  name={
+                    isDelivered
+                      ? "checkmark-done-circle"
+                      : isArrived
+                      ? "home"
+                      : isInTransit
+                      ? "bicycle"
+                      : "restaurant"
+                  }
                   size={24}
-                  color={isDelivered ? colors.success : isArrived ? colors.success : isInTransit ? colors.primary : colors.warning}
+                  color={
+                    isDelivered
+                      ? colors.success
+                      : isArrived
+                      ? colors.success
+                      : isInTransit
+                      ? colors.primary
+                      : colors.warning
+                  }
                 />
                 <View style={{ flex: 1 }}>
                   <Text style={styles.statusTitle}>
-                    {trackingData?.operational_stage_label || (
-                      isDelivered
-                        ? "¡Pedido entregado con éxito!"
-                        : isArrived
-                        ? "¡El repartidor ha llegado a tu puerta!"
-                        : isInTransit
-                        ? "En camino a tu dirección"
-                        : "Preparando y armando tu pedido"
-                    )}
+                    {getStageTitle()}
                   </Text>
                   {!isDelivered && (
                     <Text style={styles.statusEta}>
@@ -155,7 +247,7 @@ export default function OrderTrackModal({
                 </View>
               </View>
 
-              {/* 9-Stage Progress Timeline */}
+              {/* 10-Stage Progress Timeline */}
               <View style={styles.timelineCard}>
                 <Text style={styles.timelineTitle}>Progreso de tu Pedido</Text>
                 <View style={styles.timelineSteps}>
@@ -227,8 +319,8 @@ export default function OrderTrackModal({
                   <View style={styles.driverInfo}>
                     <Text style={styles.driverRole}>Tu Repartidor Asignado</Text>
                     <Text style={styles.driverName}>{driverName}</Text>
-                    {driver.short_code ? (
-                      <Text style={styles.driverCode}>ID: {driver.short_code}</Text>
+                    {driverShortCode ? (
+                      <Text style={styles.driverCode}>ID: {driverShortCode}</Text>
                     ) : null}
                   </View>
                   {driverPhone ? (
@@ -243,6 +335,24 @@ export default function OrderTrackModal({
                   ) : null}
                 </View>
               ) : null}
+
+              {/* Live Tracking Architecture Container (Ready for MapLibre/Google/Geoapify renderer) */}
+              {isInTransit && trackingData?.customer_lat && (
+                <View style={styles.routeCard}>
+                  <View style={styles.routeHeader}>
+                    <Ionicons name="map-outline" size={18} color={colors.primary} />
+                    <Text style={styles.routeTitle}>Ruta en Tiempo Real</Text>
+                    <View style={styles.routeBadge}>
+                      <Text style={styles.routeBadgeText}>{trackingData.eta_range || "En camino"}</Text>
+                    </View>
+                  </View>
+                  <Text style={styles.routeDesc}>
+                    {isNearby
+                      ? "📍 El repartidor está a menos de 5 minutos de tu domicilio."
+                      : "📍 Tu repartidor avanza por la ruta óptima hacia tu dirección."}
+                  </Text>
+                </View>
+              )}
 
               <TouchableOpacity
                 style={styles.refreshBtn}
@@ -564,5 +674,40 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: "700",
     color: colors.primary
+  },
+  routeCard: {
+    backgroundColor: colors.surface,
+    padding: 16,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+    gap: 8
+  },
+  routeHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8
+  },
+  routeTitle: {
+    fontSize: 13,
+    fontWeight: "800",
+    color: colors.text,
+    flex: 1
+  },
+  routeBadge: {
+    backgroundColor: colors.primarySoft,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8
+  },
+  routeBadgeText: {
+    fontSize: 11,
+    fontWeight: "800",
+    color: colors.primary
+  },
+  routeDesc: {
+    fontSize: 12,
+    color: colors.muted,
+    lineHeight: 16
   }
 });

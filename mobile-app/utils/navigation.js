@@ -1,4 +1,43 @@
 import { Linking, Platform } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+
+export const NAV_PREFERENCE_KEY = "@mealops_nav_preference";
+
+/**
+ * Obtiene la app de navegación preferida guardada ('waze' o 'google_maps').
+ */
+export async function getNavPreference() {
+  try {
+    const saved = await AsyncStorage.getItem(NAV_PREFERENCE_KEY);
+    return saved === "google_maps" ? "google_maps" : "waze";
+  } catch (_) {
+    return "waze";
+  }
+}
+
+/**
+ * Guarda la app de navegación preferida ('waze' o 'google_maps').
+ */
+export async function setNavPreference(pref) {
+  try {
+    const value = pref === "google_maps" ? "google_maps" : "waze";
+    await AsyncStorage.setItem(NAV_PREFERENCE_KEY, value);
+    return value;
+  } catch (_) {
+    return pref;
+  }
+}
+
+/**
+ * Abre la app de navegación según la preferencia del usuario (Waze o Google Maps).
+ */
+export async function openPreferredNavigation(arg1, arg2, arg3) {
+  const pref = await getNavPreference();
+  if (pref === "google_maps") {
+    return openGoogleMapsNavigation(arg1, arg2, arg3);
+  }
+  return openWazeNavigation(arg1, arg2, arg3);
+}
 
 /**
  * Normaliza los parámetros de navegación aceptando:
@@ -109,4 +148,5 @@ export function openPhoneCall(phoneNumber) {
     console.warn("No se pudo iniciar la llamada:", err);
   });
 }
+
 
