@@ -53,7 +53,10 @@
       domicilio: 'Domicilio'
     };
 
-    const socket = io(API, { transports: ['websocket', 'polling'] });
+    const socket = io(API, {
+      auth: { token: localStorage.getItem('token') },
+      transports: ['websocket', 'polling']
+    });
     socket.on('connect', () => {
       document.getElementById('kds-stats').textContent = '● Sincronizado';
     });

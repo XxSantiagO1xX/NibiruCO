@@ -96,9 +96,10 @@ export default function AppProvider({ children }) {
     checkAuth();
   }, [checkAuth]);
 
-  // Setup Socket.io
+  // Setup Socket.io with Auth
   useEffect(() => {
     const s = io(API_URL, {
+      auth: { token: token || null },
       transports: ["websocket", "polling"],
       reconnectionAttempts: 10,
       reconnectionDelay: 2000
@@ -168,6 +169,16 @@ export default function AppProvider({ children }) {
       s.disconnect();
     };
   }, []);
+
+  // Sync token to socket.auth when user logs in or logs out
+  useEffect(() => {
+    if (socket) {
+      socket.auth = { token: token || null };
+      if (socket.connected) {
+        socket.disconnect().connect();
+      }
+    }
+  }, [token, socket]);
 
   // Auth methods
   const login = async (phone, password) => {

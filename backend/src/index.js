@@ -10,8 +10,10 @@ const http = require("http");
 const { Server } = require("socket.io");
 
 const app = express();
-require("./db");
+const pool = require("./db");
 const ensureOperationalSchema = require("./schema");
+const jwt = require("jsonwebtoken");
+const JWT_SECRET = process.env.JWT_SECRET || "mealops_secret_key_2026";
 
 const allowedOrigins = (process.env.CORS_ORIGINS || "")
   .split(",")
@@ -101,38 +103,154 @@ const io = new Server(server, {
 
 app.set("io", io);
 
-io.on("connection", (socket) => {
-  console.log("Cliente conectado:", socket.id);
+// Socket.io JWT Authentication Middleware
+io.use((socket, next) => {
+  try {
+    const rawToken =
+      socket.handshake.auth?.token ||
+      (socket.handshake.headers?.authorization
+        ? socket.handshake.headers.authorization.replace(/^Bearer\s+/i, "")
+        : null) ||
+      socket.handshake.query?.token;
 
-  // Private room subscription for client user
+    if (!rawToken) {
+      socket.user = null;
+      return next();
+    }
+
+    const decoded = jwt.verify(rawToken, JWT_SECRET);
+    socket.user = decoded;
+    return next();
+  } catch (err) {
+    // If token invalid/expired, connect as unauthenticated guest
+    socket.user = null;
+    return next();
+  }
+});
+
+io.on("connection", (socket) => {
+  // Auto-join authenticated user private room
+  if (socket.user && socket.user.id) {
+    socket.join(`user_${socket.user.id}`);
+  }
+
+  // Safe client user room join (only allows joining own user room)
   socket.on("join-user", (userId) => {
-    if (userId) {
-      socket.join(`user_${userId}`);
+    if (socket.user && socket.user.id && Number(userId) === Number(socket.user.id)) {
+      socket.join(`user_${socket.user.id}`);
     }
   });
 
-  // Private room subscription for order tracking
-  socket.on("join-order", (orderId) => {
-    if (orderId) {
-      socket.join(`order_${orderId}`);
+  // Private room subscription for order tracking with strict authorization
+  socket.on("join-order", async (orderId, callback) => {
+    const cb = typeof callback === "function" ? callback : () => {};
+    if (!socket.user) {
+      socket.emit("auth-error", { message: "Autenticación requerida para acceder al pedido" });
+      return cb({ ok: false, error: "unauthorized" });
+    }
+
+    const numOrderId = parseInt(orderId, 10);
+    if (!numOrderId || isNaN(numOrderId)) {
+      socket.emit("auth-error", { message: "ID de pedido inválido" });
+      return cb({ ok: false, error: "invalid_order_id" });
+    }
+
+    try {
+      // Staff roles with operational access
+      const staffRoles = ["admin", "mostrador", "mesero", "cocina"];
+      if (staffRoles.includes(socket.user.role)) {
+        socket.join(`order_${numOrderId}`);
+        return cb({ ok: true });
+      }
+
+      // Check order ownership or driver assignment
+      const orderRes = await pool.query(
+        `SELECT o.id, o.user_id, dt.driver_user_id
+         FROM orders o
+         LEFT JOIN delivery_trip_stops dts ON dts.order_id = o.id
+         LEFT JOIN delivery_trips dt ON dt.id = dts.trip_id
+         WHERE o.id = $1
+         LIMIT 1`,
+        [numOrderId]
+      );
+
+      if (orderRes.rowCount === 0) {
+        socket.emit("auth-error", { message: "Pedido no encontrado" });
+        return cb({ ok: false, error: "order_not_found" });
+      }
+
+      const order = orderRes.rows[0];
+      const isOwner = Number(order.user_id) === Number(socket.user.id);
+      const isAssignedDriver = Number(order.driver_user_id) === Number(socket.user.id);
+
+      if (isOwner || isAssignedDriver) {
+        socket.join(`order_${numOrderId}`);
+        return cb({ ok: true });
+      } else {
+        socket.emit("auth-error", { message: "No autorizado para ver este pedido" });
+        return cb({ ok: false, error: "forbidden" });
+      }
+    } catch (err) {
+      console.error("Error authorizing join-order:", err);
+      socket.emit("auth-error", { message: "Error interno al autorizar pedido" });
+      return cb({ ok: false, error: "server_error" });
     }
   });
 
   socket.on("leave-order", (orderId) => {
-    if (orderId) {
-      socket.leave(`order_${orderId}`);
+    const numOrderId = parseInt(orderId, 10);
+    if (numOrderId) {
+      socket.leave(`order_${numOrderId}`);
     }
   });
 
-  // Room subscription for driver trip
-  socket.on("join-trip", (tripId) => {
-    if (tripId) {
-      socket.join(`trip_${tripId}`);
+  // Room subscription for driver trip with strict authorization
+  socket.on("join-trip", async (tripId, callback) => {
+    const cb = typeof callback === "function" ? callback : () => {};
+    if (!socket.user) {
+      socket.emit("auth-error", { message: "Autenticación requerida para acceder al viaje" });
+      return cb({ ok: false, error: "unauthorized" });
+    }
+
+    const numTripId = parseInt(tripId, 10);
+    if (!numTripId || isNaN(numTripId)) {
+      socket.emit("auth-error", { message: "ID de viaje inválido" });
+      return cb({ ok: false, error: "invalid_trip_id" });
+    }
+
+    try {
+      if (["admin", "mostrador"].includes(socket.user.role)) {
+        socket.join(`trip_${numTripId}`);
+        return cb({ ok: true });
+      }
+
+      const tripRes = await pool.query(
+        `SELECT id, driver_user_id FROM delivery_trips WHERE id = $1`,
+        [numTripId]
+      );
+
+      if (tripRes.rowCount === 0) {
+        socket.emit("auth-error", { message: "Viaje no encontrado" });
+        return cb({ ok: false, error: "trip_not_found" });
+      }
+
+      const trip = tripRes.rows[0];
+      if (Number(trip.driver_user_id) === Number(socket.user.id)) {
+        socket.join(`trip_${numTripId}`);
+        return cb({ ok: true });
+      } else {
+        socket.emit("auth-error", { message: "No autorizado para ver este viaje" });
+        return cb({ ok: false, error: "forbidden" });
+      }
+    } catch (err) {
+      console.error("Error authorizing join-trip:", err);
+      socket.emit("auth-error", { message: "Error interno al autorizar viaje" });
+      return cb({ ok: false, error: "server_error" });
     }
   });
 
   socket.on("disconnect", () => {
-    console.log("Cliente desconectado:", socket.id);
+    // disconnected
   });
 });
 

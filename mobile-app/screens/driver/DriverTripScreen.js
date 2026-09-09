@@ -59,6 +59,16 @@ export default function DriverTripScreen({ navigation }) {
 
   const appState = useRef(AppState.currentState);
 
+  useEffect(() => {
+    getNavPreference().then((pref) => setNavPreferenceState(pref));
+  }, []);
+
+  const handleToggleNavPreference = async () => {
+    const nextPref = navPreference === "waze" ? "google_maps" : "waze";
+    await setNavPreference(nextPref);
+    setNavPreferenceState(nextPref);
+  };
+
   const loadData = useCallback(async () => {
     if (!token) return;
     try {
@@ -319,16 +329,6 @@ export default function DriverTripScreen({ navigation }) {
       </SafeAreaView>
     );
   }
-
-  useEffect(() => {
-    getNavPreference().then((pref) => setNavPreferenceState(pref));
-  }, []);
-
-  const handleToggleNavPreference = async () => {
-    const nextPref = navPreference === "waze" ? "google_maps" : "waze";
-    await setNavPreference(nextPref);
-    setNavPreferenceState(nextPref);
-  };
 
   const trip = tripData?.trip;
   const stops = Array.isArray(tripData?.stops) ? tripData.stops : [];

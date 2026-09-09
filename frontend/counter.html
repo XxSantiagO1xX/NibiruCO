@@ -419,7 +419,10 @@
     let refreshTimer;
     let knownReadyOrderIds = new Set();
 
-    const socket = io(API, { transports: ['websocket', 'polling'] });
+    const socket = io(API, {
+      auth: { token: localStorage.getItem('token') },
+      transports: ['websocket', 'polling']
+    });
     socket.on('connect', () => {
       document.getElementById('counter-sync').innerHTML = '<span class="role-dot"></span>Sincronizado en Vivo';
     });
