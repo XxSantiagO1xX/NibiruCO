@@ -32,7 +32,7 @@ export default function AppProvider({ children }) {
     }
   }, [token]);
 
-  // Check saved session on mount
+  // Check saved session on initial app mount (bootstrap only)
   const checkAuth = useCallback(async () => {
     try {
       setLoadingAuth(true);
@@ -69,6 +69,28 @@ export default function AppProvider({ children }) {
       setLoadingAuth(false);
     }
   }, []);
+
+  // Silent user sync without modifying loadingAuth or unmounting RootNavigator
+  const refreshUser = useCallback(async () => {
+    try {
+      const activeToken = token || (await AsyncStorage.getItem("token"));
+      if (!activeToken) return null;
+
+      const res = await axios.get(`${API_URL}/users/me`, {
+        headers: { Authorization: `Bearer ${activeToken}` }
+      });
+      if (res.data) {
+        setUser(res.data);
+        await AsyncStorage.setItem("user", JSON.stringify(res.data));
+        return res.data;
+      }
+    } catch (err) {
+      if (err?.response?.status === 401) {
+        await logout();
+      }
+    }
+    return null;
+  }, [token]);
 
   useEffect(() => {
     checkAuth();
@@ -292,6 +314,8 @@ export default function AppProvider({ children }) {
         register,
         logout,
         checkAuth,
+        refreshUser,
+        syncCurrentUser: refreshUser,
 
         // Cart
         cart,

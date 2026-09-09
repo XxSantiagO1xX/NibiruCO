@@ -25,10 +25,9 @@ import DriverVerifyPinModal from "./DriverVerifyPinModal";
 import DriverIssueModal from "./DriverIssueModal";
 import DriverOfferModal from "./DriverOfferModal";
 import { openWazeNavigation, openPhoneCall } from "../../utils/navigation";
-import { registerForPushNotificationsAsync } from "../../services/notificationService";
 
 export default function DriverTripScreen({ navigation }) {
-  const { token, user, checkAuth, tripsUpdateSignal, orderUpdateSignal, offerUpdateSignal } = useContext(AppContext);
+  const { token, user, refreshUser, tripsUpdateSignal, orderUpdateSignal, offerUpdateSignal } = useContext(AppContext);
 
   const [tripData, setTripData] = useState(null);
   const [activeOffer, setActiveOffer] = useState(null);
@@ -100,15 +99,11 @@ export default function DriverTripScreen({ navigation }) {
     loadData();
   }, [loadData, tripsUpdateSignal, orderUpdateSignal, offerUpdateSignal]);
 
-  // App focus / foreground recovery (e.g. coming back from Waze or background)
+  // App focus / foreground recovery without triggering global auth loading
   useFocusEffect(
     useCallback(() => {
       loadData();
-      checkAuth();
-      if (token) {
-        registerForPushNotificationsAsync(token, API_URL).catch(() => {});
-      }
-    }, [loadData, checkAuth, token])
+    }, [loadData])
   );
 
   useEffect(() => {
@@ -118,7 +113,6 @@ export default function DriverTripScreen({ navigation }) {
         nextAppState === "active"
       ) {
         loadData();
-        checkAuth();
       }
       appState.current = nextAppState;
     });
@@ -126,7 +120,7 @@ export default function DriverTripScreen({ navigation }) {
     return () => {
       subscription.remove();
     };
-  }, [loadData, checkAuth]);
+  }, [loadData]);
 
   // Offer countdown timer interval
   useEffect(() => {
@@ -147,7 +141,6 @@ export default function DriverTripScreen({ navigation }) {
   const onRefresh = () => {
     setRefreshing(true);
     loadData();
-    checkAuth();
   };
 
   const handleUpdateStatus = async (newStatus) => {
@@ -159,7 +152,7 @@ export default function DriverTripScreen({ navigation }) {
         { headers: { Authorization: `Bearer ${token}` } }
       );
       setDriverStatus(newStatus);
-      await checkAuth();
+      if (refreshUser) refreshUser().catch(() => {});
       await loadData();
     } catch (err) {
       Alert.alert("Error", err?.response?.data?.message || "No se pudo actualizar estado");
@@ -178,7 +171,7 @@ export default function DriverTripScreen({ navigation }) {
         { headers: { Authorization: `Bearer ${token}` } }
       );
       setActiveOffer(null);
-      await checkAuth();
+      if (refreshUser) refreshUser().catch(() => {});
       await loadData();
       Alert.alert("¡Oferta Aceptada!", "El viaje ha sido asignado a tu ruta. Pasa a recoger el pedido a Mostrador.");
     } catch (err) {
@@ -203,7 +196,7 @@ export default function DriverTripScreen({ navigation }) {
       if (shouldPause) {
         setDriverStatus("pausa");
       }
-      await checkAuth();
+      if (refreshUser) refreshUser().catch(() => {});
       await loadData();
     } catch (err) {
       console.log("Error rejecting offer:", err.message);
@@ -222,8 +215,8 @@ export default function DriverTripScreen({ navigation }) {
         {},
         { headers: { Authorization: `Bearer ${token}` } }
       );
+      if (refreshUser) refreshUser().catch(() => {});
       await loadData();
-      await checkAuth();
       Alert.alert("¡En Ruta!", "Viaje iniciado. Conduce con precaución.");
     } catch (err) {
       Alert.alert("Error", err?.response?.data?.message || "No se pudo iniciar el viaje");
@@ -265,8 +258,8 @@ export default function DriverTripScreen({ navigation }) {
 
       setPinModalVisible(false);
       setActiveStopForPin(null);
+      if (refreshUser) refreshUser().catch(() => {});
       await loadData();
-      await checkAuth();
 
       if (res.data?.trip_completed) {
         Alert.alert("¡Viaje Completado!", "Has entregado todos los pedidos asignados a esta ruta.");
@@ -297,8 +290,8 @@ export default function DriverTripScreen({ navigation }) {
 
       setIssueModalVisible(false);
       setActiveStopForIssue(null);
+      if (refreshUser) refreshUser().catch(() => {});
       await loadData();
-      await checkAuth();
       Alert.alert("Incidencia Reportada", "Se ha notificado al administrador.");
     } catch (err) {
       Alert.alert("Error", err?.response?.data?.message || "No se pudo reportar la incidencia");

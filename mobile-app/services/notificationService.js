@@ -13,10 +13,21 @@ Notifications.setNotificationHandler({
   })
 });
 
+let lastRegisteredUserToken = null;
+let lastRegisteredPushToken = null;
+let isRegistering = false;
+
 /**
  * Registra el dispositivo para recibir notificaciones push en MealOps
  */
 export async function registerForPushNotificationsAsync(token, apiBaseUrl) {
+  if (!token || !apiBaseUrl) return null;
+  if (token === lastRegisteredUserToken && lastRegisteredPushToken) {
+    return lastRegisteredPushToken;
+  }
+  if (isRegistering) return null;
+  isRegistering = true;
+
   let pushToken = null;
 
   if (Platform.OS === "android") {
@@ -66,11 +77,14 @@ export async function registerForPushNotificationsAsync(token, apiBaseUrl) {
         { tokenExpo: pushToken },
         { headers: { Authorization: `Bearer ${token}` } }
       );
+      lastRegisteredUserToken = token;
+      lastRegisteredPushToken = pushToken;
       console.log("[NOTIFICATIONS] Token registrado en backend con éxito.");
     } catch (saveErr) {
       console.log("[NOTIFICATIONS] Error enviando token al backend:", saveErr.message);
     }
   }
 
+  isRegistering = false;
   return pushToken;
 }
