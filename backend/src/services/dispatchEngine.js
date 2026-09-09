@@ -1,4 +1,5 @@
 const pool = require("../db");
+const pushNotification = require("./pushNotification");
 
 /**
  * Obtener la configuración actual de despacho
@@ -357,6 +358,11 @@ async function evaluateDispatchQueue(io) {
 
         assignedDriverIds.add(winner.driver.id);
         generatedOffers.push(offer);
+
+        // Enviar notificación Push al repartidor si tiene token registrado y activo
+        pushNotification.notifyDriverOffer(winner.driver.id, offer, group, timeoutSeconds).catch((pushErr) => {
+          console.error("Push offer dispatch error:", pushErr?.message || pushErr);
+        });
 
         // Emitir eventos en tiempo real
         if (io) {

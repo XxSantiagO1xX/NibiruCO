@@ -3,6 +3,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import axios from "axios";
 import { io } from "socket.io-client";
 import { API_URL } from "../config/api";
+import { registerForPushNotificationsAsync } from "../services/notificationService";
 
 export const AppContext = createContext();
 
@@ -54,6 +55,7 @@ export default function AppProvider({ children }) {
           if (res.data) {
             setUser(res.data);
             await AsyncStorage.setItem("user", JSON.stringify(res.data));
+            registerForPushNotificationsAsync(storedToken, API_URL).catch(() => {});
           }
         } catch (verifyErr) {
           if (verifyErr?.response?.status === 401) {
@@ -163,6 +165,7 @@ export default function AppProvider({ children }) {
 
       setToken(receivedToken);
       setUser(receivedUser);
+      registerForPushNotificationsAsync(receivedToken, API_URL).catch(() => {});
       return res.data;
     }
     throw new Error(res.data?.message || "Error al iniciar sesión");

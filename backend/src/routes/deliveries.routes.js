@@ -295,7 +295,7 @@ router.get("/my-offer", auth, driverOrAdmin, async (req, res) => {
     `, [driverId]);
 
     if (!offerRes.rows.length) {
-      return res.json({ active_offer: null });
+      return res.json({ active_offer: null, offer: null });
     }
 
     const offer = offerRes.rows[0];
@@ -334,14 +334,18 @@ router.get("/my-offer", auth, driverOrAdmin, async (req, res) => {
       .filter((o) => o.payment_method === "efectivo")
       .reduce((sum, o) => sum + o.total, 0);
 
+    const offerPayload = {
+      ...offer,
+      remaining_seconds: Math.max(0, Number(offer.remaining_seconds || 0)),
+      seconds_left: Math.max(0, Number(offer.remaining_seconds || 0)),
+      total_cash_to_collect: totalCashToCollect,
+      total_amount: orders.reduce((sum, o) => sum + o.total, 0),
+      orders
+    };
+
     res.json({
-      active_offer: {
-        ...offer,
-        remaining_seconds: Math.max(0, Number(offer.remaining_seconds || 0)),
-        total_cash_to_collect: totalCashToCollect,
-        total_amount: orders.reduce((sum, o) => sum + o.total, 0),
-        orders
-      }
+      active_offer: offerPayload,
+      offer: offerPayload
     });
   } catch (err) {
     console.error("GET MY OFFER ERROR:", err);
@@ -540,7 +544,7 @@ router.get("/my-trip", auth, driverOrAdmin, async (req, res) => {
     `, [driverId]);
 
     if (!tripRes.rows.length) {
-      return res.json({ active_trip: null });
+      return res.json({ trip: null, stops: [], active_trip: null });
     }
 
     const trip = tripRes.rows[0];
@@ -570,16 +574,21 @@ router.get("/my-trip", auth, driverOrAdmin, async (req, res) => {
       ORDER BY dts.stop_order ASC
     `, [trip.id]);
 
+    const formattedStops = stopsRes.rows.map((s) => ({
+      ...s,
+      total: Number(s.total),
+      order_total: Number(s.total),
+      delivery_fee: Number(s.delivery_fee || 0),
+      cash_paid_with: s.cash_paid_with ? Number(s.cash_paid_with) : null,
+      cash_change_due: s.cash_change_due ? Number(s.cash_change_due) : null
+    }));
+
     res.json({
+      trip,
+      stops: formattedStops,
       active_trip: {
         ...trip,
-        stops: stopsRes.rows.map((s) => ({
-          ...s,
-          total: Number(s.total),
-          delivery_fee: Number(s.delivery_fee || 0),
-          cash_paid_with: s.cash_paid_with ? Number(s.cash_paid_with) : null,
-          cash_change_due: s.cash_change_due ? Number(s.cash_change_due) : null
-        }))
+        stops: formattedStops
       }
     });
   } catch (err) {

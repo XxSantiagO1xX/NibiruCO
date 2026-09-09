@@ -1,4 +1,4 @@
-import { useState, useEffect, useContext, useCallback } from "react";
+import { useState, useEffect, useContext, useCallback, useRef } from "react";
 import {
   View,
   Text,
@@ -8,8 +8,12 @@ import {
   RefreshControl,
   SafeAreaView,
   ActivityIndicator,
-  Alert
+  Alert,
+  AppState,
+  Vibration,
+  Platform
 } from "react-native";
+import { useFocusEffect } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import axios from "axios";
 import { AppContext } from "../../context/AppContext";
@@ -19,7 +23,9 @@ import Header from "../../components/Header";
 import EmptyState from "../../components/EmptyState";
 import DriverVerifyPinModal from "./DriverVerifyPinModal";
 import DriverIssueModal from "./DriverIssueModal";
+import DriverOfferModal from "./DriverOfferModal";
 import { openWazeNavigation, openPhoneCall } from "../../utils/navigation";
+import { registerForPushNotificationsAsync } from "../../services/notificationService";
 
 export default function DriverTripScreen({ navigation }) {
   const { token, user, checkAuth, tripsUpdateSignal, orderUpdateSignal, offerUpdateSignal } = useContext(AppContext);
@@ -44,24 +50,34 @@ export default function DriverTripScreen({ navigation }) {
   const [activeStopForIssue, setActiveStopForIssue] = useState(null);
   const [submittingIssue, setSubmittingIssue] = useState(false);
 
+  const appState = useRef(AppState.currentState);
+
   const loadData = useCallback(async () => {
     if (!token) return;
     try {
-      const [tripRes, offerRes] = await Promise.all([
+      const [tripRes, offerRes, userRes] = await Promise.all([
         axios.get(`${API_URL}/deliveries/my-trip`, {
           headers: { Authorization: `Bearer ${token}` }
         }).catch(() => ({ data: null })),
         axios.get(`${API_URL}/deliveries/my-offer`, {
           headers: { Authorization: `Bearer ${token}` }
-        }).catch(() => ({ data: { offer: null } }))
+        }).catch(() => ({ data: { offer: null, active_offer: null } })),
+        axios.get(`${API_URL}/users/me`, {
+          headers: { Authorization: `Bearer ${token}` }
+        }).catch(() => ({ data: null }))
       ]);
 
       setTripData(tripRes?.data || null);
 
-      const offer = offerRes?.data?.offer || null;
+      if (userRes?.data?.driver_status) {
+        setDriverStatus(userRes.data.driver_status);
+      }
+
+      const offer = offerRes?.data?.offer || offerRes?.data?.active_offer || null;
       setActiveOffer(offer);
       if (offer) {
-        setOfferSecondsLeft(Math.max(0, Number(offer.seconds_left || 0)));
+        const remaining = Number(offer.remaining_seconds ?? offer.seconds_left ?? 0);
+        setOfferSecondsLeft(Math.max(0, remaining));
       } else {
         setOfferSecondsLeft(0);
       }
@@ -77,11 +93,40 @@ export default function DriverTripScreen({ navigation }) {
     if (user?.driver_status) {
       setDriverStatus(user.driver_status);
     }
-  }, [user]);
+  }, [user?.driver_status]);
 
+  // Sockets and external signal updates
   useEffect(() => {
     loadData();
   }, [loadData, tripsUpdateSignal, orderUpdateSignal, offerUpdateSignal]);
+
+  // App focus / foreground recovery (e.g. coming back from Waze or background)
+  useFocusEffect(
+    useCallback(() => {
+      loadData();
+      checkAuth();
+      if (token) {
+        registerForPushNotificationsAsync(token, API_URL).catch(() => {});
+      }
+    }, [loadData, checkAuth, token])
+  );
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener("change", (nextAppState) => {
+      if (
+        appState.current.match(/inactive|background/) &&
+        nextAppState === "active"
+      ) {
+        loadData();
+        checkAuth();
+      }
+      appState.current = nextAppState;
+    });
+
+    return () => {
+      subscription.remove();
+    };
+  }, [loadData, checkAuth]);
 
   // Offer countdown timer interval
   useEffect(() => {
@@ -115,7 +160,7 @@ export default function DriverTripScreen({ navigation }) {
       );
       setDriverStatus(newStatus);
       await checkAuth();
-      loadData();
+      await loadData();
     } catch (err) {
       Alert.alert("Error", err?.response?.data?.message || "No se pudo actualizar estado");
     } finally {
@@ -134,8 +179,8 @@ export default function DriverTripScreen({ navigation }) {
       );
       setActiveOffer(null);
       await checkAuth();
-      loadData();
-      Alert.alert("¡Oferta Aceptada!", "El viaje ha sido asignado a tu ruta.");
+      await loadData();
+      Alert.alert("¡Oferta Aceptada!", "El viaje ha sido asignado a tu ruta. Pasa a recoger el pedido a Mostrador.");
     } catch (err) {
       Alert.alert("Oferta no disponible", err?.response?.data?.message || "La oferta expiró o fue cancelada");
       setActiveOffer(null);
@@ -159,7 +204,7 @@ export default function DriverTripScreen({ navigation }) {
         setDriverStatus("pausa");
       }
       await checkAuth();
-      loadData();
+      await loadData();
     } catch (err) {
       console.log("Error rejecting offer:", err.message);
       setActiveOffer(null);
@@ -177,7 +222,8 @@ export default function DriverTripScreen({ navigation }) {
         {},
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      loadMyTrip();
+      await loadData();
+      await checkAuth();
       Alert.alert("¡En Ruta!", "Viaje iniciado. Conduce con precaución.");
     } catch (err) {
       Alert.alert("Error", err?.response?.data?.message || "No se pudo iniciar el viaje");
@@ -193,7 +239,7 @@ export default function DriverTripScreen({ navigation }) {
         {},
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      loadMyTrip();
+      await loadData();
       Alert.alert("Llegada Notificada", "El cliente ha recibido el aviso de tu llegada.");
     } catch (err) {
       Alert.alert("Error", err?.response?.data?.message || "No se pudo marcar la llegada");
@@ -219,7 +265,8 @@ export default function DriverTripScreen({ navigation }) {
 
       setPinModalVisible(false);
       setActiveStopForPin(null);
-      loadMyTrip();
+      await loadData();
+      await checkAuth();
 
       if (res.data?.trip_completed) {
         Alert.alert("¡Viaje Completado!", "Has entregado todos los pedidos asignados a esta ruta.");
@@ -250,7 +297,8 @@ export default function DriverTripScreen({ navigation }) {
 
       setIssueModalVisible(false);
       setActiveStopForIssue(null);
-      loadMyTrip();
+      await loadData();
+      await checkAuth();
       Alert.alert("Incidencia Reportada", "Se ha notificado al administrador.");
     } catch (err) {
       Alert.alert("Error", err?.response?.data?.message || "No se pudo reportar la incidencia");
@@ -265,7 +313,7 @@ export default function DriverTripScreen({ navigation }) {
         <Header title="Ruta de Entregas" showBrandMark={false} />
         <View style={styles.loaderBox}>
           <ActivityIndicator color={colors.primary} size="large" />
-          <Text style={styles.loaderText}>Cargando viaje activo...</Text>
+          <Text style={styles.loaderText}>Cargando estado de reparto...</Text>
         </View>
       </SafeAreaView>
     );
@@ -284,6 +332,218 @@ export default function DriverTripScreen({ navigation }) {
     return sum;
   }, 0);
 
+  // Render Dominant Header Component
+  const renderDominantHeader = () => {
+    if (isAssigned || driverStatus === "esperando_recogida") {
+      return (
+        <View style={[styles.dominantCard, styles.dominantCardAssigned]}>
+          <View style={styles.dominantTopRow}>
+            <View style={[styles.dominantBadge, styles.dominantBadgeAssigned]}>
+              <Ionicons name="restaurant" size={15} color="#c2410c" />
+              <Text style={[styles.dominantBadgeText, { color: "#c2410c" }]}>
+                ESPERANDO RECOGIDA
+              </Text>
+            </View>
+            <Text style={styles.dominantSubtitle}>Viaje #{trip?.id || "Activo"}</Text>
+          </View>
+          <Text style={styles.dominantTitle}>
+            Pasa a Mostrador a recoger {stops.length} {stops.length === 1 ? "pedido" : "pedidos"}
+          </Text>
+          <Text style={styles.dominantHint}>
+            Verifica que los paquetes coincidan con tus folios antes de iniciar la ruta.
+          </Text>
+          <TouchableOpacity
+            style={[styles.dominantPrimaryBtn, styles.btnStartRoute, startingTrip && { opacity: 0.6 }]}
+            onPress={handleStartTrip}
+            disabled={startingTrip}
+            activeOpacity={0.85}
+          >
+            {startingTrip ? (
+              <ActivityIndicator color="#ffffff" />
+            ) : (
+              <>
+                <Ionicons name="navigate" size={18} color="#ffffff" />
+                <Text style={styles.dominantPrimaryBtnText}>SALIR A RUTA / INICIAR VIAJE</Text>
+              </>
+            )}
+          </TouchableOpacity>
+        </View>
+      );
+    }
+
+    if (isInTransit || driverStatus === "en_ruta") {
+      const pendingStops = stops.filter((s) => s.status !== "delivered" && s.status !== "failed");
+      return (
+        <View style={[styles.dominantCard, styles.dominantCardInTransit]}>
+          <View style={styles.dominantTopRow}>
+            <View style={[styles.dominantBadge, styles.dominantBadgeInTransit]}>
+              <Ionicons name="bicycle" size={15} color={colors.primary} />
+              <Text style={[styles.dominantBadgeText, { color: colors.primary }]}>
+                EN RUTA DE ENTREGA
+              </Text>
+            </View>
+            <Text style={styles.dominantSubtitle}>
+              {pendingStops.length} {pendingStops.length === 1 ? "parada restante" : "paradas restantes"}
+            </Text>
+          </View>
+          <Text style={styles.dominantTitle}>Entregando pedidos a clientes</Text>
+          <Text style={styles.dominantHint}>
+            Valida el PIN de 4 dígitos de cada cliente para confirmar la entrega.
+          </Text>
+        </View>
+      );
+    }
+
+    if (driverStatus === "disponible") {
+      return (
+        <View style={[styles.dominantCard, styles.dominantCardAvailable]}>
+          <View style={styles.dominantTopRow}>
+            <View style={[styles.dominantBadge, styles.dominantBadgeAvailable]}>
+              <View style={[styles.pulseDot, { backgroundColor: "#16a34a" }]} />
+              <Text style={[styles.dominantBadgeText, { color: "#16a34a" }]}>
+                DISPONIBLE
+              </Text>
+            </View>
+            <TouchableOpacity
+              onPress={() => handleUpdateStatus("offline")}
+              disabled={updatingStatus}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <Text style={styles.secondaryActionText}>Finalizar turno</Text>
+            </TouchableOpacity>
+          </View>
+          <Text style={styles.dominantTitle}>Estás recibiendo pedidos automáticamente</Text>
+          <Text style={styles.dominantHint}>
+            Mantente alerta. Cuando haya pedidos listos en tu zona recibirás una oferta exclusiva con alerta sonora.
+          </Text>
+          <TouchableOpacity
+            style={[styles.dominantPrimaryBtn, styles.btnPause, updatingStatus && { opacity: 0.6 }]}
+            onPress={() => handleUpdateStatus("pausa")}
+            disabled={updatingStatus}
+            activeOpacity={0.8}
+          >
+            {updatingStatus ? (
+              <ActivityIndicator color="#854d0e" size="small" />
+            ) : (
+              <>
+                <Ionicons name="pause-circle-outline" size={18} color="#854d0e" />
+                <Text style={styles.btnPauseText}>Ponerme en pausa</Text>
+              </>
+            )}
+          </TouchableOpacity>
+        </View>
+      );
+    }
+
+    if (driverStatus === "pausa") {
+      return (
+        <View style={[styles.dominantCard, styles.dominantCardPause]}>
+          <View style={styles.dominantTopRow}>
+            <View style={[styles.dominantBadge, styles.dominantBadgePause]}>
+              <View style={[styles.pulseDot, { backgroundColor: "#ca8a04" }]} />
+              <Text style={[styles.dominantBadgeText, { color: "#ca8a04" }]}>
+                EN PAUSA
+              </Text>
+            </View>
+            <TouchableOpacity
+              onPress={() => handleUpdateStatus("offline")}
+              disabled={updatingStatus}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <Text style={styles.secondaryActionText}>Finalizar turno</Text>
+            </TouchableOpacity>
+          </View>
+          <Text style={styles.dominantTitle}>No recibirás nuevas entregas</Text>
+          <Text style={styles.dominantHint}>
+            El sistema de despacho automático excluirá tu perfil hasta que vuelvas a estar disponible.
+          </Text>
+          <TouchableOpacity
+            style={[styles.dominantPrimaryBtn, styles.btnResume, updatingStatus && { opacity: 0.6 }]}
+            onPress={() => handleUpdateStatus("disponible")}
+            disabled={updatingStatus}
+            activeOpacity={0.8}
+          >
+            {updatingStatus ? (
+              <ActivityIndicator color="#ffffff" size="small" />
+            ) : (
+              <>
+                <Ionicons name="play-circle" size={18} color="#ffffff" />
+                <Text style={styles.btnResumeText}>Volver a estar disponible</Text>
+              </>
+            )}
+          </TouchableOpacity>
+        </View>
+      );
+    }
+
+    if (driverStatus === "regresando") {
+      return (
+        <View style={[styles.dominantCard, styles.dominantCardReturning]}>
+          <View style={styles.dominantTopRow}>
+            <View style={[styles.dominantBadge, styles.dominantBadgeReturning]}>
+              <Ionicons name="bicycle" size={15} color="#1d4ed8" />
+              <Text style={[styles.dominantBadgeText, { color: "#1d4ed8" }]}>
+                REGRESANDO A BASE
+              </Text>
+            </View>
+          </View>
+          <Text style={styles.dominantTitle}>Ruta completada · En camino al local</Text>
+          <Text style={styles.dominantHint}>
+            Al llegar al restaurante, márcate como disponible para recibir las siguientes entregas preparadas.
+          </Text>
+          <TouchableOpacity
+            style={[styles.dominantPrimaryBtn, styles.btnReturningAvailable, updatingStatus && { opacity: 0.6 }]}
+            onPress={() => handleUpdateStatus("disponible")}
+            disabled={updatingStatus}
+            activeOpacity={0.8}
+          >
+            {updatingStatus ? (
+              <ActivityIndicator color="#ffffff" size="small" />
+            ) : (
+              <>
+                <Ionicons name="checkmark-circle" size={18} color="#ffffff" />
+                <Text style={styles.dominantPrimaryBtnText}>YA LLEGUÉ / ESTAR DISPONIBLE</Text>
+              </>
+            )}
+          </TouchableOpacity>
+        </View>
+      );
+    }
+
+    // Default: offline
+    return (
+      <View style={[styles.dominantCard, styles.dominantCardOffline]}>
+        <View style={styles.dominantTopRow}>
+          <View style={[styles.dominantBadge, styles.dominantBadgeOffline]}>
+            <View style={[styles.pulseDot, { backgroundColor: "#64748b" }]} />
+            <Text style={[styles.dominantBadgeText, { color: "#475569" }]}>
+              FUERA DE TURNO
+            </Text>
+          </View>
+        </View>
+        <Text style={styles.dominantTitle}>No estás participando en el despacho</Text>
+        <Text style={styles.dominantHint}>
+          Inicia tu turno para que el motor inteligente de MealOps te asigne entregas a domicilio.
+        </Text>
+        <TouchableOpacity
+          style={[styles.dominantPrimaryBtn, styles.btnStartShift, updatingStatus && { opacity: 0.6 }]}
+          onPress={() => handleUpdateStatus("disponible")}
+          disabled={updatingStatus}
+          activeOpacity={0.8}
+        >
+          {updatingStatus ? (
+            <ActivityIndicator color="#ffffff" size="small" />
+          ) : (
+            <>
+              <Ionicons name="power" size={18} color="#ffffff" />
+              <Text style={styles.dominantPrimaryBtnText}>INICIAR TURNO / ESTAR DISPONIBLE</Text>
+            </>
+          )}
+        </TouchableOpacity>
+      </View>
+    );
+  };
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <Header
@@ -296,67 +556,9 @@ export default function DriverTripScreen({ navigation }) {
         }
       />
 
-      {/* Driver Operational Status Bar */}
-      <View style={styles.statusBarContainer}>
-        <Text style={styles.statusLabel}>Mi Estado:</Text>
-        <View style={styles.statusPillsRow}>
-          <TouchableOpacity
-            style={[
-              styles.statusPill,
-              driverStatus === "disponible" && styles.statusPillActiveAvailable
-            ]}
-            onPress={() => handleUpdateStatus("disponible")}
-            disabled={updatingStatus}
-          >
-            <View style={[styles.statusDot, { backgroundColor: "#16a34a" }]} />
-            <Text
-              style={[
-                styles.statusPillText,
-                driverStatus === "disponible" && styles.statusPillTextActive
-              ]}
-            >
-              Disponible
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[
-              styles.statusPill,
-              driverStatus === "pausa" && styles.statusPillActivePause
-            ]}
-            onPress={() => handleUpdateStatus("pausa")}
-            disabled={updatingStatus}
-          >
-            <View style={[styles.statusDot, { backgroundColor: "#eab308" }]} />
-            <Text
-              style={[
-                styles.statusPillText,
-                driverStatus === "pausa" && styles.statusPillTextActive
-              ]}
-            >
-              Pausa
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[
-              styles.statusPill,
-              driverStatus === "offline" && styles.statusPillActiveOffline
-            ]}
-            onPress={() => handleUpdateStatus("offline")}
-            disabled={updatingStatus}
-          >
-            <View style={[styles.statusDot, { backgroundColor: "#94a3b8" }]} />
-            <Text
-              style={[
-                styles.statusPillText,
-                driverStatus === "offline" && styles.statusPillTextActive
-              ]}
-            >
-              Offline
-            </Text>
-          </TouchableOpacity>
-        </View>
+      {/* Dominant Status Card */}
+      <View style={styles.dominantContainer}>
+        {renderDominantHeader()}
       </View>
 
       <ScrollView
@@ -371,7 +573,7 @@ export default function DriverTripScreen({ navigation }) {
           />
         }
       >
-        {/* Incoming Exclusive Offer Alert */}
+        {/* Secondary Inline Offer Alert Card (if offer is active) */}
         {activeOffer ? (
           <View style={styles.offerAlertCard}>
             <View style={styles.offerHeaderRow}>
@@ -386,14 +588,14 @@ export default function DriverTripScreen({ navigation }) {
             </View>
 
             <Text style={styles.offerTitle}>
-              {activeOffer.orders?.length || 1} {(activeOffer.orders?.length || 1) === 1 ? "Pedido disponible" : "Pedidos agrupados"}
+              {activeOffer.orders?.length || 1} {(activeOffer.orders?.length || 1) === 1 ? "Pedido asignado disponible" : "Pedidos agrupados"}
             </Text>
 
             <View style={styles.offerDetailsBox}>
               <View style={styles.offerDetailRow}>
                 <Text style={styles.offerDetailLabel}>Zona:</Text>
                 <Text style={styles.offerDetailVal}>
-                  {activeOffer.orders?.[0]?.zone_name || "Zona general"}
+                  {activeOffer.orders?.[0]?.zone_name || activeOffer.zone_name || "Zona general"}
                 </Text>
               </View>
               <View style={styles.offerDetailRow}>
@@ -438,35 +640,16 @@ export default function DriverTripScreen({ navigation }) {
           </View>
         ) : null}
 
-        {/* Returning to Base Banner */}
-        {driverStatus === "regresando" && (
-          <View style={styles.returningCard}>
-            <Ionicons name="bicycle" size={24} color={colors.primary} />
-            <View style={{ flex: 1 }}>
-              <Text style={styles.returningTitle}>Ruta completada · Regresando a base</Text>
-              <Text style={styles.returningSubtitle}>
-                Al llegar al restaurante, márcate como disponible para recibir nuevos pedidos.
-              </Text>
-            </View>
-            <TouchableOpacity
-              style={styles.setAvailableBtn}
-              onPress={() => handleUpdateStatus("disponible")}
-            >
-              <Text style={styles.setAvailableBtnText}>En Base 🟢</Text>
-            </TouchableOpacity>
-          </View>
-        )}
-
         {!trip ? (
           <EmptyState
             icon="bicycle-outline"
             title={driverStatus === "disponible" ? "Esperando pedidos listos..." : "Sin viaje activo"}
             description={
               driverStatus === "disponible"
-                ? "Estás disponible. En cuanto mostrador marque pedidos listos en tu zona, recibirás una oferta exclusiva."
+                ? "Estás disponible. En cuanto mostrador prepare pedidos listos en tu zona, recibirás una oferta exclusiva."
                 : driverStatus === "pausa"
                 ? "Estás en pausa. Cambia tu estado a 'Disponible' para empezar a recibir viajes."
-                : "Estás desconectado. Activa tu estado para recibir asignaciones automáticas."
+                : "Estás fuera de turno. Activa tu turno para recibir asignaciones automáticas de reparto."
             }
           />
         ) : (
@@ -538,7 +721,7 @@ export default function DriverTripScreen({ navigation }) {
             {/* Stops list */}
             <Text style={styles.sectionHeading}>Paradas en Orden de Ruta</Text>
 
-            {stops.map((stop, idx) => {
+            {stops.map((stop) => {
               const isDelivered = stop.status === "delivered";
               const isFailed = stop.status === "failed";
               const isArrived = stop.status === "arrived";
@@ -685,6 +868,16 @@ export default function DriverTripScreen({ navigation }) {
         )}
       </ScrollView>
 
+      {/* Priority Incoming Offer Modal */}
+      <DriverOfferModal
+        visible={!!activeOffer}
+        offer={activeOffer}
+        secondsLeft={offerSecondsLeft}
+        loading={respondingOffer}
+        onAccept={handleAcceptOffer}
+        onReject={handleRejectOffer}
+      />
+
       {/* PIN Verification Modal */}
       <DriverVerifyPinModal
         visible={pinModalVisible}
@@ -732,6 +925,158 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     alignItems: "center",
     justifyContent: "center"
+  },
+  dominantContainer: {
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 4
+  },
+  dominantCard: {
+    borderRadius: 20,
+    padding: 16,
+    borderWidth: 1.5,
+    gap: 8,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+    elevation: 2
+  },
+  dominantCardAvailable: {
+    backgroundColor: "#f0fdf4",
+    borderColor: "#86efac"
+  },
+  dominantCardPause: {
+    backgroundColor: "#fefce8",
+    borderColor: "#fde047"
+  },
+  dominantCardOffline: {
+    backgroundColor: "#f8fafc",
+    borderColor: "#cbd5e1"
+  },
+  dominantCardReturning: {
+    backgroundColor: "#eff6ff",
+    borderColor: "#93c5fd"
+  },
+  dominantCardAssigned: {
+    backgroundColor: "#fff7ed",
+    borderColor: "#fdba74"
+  },
+  dominantCardInTransit: {
+    backgroundColor: "#faf5ff",
+    borderColor: "#c084fc"
+  },
+  dominantTopRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center"
+  },
+  dominantBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
+    borderWidth: 1
+  },
+  dominantBadgeAvailable: {
+    backgroundColor: "#dcfce7",
+    borderColor: "#86efac"
+  },
+  dominantBadgePause: {
+    backgroundColor: "#fef9c3",
+    borderColor: "#fde047"
+  },
+  dominantBadgeOffline: {
+    backgroundColor: "#f1f5f9",
+    borderColor: "#cbd5e1"
+  },
+  dominantBadgeReturning: {
+    backgroundColor: "#dbeafe",
+    borderColor: "#bfdbfe"
+  },
+  dominantBadgeAssigned: {
+    backgroundColor: "#ffedd5",
+    borderColor: "#fed7aa"
+  },
+  dominantBadgeInTransit: {
+    backgroundColor: "#f3e8ff",
+    borderColor: "#e9d5ff"
+  },
+  dominantBadgeText: {
+    fontSize: 11,
+    fontWeight: "900",
+    letterSpacing: 0.5
+  },
+  pulseDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4
+  },
+  dominantSubtitle: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: colors.muted
+  },
+  secondaryActionText: {
+    fontSize: 12,
+    fontWeight: "800",
+    color: colors.muted,
+    textDecorationLine: "underline"
+  },
+  dominantTitle: {
+    fontSize: 16,
+    fontWeight: "900",
+    color: colors.text,
+    marginTop: 2
+  },
+  dominantHint: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    lineHeight: 16
+  },
+  dominantPrimaryBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    height: 44,
+    borderRadius: 14,
+    marginTop: 4
+  },
+  dominantPrimaryBtnText: {
+    color: "#ffffff",
+    fontSize: 13,
+    fontWeight: "900",
+    letterSpacing: 0.5
+  },
+  btnStartShift: {
+    backgroundColor: "#16a34a"
+  },
+  btnPause: {
+    backgroundColor: "#fef08a",
+    borderWidth: 1,
+    borderColor: "#facc15"
+  },
+  btnPauseText: {
+    color: "#854d0e",
+    fontSize: 13,
+    fontWeight: "800"
+  },
+  btnResume: {
+    backgroundColor: "#16a34a"
+  },
+  btnResumeText: {
+    color: "#ffffff",
+    fontSize: 13,
+    fontWeight: "900"
+  },
+  btnReturningAvailable: {
+    backgroundColor: "#16a34a"
+  },
+  btnStartRoute: {
+    backgroundColor: colors.primary
   },
   scrollContent: {
     padding: 16,
@@ -1039,62 +1384,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center"
   },
-  statusBarContainer: {
-    backgroundColor: colors.surface,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.borderLight,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between"
-  },
-  statusLabel: {
-    fontSize: 12,
-    fontWeight: "800",
-    color: colors.text
-  },
-  statusPillsRow: {
-    flexDirection: "row",
-    gap: 6
-  },
-  statusPill: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 5,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: colors.borderLight,
-    backgroundColor: colors.surfaceMuted
-  },
-  statusPillActiveAvailable: {
-    backgroundColor: "#dcfce7",
-    borderColor: "#86efac"
-  },
-  statusPillActivePause: {
-    backgroundColor: "#fef9c3",
-    borderColor: "#fde047"
-  },
-  statusPillActiveOffline: {
-    backgroundColor: "#f1f5f9",
-    borderColor: "#cbd5e1"
-  },
-  statusDot: {
-    width: 7,
-    height: 7,
-    borderRadius: 4
-  },
-  statusPillText: {
-    fontSize: 11,
-    fontWeight: "700",
-    color: colors.muted
-  },
-  statusPillTextActive: {
-    color: colors.text,
-    fontWeight: "900"
-  },
   offerAlertCard: {
     backgroundColor: "#fffbeb",
     borderRadius: 20,
@@ -1224,37 +1513,5 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "900",
     color: "#ffffff"
-  },
-  returningCard: {
-    backgroundColor: "#eff6ff",
-    borderWidth: 1.5,
-    borderColor: "#93c5fd",
-    borderRadius: 18,
-    padding: 14,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    marginBottom: 14
-  },
-  returningTitle: {
-    fontSize: 13,
-    fontWeight: "900",
-    color: "#1d4ed8"
-  },
-  returningSubtitle: {
-    fontSize: 11,
-    color: "#3b82f6",
-    marginTop: 2
-  },
-  setAvailableBtn: {
-    backgroundColor: "#16a34a",
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 10
-  },
-  setAvailableBtnText: {
-    color: "#ffffff",
-    fontSize: 12,
-    fontWeight: "900"
   }
 });
