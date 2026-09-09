@@ -636,6 +636,12 @@ router.patch(
       );
 
       const updatedOrder = result.rows[0];
+
+      if (["entregado", "cancelado"].includes(status)) {
+        const dispatchEngine = require("../services/dispatchEngine");
+        await dispatchEngine.cleanupPendingOffersForOrder(id, client, `Pedido ${status}`);
+      }
+
       await client.query("COMMIT");
 
       const io = req.app.get("io");
@@ -686,6 +692,10 @@ router.patch("/:id/cancel", auth, async (req, res) => {
     }
 
     const updatedOrder = result.rows[0];
+
+    const dispatchEngine = require("../services/dispatchEngine");
+    await dispatchEngine.cleanupPendingOffersForOrder(id, pool, "Pedido cancelado");
+
     const io = req.app.get("io");
     if (io) {
       io.emit("order-updated", updatedOrder);

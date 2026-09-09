@@ -798,6 +798,38 @@ async function adminForceAssign(driverUserId, orderIds, io) {
   }
 }
 
+/**
+ * Cancelar ofertas pendientes asociadas a un pedido específico (ej. al completarse o cancelarse)
+ */
+async function cleanupPendingOffersForOrder(orderId, client = pool, reason = "Pedido entregado o cancelado") {
+  const activeOffers = await client.query(`
+    SELECT id, driver_user_id
+    FROM delivery_assignment_offers
+    WHERE $1 = ANY(order_ids) AND status = 'pending'
+  `, [orderId]);
+
+  for (const off of activeOffers.rows) {
+    await client.query(`
+      UPDATE delivery_assignment_offers
+      SET status = 'cancelled', responded_at = NOW(), reject_reason = $1
+      WHERE id = $2
+    `, [reason, off.id]);
+
+    const otherPending = await client.query(`
+      SELECT 1 FROM delivery_assignment_offers
+      WHERE driver_user_id = $1 AND status = 'pending' AND expires_at > NOW()
+    `, [off.driver_user_id]);
+
+    if (!otherPending.rows.length) {
+      await client.query(`
+        UPDATE users
+        SET driver_status = 'disponible', driver_status_updated_at = NOW()
+        WHERE id = $1 AND driver_status = 'oferta_pendiente'
+      `, [off.driver_user_id]);
+    }
+  }
+}
+
 module.exports = {
   getConfig,
   updateConfig,
@@ -810,5 +842,7 @@ module.exports = {
   acceptOffer,
   rejectOffer,
   cancelOffer,
-  adminForceAssign
+  adminForceAssign,
+  cleanupPendingOffersForOrder
 };
+

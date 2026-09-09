@@ -4,6 +4,7 @@ const router = express.Router();
 const pool = require("../db");
 const auth = require("../middleware/auth");
 const roles = require("../middleware/roles");
+const dispatchEngine = require("../services/dispatchEngine");
 
 const counterRoles = roles(["mesero", "cocina", "repartidor", "admin"]);
 
@@ -93,9 +94,10 @@ router.get("/orders", auth, counterRoles, async (req, res) => {
       LEFT JOIN users shift_wu ON shift_wu.id = wta.waiter_user_id
       LEFT JOIN delivery_trip_stops dts ON dts.order_id = o.id
       LEFT JOIN delivery_trips dt ON dt.id = dts.trip_id
-      LEFT JOIN users drv ON drv.id = dt.driver_user_id
+      LEFT JOIN users drv ON drv.id = COALESCE(dt.driver_user_id, o.delivery_driver_id)
       LEFT JOIN delivery_assignment_offers dao
         ON dao.status = 'pending'
+       AND o.status NOT IN ('entregado', 'cancelado')
        AND o.id = ANY(dao.order_ids)
        AND dao.expires_at > NOW()
       LEFT JOIN users offer_drv ON offer_drv.id = dao.driver_user_id
@@ -172,17 +174,20 @@ router.get("/orders", auth, counterRoles, async (req, res) => {
       const elapsedMinutes = Math.max(0, Math.floor((Date.now() - createdAtMs) / 60000));
       const isDelayed = elapsedMinutes >= 15 && statusKey !== "entregado" && statusKey !== "cancelado";
 
+      const hasActiveOffer = Boolean(order.active_offer_id && statusKey !== "entregado" && statusKey !== "cancelado");
+      const activeOfferData = hasActiveOffer ? {
+        id: order.active_offer_id,
+        driver_user_id: order.active_offer_driver_id,
+        driver_name: order.active_offer_driver_name,
+        expires_at: order.active_offer_expires_at,
+        seconds_left: Math.max(0, Number(order.active_offer_seconds_left || 0))
+      } : null;
+
       return {
         ...order,
         total: Number(order.total),
         waiter_display_name: order.assigned_waiter_name || order.shift_waiter_name || null,
-        active_offer: order.active_offer_id ? {
-          id: order.active_offer_id,
-          driver_user_id: order.active_offer_driver_id,
-          driver_name: order.active_offer_driver_name,
-          expires_at: order.active_offer_expires_at,
-          seconds_left: Math.max(0, Number(order.active_offer_seconds_left || 0))
-        } : null,
+        active_offer: activeOfferData,
         summary: {
           total_items: totalItems,
           kitchen_items_count: kitchenItemsCount,
@@ -193,13 +198,7 @@ router.get("/orders", auth, counterRoles, async (req, res) => {
           elapsed_minutes: elapsedMinutes,
           is_delayed: isDelayed,
           counter_stage: counterStage,
-          active_offer: order.active_offer_id ? {
-            id: order.active_offer_id,
-            driver_user_id: order.active_offer_driver_id,
-            driver_name: order.active_offer_driver_name,
-            expires_at: order.active_offer_expires_at,
-            seconds_left: Math.max(0, Number(order.active_offer_seconds_left || 0))
-          } : null
+          active_offer: activeOfferData
         }
       };
     });
@@ -220,7 +219,7 @@ router.patch("/orders/:id/mark-ready", auth, counterRoles, async (req, res) => {
 
     await client.query("BEGIN");
 
-    // Marcar items como listos
+    // Sincronizar todos los items a listo
     await client.query(`
       UPDATE order_items
       SET status = 'listo', ready_at = COALESCE(ready_at, NOW())
@@ -230,13 +229,13 @@ router.patch("/orders/:id/mark-ready", auth, counterRoles, async (req, res) => {
     const result = await client.query(`
       UPDATE orders
       SET status = 'listo', ready_at = COALESCE(ready_at, NOW())
-      WHERE id = $1 AND status NOT IN ('entregado', 'cancelado')
+      WHERE id = $1 AND status NOT IN ('listo', 'entregado', 'cancelado')
       RETURNING *
     `, [id]);
 
     if (!result.rows.length) {
       await client.query("ROLLBACK");
-      return res.status(409).json({ message: "El pedido no se puede marcar como listo" });
+      return res.status(409).json({ message: "El pedido ya se encuentra listo o finalizado" });
     }
 
     const order = result.rows[0];
@@ -250,18 +249,20 @@ router.patch("/orders/:id/mark-ready", auth, counterRoles, async (req, res) => {
       if (order.table_session_id) io.emit("tables-updated");
     }
 
-    if (String(order.service_type || order.type || "").toLowerCase() === "domicilio") {
-      const dispatchEngine = require("../services/dispatchEngine");
-      dispatchEngine.evaluateDispatchQueue(io).catch((err) => {
-        console.error("DISPATCH ON COUNTER MARK READY ERROR:", err.message);
-      });
+    // Si es a domicilio, evaluar despacho automático
+    if (order.service_type === "domicilio" || order.type === "domicilio") {
+      setTimeout(() => {
+        dispatchEngine.evaluateDispatchQueue(io).catch((err) => {
+          console.error("DISPATCH ON COUNTER MARK READY ERROR:", err.message);
+        });
+      }, 50);
     }
 
     res.json(order);
   } catch (err) {
     try { await client.query("ROLLBACK"); } catch (_) {}
     console.error("COUNTER MARK READY ERROR:", err);
-    res.status(500).json({ message: "Error marcando pedido como listo en mostrador" });
+    res.status(500).json({ message: "Error marcando pedido como listo" });
   } finally {
     client.release();
   }
@@ -328,6 +329,10 @@ router.patch("/orders/:id/deliver-table", auth, counterRoles, async (req, res) =
     }
 
     const order = result.rows[0];
+
+    // Limpiar cualquier oferta pendiente asociada
+    await dispatchEngine.cleanupPendingOffersForOrder(id, client, "Pedido entregado en mesa");
+
     await client.query("COMMIT");
 
     const io = req.app.get("io");
@@ -376,6 +381,46 @@ router.patch("/orders/:id/deliver", auth, counterRoles, async (req, res) => {
     }
 
     const order = result.rows[0];
+
+    // Limpiar ofertas pendientes asociadas a este pedido
+    await dispatchEngine.cleanupPendingOffersForOrder(id, client, "Pedido entregado en mostrador");
+
+    // Si estaba en una parada de viaje activo, marcar la parada como entregada
+    const stopRes = await client.query(`
+      SELECT id, trip_id FROM delivery_trip_stops
+      WHERE order_id = $1 AND status NOT IN ('delivered', 'failed')
+    `, [id]);
+
+    for (const stop of stopRes.rows) {
+      await client.query(`
+        UPDATE delivery_trip_stops
+        SET status = 'delivered', delivered_at = NOW()
+        WHERE id = $1
+      `, [stop.id]);
+
+      const remRes = await client.query(`
+        SELECT COUNT(*)::int AS count
+        FROM delivery_trip_stops
+        WHERE trip_id = $1 AND status NOT IN ('delivered', 'failed')
+      `, [stop.trip_id]);
+
+      if (remRes.rows[0].count === 0) {
+        await client.query(`
+          UPDATE delivery_trips
+          SET status = 'completed', completed_at = NOW()
+          WHERE id = $1
+        `, [stop.trip_id]);
+
+        await client.query(`
+          UPDATE users
+          SET driver_status = 'regresando',
+              driver_status_updated_at = NOW(),
+              driver_last_completed_at = NOW()
+          WHERE id = (SELECT driver_user_id FROM delivery_trips WHERE id = $1)
+        `, [stop.trip_id]);
+      }
+    }
+
     await client.query("COMMIT");
 
     const io = req.app.get("io");
@@ -383,6 +428,7 @@ router.patch("/orders/:id/deliver", auth, counterRoles, async (req, res) => {
       io.emit("order-updated", order);
       io.emit("orders-updated", order);
       io.emit("counter-updated", order);
+      io.emit("trips-updated");
     }
 
     res.json(order);

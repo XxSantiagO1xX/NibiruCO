@@ -412,7 +412,7 @@
   <script src="app.js"></script>
   <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
   <script>
-    requireAuth(['mesero', 'cocina', 'repartidor', 'admin']);
+    const currentUser = requireAuth(['mesero', 'cocina', 'repartidor', 'admin']);
 
     let orders = [];
     let currentFilter = 'all';
@@ -452,6 +452,11 @@
       document.querySelectorAll('.metric-card').forEach(el => {
         el.classList.remove('active');
       });
+      if (filterKey === 'all') document.getElementById('card-metric-all')?.classList.add('active');
+      if (filterKey === 'waiting_kitchen') document.getElementById('card-metric-kitchen')?.classList.add('active');
+      if (filterKey === 'ready_mesa') document.getElementById('card-metric-mesa')?.classList.add('active');
+      if (filterKey === 'ready_takeaway') document.getElementById('card-metric-takeaway')?.classList.add('active');
+      if (filterKey === 'ready_delivery') document.getElementById('card-metric-delivery')?.classList.add('active');
       render();
     }
 
@@ -551,11 +556,22 @@
       }
 
       if (serviceType === 'domicilio') {
-        const driverInfo = order.driver_name
-          ? `🛵 <strong>Repartidor asignado:</strong> ${escapeHtml(order.driver_name)} ${order.delivery_pin ? `· <strong>PIN:</strong> ${order.delivery_pin}` : ''}`
-          : summary.active_offer
-          ? `🛵 <strong>Oferta exclusiva:</strong> ${escapeHtml(summary.active_offer.driver_name)} (${summary.active_offer.seconds_left}s restantes)`
-          : `🔎 <strong>Cola de Despacho:</strong> Buscando repartidor disponible en zona`;
+        let driverInfo = '';
+        if (isDelivered) {
+          driverInfo = order.driver_name
+            ? `🛵 <strong>Entregado por:</strong> ${escapeHtml(order.driver_name)}`
+            : `✅ <strong>Entrega finalizada</strong>`;
+        } else if (stage === 'en_ruta') {
+          driverInfo = `🚚 <strong>En ruta con:</strong> ${escapeHtml(order.driver_name || 'Repartidor')} ${order.delivery_pin ? `· <strong>PIN:</strong> ${order.delivery_pin}` : ''}`;
+        } else if (stage === 'esperando_recogida' || order.driver_name) {
+          driverInfo = `🛵 <strong>Repartidor asignado:</strong> ${escapeHtml(order.driver_name)} ${order.delivery_pin ? `· <strong>PIN:</strong> ${order.delivery_pin}` : ''}`;
+        } else if (stage === 'oferta_enviada' && summary.active_offer) {
+          driverInfo = `🛵 <strong>Oferta exclusiva:</strong> ${escapeHtml(summary.active_offer.driver_name)} (${summary.active_offer.seconds_left}s restantes)`;
+        } else if (isReady) {
+          driverInfo = `🔎 <strong>Cola de Despacho:</strong> Buscando repartidor disponible en zona`;
+        } else {
+          driverInfo = `📦 <strong>Preparación:</strong> Se enviará a despacho al estar listo`;
+        }
 
         metaBlockHtml += `
           <div class="address-box">
@@ -616,7 +632,7 @@
       }
 
       const cardClass = isDelivered
-        ? ''
+        ? 'delivered'
         : isReady
         ? 'ready'
         : isDelayed
@@ -659,23 +675,25 @@
 
     function render() {
       // Metrics count calculations
-      const activeOrders = orders.filter(o => o.status !== 'cancelado');
-      const waitingKitchen = activeOrders.filter(o => o.status !== 'entregado' && o.summary?.counter_stage === 'esperando_cocina');
+      const nonCancelled = orders.filter(o => o.status !== 'cancelado');
+      const activeOrders = nonCancelled.filter(o => o.status !== 'entregado');
+      const deliveredToday = nonCancelled.filter(o => o.status === 'entregado');
+
+      const waitingKitchen = activeOrders.filter(o => o.summary?.counter_stage === 'esperando_cocina');
+      const assembling = activeOrders.filter(o => o.summary?.counter_stage === 'armando');
       const readyMesa = activeOrders.filter(o => o.status === 'listo' && (o.service_type === 'mesa' || o.table_session_id));
+      const waitingArrival = activeOrders.filter(o => o.service_type === 'local' && !o.table_session_id);
       const readyTakeaway = activeOrders.filter(o => o.status === 'listo' && ['llevar', 'recoger'].includes(o.service_type));
-      const readyDelivery = activeOrders.filter(o => ['domicilio'].includes(o.service_type) && o.status !== 'entregado');
-      const assembling = activeOrders.filter(o => o.status !== 'entregado' && o.summary?.counter_stage === 'armando');
-      const waitingArrival = activeOrders.filter(o => o.service_type === 'local' && !o.table_session_id && o.status !== 'entregado');
-      const deliveredToday = activeOrders.filter(o => o.status === 'entregado');
+      const readyDelivery = activeOrders.filter(o => o.service_type === 'domicilio');
 
       // Update counters in DOM
-      document.getElementById('count-all').textContent = activeOrders.filter(o => o.status !== 'entregado').length;
+      document.getElementById('count-all').textContent = activeOrders.length;
       document.getElementById('count-kitchen').textContent = waitingKitchen.length;
       document.getElementById('count-mesa').textContent = readyMesa.length;
       document.getElementById('count-takeaway').textContent = readyTakeaway.length;
       document.getElementById('count-delivery').textContent = readyDelivery.length;
 
-      document.getElementById('pill-all').textContent = activeOrders.filter(o => o.status !== 'entregado').length;
+      document.getElementById('pill-all').textContent = activeOrders.length;
       document.getElementById('pill-kitchen').textContent = waitingKitchen.length;
       document.getElementById('pill-assembling').textContent = assembling.length;
       document.getElementById('pill-mesa').textContent = readyMesa.length;
@@ -687,7 +705,7 @@
       // Filter displayed list
       let filtered = activeOrders;
       if (currentFilter === 'all') {
-        filtered = activeOrders.filter(o => o.status !== 'entregado');
+        filtered = activeOrders;
       } else if (currentFilter === 'waiting_kitchen') {
         filtered = waitingKitchen;
       } else if (currentFilter === 'assembling') {
@@ -702,6 +720,8 @@
         filtered = readyDelivery;
       } else if (currentFilter === 'delivered') {
         filtered = deliveredToday;
+      } else {
+        filtered = activeOrders;
       }
 
       const grid = document.getElementById('orders-grid');
