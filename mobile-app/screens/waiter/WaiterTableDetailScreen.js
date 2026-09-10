@@ -76,7 +76,7 @@ export default function WaiterTableDetailScreen({ route, navigation }) {
   const loadMenu = async () => {
     try {
       setLoadingMenu(true);
-      const res = await axios.get(`${API_URL}/menu/today`, {
+      const res = await axios.get(`${API_URL}/products`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (Array.isArray(res.data)) {
@@ -477,6 +477,14 @@ export default function WaiterTableDetailScreen({ route, navigation }) {
               <View style={styles.loaderBox}>
                 <ActivityIndicator color={colors.primary} size="large" />
                 <Text style={styles.loaderText}>Cargando platillos disponibles...</Text>
+              </View>
+            ) : menuProducts.length === 0 ? (
+              <View style={{ padding: 24 }}>
+                <EmptyState
+                  icon="restaurant-outline"
+                  title="No hay menú configurado para hoy"
+                  description="Configura los productos del día en el panel de administración."
+                />
               </View>
             ) : (
               <ScrollView contentContainerStyle={styles.menuListContent}>

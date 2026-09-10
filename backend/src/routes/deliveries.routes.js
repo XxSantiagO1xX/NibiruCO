@@ -837,6 +837,7 @@ router.post("/stops/:id/verify-pin", auth, driverOrAdmin, async (req, res) => {
     const io = req.app.get("io");
     if (io) {
       io.emit("delivery-updated", { trip_id: stop.trip_id, driver_id: driverUserId });
+      io.emit("shift-updated", { driver_id: driverUserId, shift_id: activeShiftId });
       io.emit("orders-updated");
       io.emit("counter-updated");
     }
@@ -949,6 +950,7 @@ router.post("/stops/:id/admin-override", auth, adminOnly, async (req, res) => {
     const io = req.app.get("io");
     if (io) {
       io.emit("delivery-updated", { trip_id: stop.trip_id, driver_id: driverUserId });
+      io.emit("shift-updated", { driver_id: driverUserId, shift_id: activeShiftId });
       io.emit("orders-updated");
       io.emit("counter-updated");
     }

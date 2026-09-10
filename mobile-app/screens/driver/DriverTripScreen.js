@@ -164,6 +164,13 @@ export default function DriverTripScreen({ navigation }) {
   const handleUpdateStatus = async (newStatus) => {
     try {
       setUpdatingStatus(true);
+      if (newStatus === "disponible") {
+        await axios.post(
+          `${API_URL}/deliveries/shifts/start`,
+          {},
+          { headers: { Authorization: `Bearer ${token}` } }
+        ).catch(() => {});
+      }
       await axios.patch(
         `${API_URL}/deliveries/drivers/${user.id}/status`,
         { status: newStatus },

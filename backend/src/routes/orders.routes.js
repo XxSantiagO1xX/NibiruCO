@@ -294,8 +294,8 @@ router.post("/", auth, async (req, res) => {
         addressId = null;
         deliveryZoneId = null;
       } else {
-        // Para domicilio generar PIN de 4 dígitos aleatorio
-        deliveryPin = String(crypto.randomInt(1000, 10000));
+        // Para domicilio generar PIN criptográfico de 4 dígitos (0000-9999)
+        deliveryPin = String(crypto.randomInt(0, 10000)).padStart(4, "0");
 
         if (deliveryZoneId) {
           const zoneResult = await client.query(

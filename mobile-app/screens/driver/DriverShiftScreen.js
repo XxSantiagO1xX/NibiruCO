@@ -105,17 +105,17 @@ export default function DriverShiftScreen({ navigation }) {
     );
   }
 
-  const shift = summary?.shift;
-  const isShiftActive = shift?.status === "abierto";
+  const shift = summary?.shift || (summary?.shift_id ? summary : null);
+  const isShiftActive = summary?.status === "open" || summary?.status === "abierto" || summary?.shift?.status === "open" || summary?.shift?.status === "abierto";
   const deliveredCount = summary?.delivered_count || 0;
   const grossCash = Number(summary?.gross_cash_received ?? summary?.cash_collected ?? 0);
   const changeGiven = Number(summary?.total_cash_change_given ?? 0);
   const netCash = Number(summary?.net_cash_for_business ?? (grossCash - changeGiven));
-  const expectedCash = Number(summary?.expected_cash ?? netCash);
-  const cashSettled = Number(summary?.settled_cash ?? summary?.cash_settled ?? 0);
+  const expectedCash = Number(summary?.total_cash_expected ?? summary?.expected_cash ?? netCash);
+  const cashSettled = Number(summary?.total_cash_settled ?? summary?.settled_cash ?? summary?.cash_settled ?? 0);
   const pendingSettlement = Number(summary?.pending_settlement ?? (expectedCash - cashSettled));
   const difference = Number(summary?.difference ?? (cashSettled - expectedCash));
-  const orders = Array.isArray(summary?.orders) ? summary.orders : [];
+  const orders = Array.isArray(summary?.completed_deliveries) ? summary.completed_deliveries : (Array.isArray(summary?.orders) ? summary.orders : []);
 
   return (
     <SafeAreaView style={styles.safeArea}>

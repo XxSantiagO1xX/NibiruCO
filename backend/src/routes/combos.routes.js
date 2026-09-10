@@ -57,11 +57,27 @@ async function getCombo(productId, client = pool) {
 
 router.get("/", auth, async (req, res) => {
   try {
-    const result = await pool.query(`
-      SELECT id FROM products
-      WHERE product_kind = 'combo'
-      ORDER BY id
-    `);
+    const { getBusinessDayKey } = require("../utils/timezone");
+    const overrideDay = req.query.override_day || req.headers["x-override-day"];
+    const onlyToday = req.query.today === "true";
+
+    let query = "SELECT id FROM products WHERE product_kind = 'combo'";
+    let params = [];
+
+    if (onlyToday) {
+      const today = getBusinessDayKey(overrideDay);
+      query = `
+        SELECT p.id FROM products p
+        JOIN menu m ON m.product_id = p.id
+        WHERE p.product_kind = 'combo' AND m.day = $1 AND p.available = true
+        ORDER BY p.id
+      `;
+      params = [today];
+    } else {
+      query += " ORDER BY id";
+    }
+
+    const result = await pool.query(query, params);
     const combos = [];
     for (const row of result.rows) {
       const combo = await getCombo(row.id);

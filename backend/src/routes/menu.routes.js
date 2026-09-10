@@ -3,7 +3,34 @@ const router = express.Router();
 const pool = require("../db");
 const auth = require("../middleware/auth");
 const roles = require("../middleware/roles");
-const { VALID_DAYS } = require("../utils/timezone");
+const { VALID_DAYS, getBusinessDayKey } = require("../utils/timezone");
+
+router.get("/today", async (req, res) => {
+  try {
+    const overrideDay = req.query.override_day || req.headers["x-override-day"];
+    const today = getBusinessDayKey(overrideDay);
+
+    const result = await pool.query(
+      `
+        SELECT p.*
+        FROM products p
+        JOIN menu m ON m.product_id = p.id
+        WHERE m.day = $1 AND p.available = true
+        ORDER BY p.id
+      `,
+      [today]
+    );
+
+    res.json({
+      day: today,
+      products: result.rows.map((row) => row.id),
+      items: result.rows.map((p) => ({ ...p, price: Number(p.price) }))
+    });
+  } catch (err) {
+    console.error("GET MENU TODAY ERROR:", err);
+    res.status(500).json({ message: "Error obteniendo el menú de hoy" });
+  }
+});
 
 router.get("/", async (req, res) => {
   try {

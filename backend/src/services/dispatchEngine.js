@@ -323,7 +323,15 @@ async function getEligibleDrivers(client = pool) {
       ) AS waiting_pickup_stops_count
     FROM users u
     WHERE u.role = 'repartidor'
+      AND u.active = true
       AND u.driver_status IN ('disponible', 'regresando', 'esperando_recogida')
+      -- Tener turno abierto en driver_shifts
+      AND EXISTS (
+        SELECT 1
+        FROM driver_shifts ds
+        WHERE ds.driver_user_id = u.id
+          AND ds.status = 'open'
+      )
       -- No tener una oferta pendiente activa
       AND NOT EXISTS (
         SELECT 1
@@ -474,6 +482,9 @@ async function evaluateDispatchQueue(io) {
       // Calcular puntuación para cada candidato
       const scoredCandidates = availableCandidates.map((driver) => {
         const { score, recommendation_reason } = scoreCandidateDriver(driver, group);
+        if (process.env.NODE_ENV !== "production") {
+          console.log(`[DISPATCH DIAGNOSTIC] Driver ${driver.name} (ID: ${driver.id}): score=${score}, reason=${recommendation_reason}`);
+        }
         return { driver, score, recommendation_reason };
       });
 
