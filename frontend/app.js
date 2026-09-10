@@ -8,21 +8,23 @@
   }
 
   document.querySelectorAll('.brand-copy span').forEach((element) => {
-    if (element.textContent.trim() === 'Restaurant operations') {
-      element.textContent = 'Operación de cocina';
+    if (element.textContent.trim() === 'Restaurant operations' || element.textContent.trim() === 'Operación de cocina') {
+      element.textContent = 'Restaurante';
     }
   });
 
   document.querySelectorAll('.brand-mark').forEach((mark) => {
     if (!mark.querySelector('svg')) {
       mark.textContent = '';
-      mark.innerHTML = '<svg class="ui-icon" width="24" height="24" viewBox="0 0 32 32" aria-hidden="true"><use href="assets/icons.svg#logo"></use></svg>';
+      mark.innerHTML = '<svg class="ui-icon" width="22" height="22" viewBox="0 0 32 32" aria-hidden="true"><use href="assets/icons.svg#logo"></use></svg>';
     }
   });
 
+  let user = null;
   let role = null;
   try {
-    role = JSON.parse(localStorage.getItem('user') || 'null')?.role || null;
+    user = JSON.parse(localStorage.getItem('user') || 'null');
+    role = user?.role || null;
   } catch (_) {}
 
   const current = window.location.pathname.split('/').pop() || 'home.html';
@@ -43,6 +45,27 @@
     return;
   }
 
+  // Sidebar Retractable Logic & Floating Toggle
+  const sidebar = document.querySelector('.sidebar');
+  if (sidebar) {
+    const isCollapsed = localStorage.getItem('mealops_sidebar_collapsed') === 'true';
+    if (isCollapsed) sidebar.classList.add('collapsed');
+
+    if (!sidebar.querySelector('.sidebar-toggle-btn')) {
+      const toggleBtn = document.createElement('button');
+      toggleBtn.className = 'sidebar-toggle-btn';
+      toggleBtn.title = 'Colapsar / expandir menú lateral';
+      toggleBtn.setAttribute('aria-label', 'Colapsar menú lateral');
+      toggleBtn.innerHTML = '<svg class="ui-icon" width="14" height="14" viewBox="0 0 24 24"><use href="assets/icons.svg#chevron-left"></use></svg>';
+      toggleBtn.onclick = (e) => {
+        e.preventDefault();
+        sidebar.classList.toggle('collapsed');
+        localStorage.setItem('mealops_sidebar_collapsed', sidebar.classList.contains('collapsed'));
+      };
+      sidebar.appendChild(toggleBtn);
+    }
+  }
+
   const nav = document.querySelector('.nav');
   if (nav && role) {
     const definitions = [
@@ -59,8 +82,27 @@
     ];
     nav.innerHTML = definitions
       .filter((item) => item.roles.includes(role))
-      .map((item) => `<a href="${item.href}" class="${current === item.href ? 'active' : ''}"><svg class="nav-icon" width="17" height="17" viewBox="0 0 24 24" aria-hidden="true" style="vertical-align:-3px;margin-right:9px;opacity:.88"><use href="assets/icons.svg#${item.icon}"></use></svg>${item.label}</a>`)
+      .map((item) => `<a href="${item.href}" class="${current === item.href ? 'active' : ''}" title="${item.label}"><svg class="nav-icon" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#${item.icon}"></use></svg><span>${item.label}</span></a>`)
       .join('');
+  }
+
+  // Sidebar User Footer Enhancement
+  const sidebarFooter = document.querySelector('.sidebar-footer');
+  if (sidebarFooter && user) {
+    const initials = (user.name || user.phone || 'U').substring(0, 2).toUpperCase();
+    sidebarFooter.innerHTML = `
+      <div class="sidebar-user">
+        <div class="sidebar-user-avatar">${initials}</div>
+        <div class="sidebar-user-info">
+          <strong>${escapeHtml(user.name || user.phone || 'Usuario')}</strong>
+          <span>${escapeHtml(user.role || 'Personal')}</span>
+        </div>
+      </div>
+      <button class="btn btn-ghost btn-sm" onclick="logout()" style="width:100%;margin-top:4px" title="Cerrar sesión">
+        <svg class="ui-icon" width="16" height="16" viewBox="0 0 24 24"><use href="assets/icons.svg#close"></use></svg>
+        <span>Salir</span>
+      </button>
+    `;
   }
 })();
 

@@ -40,22 +40,33 @@ const commonTabOptions = {
   headerShown: false,
   tabBarActiveTintColor: colors.primary,
   tabBarInactiveTintColor: colors.muted,
+  tabBarHideOnKeyboard: true,
   tabBarStyle: {
-    height: Platform.OS === "ios" ? 84 : 64,
-    paddingBottom: Platform.OS === "ios" ? 24 : 8,
-    paddingTop: 8,
+    position: "absolute",
+    bottom: Platform.OS === "ios" ? 22 : 12,
+    left: 14,
+    right: 14,
+    height: Platform.OS === "ios" ? 64 : 60,
+    borderRadius: 26,
     backgroundColor: colors.surface,
-    borderTopWidth: 1,
-    borderTopColor: colors.borderLight,
-    elevation: 8,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 6
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+    paddingHorizontal: 6,
+    paddingTop: 6,
+    paddingBottom: Platform.OS === "ios" ? 10 : 6,
+    elevation: 10,
+    shadowColor: "#1d1814",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.12,
+    shadowRadius: 12
   },
   tabBarLabelStyle: {
-    fontSize: 11,
-    fontWeight: "700"
+    fontSize: 10,
+    fontWeight: "700",
+    letterSpacing: -0.1
+  },
+  tabBarItemStyle: {
+    paddingVertical: 2
   }
 };
 
@@ -67,13 +78,14 @@ function ClientTabs() {
     <Tab.Navigator
       screenOptions={({ route }) => ({
         ...commonTabOptions,
+        tabBarActiveTintColor: colors.primary,
         tabBarIcon: ({ focused, color, size }) => {
           let iconName = "restaurant-outline";
           if (route.name === "Productos") iconName = focused ? "restaurant" : "restaurant-outline";
           if (route.name === "Carrito") iconName = focused ? "cart" : "cart-outline";
           if (route.name === "Pedidos") iconName = focused ? "receipt" : "receipt-outline";
           if (route.name === "Perfil") iconName = focused ? "person" : "person-outline";
-          return <Ionicons name={iconName} size={size} color={color} />;
+          return <Ionicons name={iconName} size={20} color={color} />;
         }
       })}
     >
@@ -104,13 +116,14 @@ function WaiterTabs() {
     <Tab.Navigator
       screenOptions={({ route }) => ({
         ...commonTabOptions,
+        tabBarActiveTintColor: colors.roleWaiter,
         tabBarIcon: ({ focused, color, size }) => {
           let iconName = "grid-outline";
           if (route.name === "Mesas") iconName = focused ? "grid" : "grid-outline";
           if (route.name === "Esperando") iconName = focused ? "search-circle" : "search-circle-outline";
           if (route.name === "Menu") iconName = focused ? "restaurant" : "restaurant-outline";
           if (route.name === "Perfil") iconName = focused ? "person" : "person-outline";
-          return <Ionicons name={iconName} size={size} color={color} />;
+          return <Ionicons name={iconName} size={20} color={color} />;
         }
       })}
     >
@@ -128,12 +141,13 @@ function DriverTabs() {
     <Tab.Navigator
       screenOptions={({ route }) => ({
         ...commonTabOptions,
+        tabBarActiveTintColor: colors.roleDriver,
         tabBarIcon: ({ focused, color, size }) => {
           let iconName = "bicycle-outline";
           if (route.name === "Ruta") iconName = focused ? "bicycle" : "bicycle-outline";
           if (route.name === "Corte") iconName = focused ? "cash" : "cash-outline";
           if (route.name === "Perfil") iconName = focused ? "person" : "person-outline";
-          return <Ionicons name={iconName} size={size} color={color} />;
+          return <Ionicons name={iconName} size={20} color={color} />;
         }
       })}
     >
@@ -150,6 +164,7 @@ function AdminTabs() {
     <Tab.Navigator
       screenOptions={({ route }) => ({
         ...commonTabOptions,
+        tabBarActiveTintColor: colors.roleAdmin,
         tabBarIcon: ({ focused, color, size }) => {
           let iconName = "speedometer-outline";
           if (route.name === "Salon") iconName = focused ? "grid" : "grid-outline";
@@ -157,7 +172,16 @@ function AdminTabs() {
           if (route.name === "Turnos") iconName = focused ? "people" : "people-outline";
           if (route.name === "Menu") iconName = focused ? "restaurant" : "restaurant-outline";
           if (route.name === "Perfil") iconName = focused ? "person" : "person-outline";
-          return <Ionicons name={iconName} size={size} color={color} />;
+          return <Ionicons name={iconName} size={19} color={color} />;
+        },
+        tabBarLabelStyle: {
+          fontSize: 9.5,
+          fontWeight: "700",
+          letterSpacing: -0.2
+        },
+        tabBarItemStyle: {
+          paddingVertical: 2,
+          paddingHorizontal: 0
         }
       })}
     >

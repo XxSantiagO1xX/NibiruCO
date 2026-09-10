@@ -3,165 +3,240 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>MealOps · Centro de Expedición y Mostrador</title>
+  <title>MealOps · Centro de Expedición y Salida</title>
   <link rel="stylesheet" href="../css/styles.css">
   <link rel="stylesheet" href="../css/theme.css" data-mealops-theme="true">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
   <style>
-    :root {
-      --lane-prep: #fff7ed;
-      --lane-prep-border: #fed7aa;
-      --lane-ready: #ecfdf3;
-      --lane-ready-border: #bbf7d0;
-      --danger-soft: #fef2f2;
-      --danger-border: #fecaca;
-    }
-    .counter-shell { max-width: 1700px; margin: 0 auto; }
+    .counter-page { min-height: 100vh; padding: 24px 32px; background: var(--bg); }
+    .counter-shell { max-width: 1750px; margin: 0 auto; }
+    
+    /* Topbar */
     .counter-header {
       display: flex;
       justify-content: space-between;
       gap: 20px;
       align-items: center;
       margin-bottom: 20px;
-      padding: 16px 24px;
-      border: 1px solid rgba(84,72,61,.12);
-      border-radius: 22px;
-      background: rgba(255,255,255,.95);
+      padding: 16px 22px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      background: var(--surface);
       box-shadow: var(--shadow-sm);
-      backdrop-filter: blur(14px);
     }
+    .counter-title { display: flex; align-items: center; gap: 14px; }
+    .counter-title-icon {
+      width: 44px; height: 44px; border-radius: 12px;
+      display: grid; place-items: center;
+      background: var(--primary-soft); color: var(--primary);
+    }
+    .counter-title h1 { margin: 0; font-size: 20px; font-weight: 800; letter-spacing: -.03em; color: var(--text); }
+    .counter-title p { margin: 3px 0 0; color: var(--muted); font-size: 12px; }
+    .counter-header-actions { display: flex; align-items: center; gap: 10px; }
+
+    /* KPI Bar */
     .counter-metrics-bar {
       display: grid;
       grid-template-columns: repeat(5, 1fr);
       gap: 12px;
-      margin-bottom: 20px;
+      margin-bottom: 18px;
     }
-    @media (max-width: 1100px) {
-      .counter-metrics-bar {
-        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-      }
+    @media (max-width: 1200px) {
+      .counter-metrics-bar { grid-template-columns: repeat(3, 1fr); }
+    }
+    @media (max-width: 768px) {
+      .counter-metrics-bar { grid-template-columns: repeat(2, 1fr); }
     }
     .metric-card {
-      background: #fff;
-      border: 1.5px solid var(--border);
-      border-radius: 18px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
       padding: 14px 18px;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      box-shadow: var(--shadow-sm);
+      box-shadow: var(--shadow-xs);
       cursor: pointer;
-      transition: transform .15s ease, border-color .15s ease, background .15s ease;
+      transition: all .15s ease;
     }
-    .metric-card:hover, .metric-card.active {
-      transform: translateY(-2px);
+    .metric-card:hover {
       border-color: var(--primary);
+      transform: translateY(-1px);
+      box-shadow: var(--shadow-sm);
     }
     .metric-card.active {
+      border-color: var(--primary);
       background: var(--primary-soft);
     }
-    .metric-val { font-size: 26px; font-weight: 900; color: var(--text); letter-spacing: -.03em; line-height: 1.1; }
+    .metric-val { font-size: 24px; font-weight: 900; letter-spacing: -.03em; line-height: 1.1; }
     .metric-label { font-size: 11px; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; margin-bottom: 2px; }
 
-    /* Lanes Nav */
-    .lanes-nav {
+    /* Control Tower Bar & Filter Controls */
+    .tower-controls {
       display: flex;
-      gap: 8px;
-      margin-bottom: 20px;
-      background: rgba(255,255,255,.8);
-      padding: 6px;
-      border-radius: 16px;
-      border: 1px solid var(--border);
-      overflow-x: auto;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 18px;
+      flex-wrap: wrap;
     }
-    .lane-tab {
-      padding: 10px 18px;
+    .view-mode-tabs {
+      display: flex;
+      gap: 6px;
+      background: var(--surface-2);
+      padding: 4px;
       border-radius: 12px;
+      border: 1px solid var(--border);
+    }
+    .view-tab {
+      padding: 7px 14px;
+      border-radius: 9px;
       background: transparent;
-      border: 1px solid transparent;
-      font-size: 13px;
-      font-weight: 800;
+      border: none;
+      font-size: 12.5px;
+      font-weight: 700;
       color: var(--muted);
       cursor: pointer;
       display: inline-flex;
       align-items: center;
-      gap: 8px;
-      white-space: nowrap;
+      gap: 6px;
       transition: all .15s ease;
     }
-    .lane-tab:hover {
-      color: var(--text);
-      background: #f8fafc;
-    }
-    .lane-tab.active {
-      background: var(--primary);
-      color: #fff;
-      box-shadow: var(--shadow-sm);
-    }
-    .lane-tab.active .badge-num {
-      background: rgba(255,255,255,.25);
-      color: #fff;
-    }
-    .badge-num {
-      padding: 2px 7px;
-      border-radius: 999px;
-      background: #eeeae5;
-      color: var(--text);
-      font-size: 10px;
-      font-weight: 800;
-    }
-    .badge-num-danger {
-      background: #dc2626 !important;
-      color: #fff !important;
+    .view-tab:hover { color: var(--text); }
+    .view-tab.active {
+      background: var(--surface);
+      color: var(--primary);
+      box-shadow: var(--shadow-xs);
+      border: 1px solid var(--border);
     }
 
-    /* Orders Grid */
-    .expedition-grid {
+    .dest-filter-tabs {
+      display: flex;
+      gap: 6px;
+    }
+    .dest-filter-btn {
+      padding: 6px 12px;
+      border-radius: 999px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      font-size: 11.5px;
+      font-weight: 700;
+      color: var(--muted);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      transition: all .15s ease;
+    }
+    .dest-filter-btn:hover { border-color: var(--muted); color: var(--text); }
+    .dest-filter-btn.active {
+      background: var(--dark);
+      color: #fff;
+      border-color: var(--dark);
+    }
+
+    /* 3 ZONES TOWER GRID (Desktop) */
+    .tower-3zones-layout {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
-      gap: 16px;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 18px;
       align-items: start;
     }
+    @media (max-width: 1180px) {
+      .tower-3zones-layout { grid-template-columns: 1fr; }
+    }
 
+    .zone-column {
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      min-height: 600px;
+    }
+    .zone-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-bottom: 10px;
+      border-bottom: 2px solid;
+    }
+    .zone-header.prep { border-color: var(--role-cocina); color: var(--role-cocina); }
+    .zone-header.counter { border-color: var(--role-mesero); color: var(--role-mesero); }
+    .zone-header.dispatch { border-color: var(--role-repartidor); color: var(--role-repartidor); }
+    
+    .zone-title {
+      font-size: 13.5px;
+      font-weight: 900;
+      text-transform: uppercase;
+      letter-spacing: .04em;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .zone-count {
+      font-size: 11.5px;
+      font-weight: 800;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      padding: 2px 8px;
+      border-radius: 999px;
+      color: var(--text);
+    }
+
+    .zone-orders-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    /* SINGLE LANE / FOCUS GRID */
+    .single-lane-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+      gap: 16px;
+    }
+
+    /* ORDER CARD */
     .order-card-hub {
-      background: #fff;
+      background: var(--surface);
       border: 1.5px solid var(--border);
-      border-radius: 22px;
-      padding: 18px;
+      border-radius: var(--radius);
+      padding: 16px;
       box-shadow: var(--shadow-sm);
       display: flex;
       flex-direction: column;
-      gap: 14px;
+      gap: 12px;
       position: relative;
-      overflow: hidden;
-      transition: transform .15s ease, box-shadow .15s ease;
+      transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease;
     }
     .order-card-hub:hover {
       box-shadow: var(--shadow-md);
     }
     .order-card-hub.ready {
-      border-color: #86efac;
-      background: linear-gradient(180deg, #ffffff 0%, #f0fdf4 100%);
+      border-color: var(--role-mesero-border);
+      background: linear-gradient(180deg, #FFFFFF 0%, #F9FEFA 100%);
     }
     .order-card-hub.waiting-kitchen {
-      border-color: #fed7aa;
-      background: linear-gradient(180deg, #ffffff 0%, #fffbf7 100%);
+      border-color: var(--role-cocina-border);
     }
     .order-card-hub.delayed {
-      border-color: #fca5a5;
-      background: linear-gradient(180deg, #ffffff 0%, #fef2f2 100%);
+      border-color: var(--danger-border);
+      background: linear-gradient(180deg, #FFFFFF 0%, #FFF8F8 100%);
     }
 
     .card-top {
       display: flex;
       justify-content: space-between;
       align-items: flex-start;
-      gap: 10px;
+      gap: 8px;
     }
     .folio-box {
-      font-size: 26px;
+      font-size: 22px;
       font-weight: 900;
-      letter-spacing: -.05em;
+      letter-spacing: -.04em;
       color: var(--text);
       line-height: 1;
     }
@@ -174,24 +249,26 @@
     .phone-line {
       font-size: 11px;
       color: var(--muted);
+      margin-top: 1px;
     }
 
     .status-badge-hub {
-      padding: 5px 10px;
+      padding: 4px 9px;
       border-radius: 999px;
       font-size: 10px;
       font-weight: 800;
       text-transform: uppercase;
-      letter-spacing: .04em;
+      letter-spacing: .03em;
       display: inline-flex;
       align-items: center;
       gap: 4px;
+      white-space: nowrap;
     }
-    .badge-hub-prep { background: #fff7ed; color: #c2410c; border: 1px solid #fed7aa; }
-    .badge-hub-ready { background: #ecfdf3; color: #15803d; border: 1px solid #bbf7d0; }
-    .badge-hub-transit { background: var(--primary-soft); color: var(--primary); border: 1px solid var(--primary); }
-    .badge-hub-delivered { background: #f3f4f6; color: #4b5563; border: 1px solid #e5e7eb; }
-    .badge-hub-incident { background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; cursor: pointer; }
+    .badge-hub-prep { background: var(--role-cocina-soft); color: var(--role-cocina); border: 1px solid var(--role-cocina-border); }
+    .badge-hub-ready { background: var(--role-mesero-soft); color: var(--role-mesero); border: 1px solid var(--role-mesero-border); }
+    .badge-hub-transit { background: var(--role-repartidor-soft); color: var(--role-repartidor); border: 1px solid var(--role-repartidor-border); }
+    .badge-hub-delivered { background: var(--surface-2); color: var(--muted); border: 1px solid var(--border); }
+    .badge-hub-incident { background: var(--danger-soft); color: var(--danger); border: 1px solid var(--danger-border); cursor: pointer; }
 
     .service-dest-row {
       display: flex;
@@ -202,312 +279,392 @@
     .dest-pill {
       font-size: 11px;
       font-weight: 800;
-      padding: 4px 10px;
-      border-radius: 8px;
+      padding: 3px 8px;
+      border-radius: 6px;
       display: inline-flex;
       align-items: center;
       gap: 5px;
     }
-    .dest-mesa { background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; }
-    .dest-llevar { background: #fef3c7; color: #b45309; border: 1px solid #fde68a; }
-    .dest-domicilio { background: #f3e8ff; color: #7e22ce; border: 1px solid #e9d5ff; }
-    .dest-local { background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1; }
+    .dest-mesa { background: var(--role-admin-soft); color: var(--role-admin); border: 1px solid var(--role-admin-border); }
+    .dest-llevar { background: var(--warning-soft); color: var(--warning); border: 1px solid var(--warning-border); }
+    .dest-domicilio { background: var(--role-repartidor-soft); color: var(--role-repartidor); border: 1px solid var(--role-repartidor-border); }
+    .dest-local { background: var(--surface-2); color: var(--text); border: 1px solid var(--border); }
 
     .time-badge {
       font-size: 10px;
       font-weight: 700;
       color: var(--muted);
-      background: #f8fafc;
-      padding: 4px 8px;
-      border-radius: 8px;
+      background: var(--surface-2);
+      padding: 3px 7px;
+      border-radius: 6px;
       border: 1px solid var(--border);
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
     }
     .time-badge.alert {
-      background: #fef2f2;
-      color: #b91c1c;
-      border-color: #fca5a5;
+      background: var(--danger-soft);
+      color: var(--danger);
+      border-color: var(--danger-border);
       font-weight: 800;
     }
 
     /* Items List */
     .items-container {
-      background: rgba(255,255,255,.85);
+      background: var(--surface-2);
       border: 1px solid var(--border);
-      border-radius: 14px;
-      padding: 10px 12px;
+      border-radius: 10px;
+      padding: 8px 10px;
       display: grid;
-      gap: 8px;
+      gap: 6px;
     }
     .item-line {
       display: flex;
       justify-content: space-between;
       align-items: flex-start;
       font-size: 12px;
-      line-height: 1.4;
+      line-height: 1.35;
     }
     .item-name-part {
       display: flex;
       align-items: flex-start;
-      gap: 8px;
+      gap: 6px;
       flex: 1;
     }
     .item-tag {
       font-size: 9px;
       font-weight: 800;
-      padding: 2px 6px;
-      border-radius: 6px;
+      padding: 1px 5px;
+      border-radius: 4px;
       text-transform: uppercase;
+      flex-shrink: 0;
     }
-    .tag-ready { background: #dcfce7; color: #15803d; }
-    .tag-kitchen { background: #ffedd5; color: #c2410c; }
+    .tag-ready { background: var(--role-mesero-soft); color: var(--role-mesero); }
+    .tag-kitchen { background: var(--role-cocina-soft); color: var(--role-cocina); }
     .item-choices-text {
-      font-size: 10px;
+      font-size: 10.5px;
       color: var(--muted);
       margin-top: 2px;
-      padding-left: 4px;
     }
 
     .address-box {
-      background: #faf5ff;
-      border: 1px solid #f3e8ff;
-      border-radius: 12px;
+      background: var(--role-repartidor-soft);
+      border: 1px solid var(--role-repartidor-border);
+      border-radius: 10px;
       padding: 8px 10px;
       font-size: 11px;
-      color: #6b21a8;
+      color: #5B21B6;
       line-height: 1.4;
     }
-
     .waiter-assigned-box {
-      background: #f0f9ff;
-      border: 1px solid #e0f2fe;
-      border-radius: 12px;
-      padding: 8px 10px;
+      background: var(--role-admin-soft);
+      border: 1px solid var(--role-admin-border);
+      border-radius: 10px;
+      padding: 7px 10px;
       font-size: 11px;
-      color: #0369a1;
+      color: #0369A1;
       display: flex;
       align-items: center;
       justify-content: space-between;
     }
 
-    /* Action Buttons */
+    /* Actions */
     .actions-grid {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
-      gap: 8px;
-      margin-top: 4px;
+      gap: 6px;
+      margin-top: 2px;
     }
     .btn-action {
-      padding: 10px 12px;
-      border-radius: 12px;
-      font-size: 12px;
+      padding: 8px 10px;
+      border-radius: 8px;
+      font-size: 11.5px;
       font-weight: 800;
-      border: none;
+      border: 1px solid transparent;
       cursor: pointer;
       display: flex;
       align-items: center;
       justify-content: center;
-      gap: 6px;
+      gap: 5px;
       transition: all .15s ease;
     }
     .btn-ready { background: var(--primary); color: #fff; }
     .btn-ready:hover { background: var(--primary-hover); }
-    .btn-deliver { background: #16a34a; color: #fff; }
-    .btn-deliver:hover { background: #15803d; }
-    .btn-notify { background: #0284c7; color: #fff; }
-    .btn-notify:hover { background: #0369a1; }
-    .btn-pickup-waiter { background: #f59e0b; color: #fff; }
-    .btn-pickup-waiter:hover { background: #d97706; }
-    .btn-secondary-hub { background: #f1f5f9; color: var(--text); border: 1px solid var(--border); }
-    .btn-secondary-hub:hover { background: #e2e8f0; }
+    .btn-deliver { background: var(--role-mesero); color: #fff; }
+    .btn-deliver:hover { background: #15803D; }
+    .btn-notify { background: var(--role-admin); color: #fff; }
+    .btn-notify:hover { background: #0369A1; }
+    .btn-pickup-waiter { background: var(--warning); color: #fff; }
+    .btn-pickup-waiter:hover { background: #B45309; }
+    .btn-secondary-hub { background: var(--surface); color: var(--text); border-color: var(--border); }
+    .btn-secondary-hub:hover { background: var(--surface-hover); }
 
-    /* Incidents View */
+    /* INCIDENTS DRAWER */
+    .incidents-drawer-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(36, 33, 31, 0.45);
+      backdrop-filter: blur(4px);
+      z-index: 100;
+      display: flex;
+      justify-content: flex-end;
+      opacity: 1;
+      transition: opacity 0.2s ease;
+    }
+    .incidents-drawer-backdrop.hidden {
+      display: none;
+      opacity: 0;
+    }
+    .incidents-drawer {
+      width: min(520px, 100%);
+      height: 100%;
+      background: var(--surface);
+      box-shadow: var(--shadow-lg);
+      display: flex;
+      flex-direction: column;
+      animation: slideDrawer 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    @keyframes slideDrawer {
+      from { transform: translateX(100%); }
+      to { transform: translateX(0); }
+    }
+    .drawer-header {
+      padding: 20px 24px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .drawer-header h2 { margin: 0; font-size: 18px; font-weight: 800; color: var(--text); }
+    .drawer-content {
+      padding: 20px 24px;
+      overflow-y: auto;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
     .incident-item-card {
-      background: #fff;
+      background: var(--surface);
       border: 1.5px solid var(--border);
-      border-radius: 20px;
-      padding: 18px;
-      box-shadow: var(--shadow-sm);
+      border-radius: var(--radius);
+      padding: 16px;
+      box-shadow: var(--shadow-xs);
       display: flex;
       flex-direction: column;
       gap: 10px;
     }
-    .incident-top {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 10px;
-    }
-    .incident-title {
-      font-size: 15px;
-      font-weight: 800;
-      color: var(--text);
-    }
+    .incident-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
     .incident-desc {
-      font-size: 12.5px;
-      color: #334155;
-      background: #f8fafc;
-      padding: 10px 12px;
-      border-radius: 12px;
+      font-size: 12px;
+      color: var(--text);
+      background: var(--surface-2);
+      padding: 8px 10px;
+      border-radius: 8px;
       border: 1px solid var(--border);
+      line-height: 1.4;
     }
     .incident-meta-row {
       display: flex;
       justify-content: space-between;
-      align-items: center;
-      font-size: 11.5px;
+      font-size: 11px;
       color: var(--muted);
       flex-wrap: wrap;
-      gap: 8px;
+      gap: 6px;
     }
 
+    /* Modal Backdrop */
     .modal-backdrop {
       position: fixed;
       inset: 0;
-      background: rgba(15, 23, 42, 0.65);
+      background: rgba(36, 33, 31, 0.55);
       backdrop-filter: blur(4px);
       display: flex;
       align-items: center;
       justify-content: center;
       padding: 20px;
-      z-index: 999;
+      z-index: 120;
     }
-    .modal-backdrop.hidden {
-      display: none;
-    }
+    .modal-backdrop.hidden { display: none; }
     .modal-box {
-      background: #ffffff;
-      border-radius: 24px;
-      width: min(560px, 100%);
+      background: var(--surface);
+      border-radius: var(--radius-md);
+      width: min(520px, 100%);
       max-height: 90vh;
       overflow-y: auto;
       padding: 24px;
       box-shadow: var(--shadow-lg);
-    }
-    .modal-box h2 {
-      margin: 0 0 16px;
-      font-size: 20px;
-      font-weight: 800;
+      border: 1px solid var(--border);
     }
 
     .empty-hub {
-      grid-column: 1 / -1;
-      padding: 60px 20px;
+      padding: 48px 20px;
       text-align: center;
-      background: #fff;
-      border-radius: 24px;
+      background: var(--surface);
+      border-radius: var(--radius);
       border: 1px dashed var(--border);
+      color: var(--muted);
     }
-    .empty-hub h3 { margin: 10px 0 4px; font-size: 18px; color: var(--text); }
-    .empty-hub p { color: var(--muted); font-size: 12px; margin: 0; }
+    .empty-hub h3 { margin: 8px 0 3px; font-size: 15px; color: var(--text); font-weight: 800; }
+    .empty-hub p { font-size: 12px; margin: 0; }
   </style>
 </head>
 <body>
   <main class="counter-page">
     <div class="counter-shell">
+      <!-- Header -->
       <header class="counter-header">
         <div class="counter-title">
-          <div class="counter-title-icon"><svg class="ui-icon"><use href="assets/icons.svg#counter"></use></svg></div>
+          <div class="counter-title-icon">
+            <svg class="ui-icon" width="22" height="22"><use href="assets/icons.svg#counter"></use></svg>
+          </div>
           <div>
-            <h1>Centro de Expedición y Salida</h1>
-            <p>Control operativo en tiempo real de todos los pedidos (Salón, Llevar, Recoger, Domicilio e Incidencias).</p>
+            <h1>Torre de Control · Centro de Expedición</h1>
+            <p>Supervisión en tiempo real de pedidos de salón, mostrador, recolección, despacho a domicilio e incidencias.</p>
           </div>
         </div>
-        <div class="header-actions">
-          <span id="counter-sync" class="role-pill"><span class="role-dot"></span>Conectando…</span>
-          <button class="btn btn-secondary" onclick="window.location.href='home.html'">Panel Principal</button>
-          <button class="btn btn-secondary" onclick="logout()">Salir</button>
+        <div class="counter-header-actions">
+          <button class="btn btn-secondary btn-sm" id="btn-open-incidents" onclick="toggleIncidentsDrawer()" style="position:relative">
+            <svg class="ui-icon" width="16" height="16" style="color:var(--danger)"><use href="assets/icons.svg#alert"></use></svg>
+            <span>Incidencias</span>
+            <span class="badge badge-danger" id="header-incidents-badge" style="display:none;margin-left:4px;padding:2px 6px">0</span>
+          </button>
+          <span id="counter-sync" class="badge badge-neutral"><span class="ui-icon" style="width:7px;height:7px;border-radius:50%;background:var(--role-mesero);display:inline-block"></span> En Vivo</span>
+          <button class="btn btn-secondary btn-sm" onclick="window.location.href='home.html'">Panel Principal</button>
+          <button class="btn btn-ghost btn-sm" onclick="logout()">Salir</button>
         </div>
       </header>
 
-      <!-- Top Operational Metrics Bar (5 Core KPIs) -->
+      <!-- Operational KPIs -->
       <section class="counter-metrics-bar">
-        <div class="metric-card active" onclick="setLane('prep')" id="card-metric-prep">
+        <div class="metric-card" onclick="setViewMode('prep')" id="card-kpi-prep">
           <div>
             <div class="metric-label">En Cocina</div>
-            <div class="metric-val" id="count-prep" style="color:#ea580c">0</div>
+            <div class="metric-val" id="count-prep" style="color:var(--role-cocina)">0</div>
           </div>
-          <svg class="ui-icon" style="color:#ea580c"><use href="assets/icons.svg#flame"></use></svg>
+          <svg class="ui-icon" style="color:var(--role-cocina)"><use href="assets/icons.svg#flame"></use></svg>
         </div>
-        <div class="metric-card" onclick="setLane('salida')" id="card-metric-salida">
+        <div class="metric-card" onclick="setViewMode('salida')" id="card-kpi-salida">
           <div>
-            <div class="metric-label">Listos Salida</div>
-            <div class="metric-val" id="count-salida" style="color:#16a34a">0</div>
+            <div class="metric-label">En Mostrador</div>
+            <div class="metric-val" id="count-salida" style="color:var(--role-mesero)">0</div>
           </div>
-          <svg class="ui-icon" style="color:#16a34a"><use href="assets/icons.svg#check"></use></svg>
+          <svg class="ui-icon" style="color:var(--role-mesero)"><use href="assets/icons.svg#check"></use></svg>
         </div>
-        <div class="metric-card" onclick="setLane('domicilio')" id="card-metric-domicilio">
+        <div class="metric-card" onclick="setViewMode('domicilio')" id="card-kpi-domicilio">
           <div>
             <div class="metric-label">Reparto / Domicilio</div>
-            <div class="metric-val" id="count-domicilio" style="color:#9333ea">0</div>
+            <div class="metric-val" id="count-domicilio" style="color:var(--role-repartidor)">0</div>
           </div>
-          <svg class="ui-icon" style="color:#9333ea"><use href="assets/icons.svg#bike"></use></svg>
+          <svg class="ui-icon" style="color:var(--role-repartidor)"><use href="assets/icons.svg#bike"></use></svg>
         </div>
-        <div class="metric-card" onclick="setLane('incidencias')" id="card-metric-incidencias">
+        <div class="metric-card" onclick="toggleIncidentsDrawer()" id="card-kpi-incidencias">
           <div>
             <div class="metric-label">Incidencias</div>
-            <div class="metric-val" id="count-incidencias" style="color:#dc2626">0</div>
+            <div class="metric-val" id="count-incidencias" style="color:var(--danger)">0</div>
           </div>
-          <svg class="ui-icon" style="color:#dc2626"><use href="assets/icons.svg#alert"></use></svg>
+          <svg class="ui-icon" style="color:var(--danger)"><use href="assets/icons.svg#alert"></use></svg>
         </div>
-        <div class="metric-card" onclick="setLane('historial')" id="card-metric-historial">
+        <div class="metric-card" onclick="setViewMode('historial')" id="card-kpi-historial">
           <div>
             <div class="metric-label">Entregados Hoy</div>
-            <div class="metric-val" id="count-historial" style="color:#475569">0</div>
+            <div class="metric-val" id="count-historial" style="color:var(--muted)">0</div>
           </div>
-          <svg class="ui-icon" style="color:#475569"><use href="assets/icons.svg#counter"></use></svg>
+          <svg class="ui-icon" style="color:var(--muted)"><use href="assets/icons.svg#box"></use></svg>
         </div>
       </section>
 
-      <!-- 5 Operational Lanes Navigation -->
-      <section class="lanes-nav">
-        <button class="lane-tab active" data-lane="prep" onclick="setLane('prep')">
-          🔥 1. PREPARACIÓN <span class="badge-num" id="badge-prep">0</span>
-        </button>
-        <button class="lane-tab" data-lane="salida" onclick="setLane('salida')">
-          🍽️ 2. SALIDA & MOSTRADOR <span class="badge-num" id="badge-salida">0</span>
-        </button>
-        <button class="lane-tab" data-lane="domicilio" onclick="setLane('domicilio')">
-          🛵 3. DOMICILIO & RUTAS <span class="badge-num" id="badge-domicilio">0</span>
-        </button>
-        <button class="lane-tab" data-lane="incidencias" onclick="setLane('incidencias')">
-          🚨 4. INCIDENCIAS <span class="badge-num" id="badge-incidencias">0</span>
-        </button>
-        <button class="lane-tab" data-lane="historial" onclick="setLane('historial')">
-          ✅ 5. HISTORIAL HOY <span class="badge-num" id="badge-historial">0</span>
-        </button>
-      </section>
+      <!-- View Controls Bar -->
+      <section class="tower-controls">
+        <div class="view-mode-tabs">
+          <button class="view-tab active" data-mode="3zones" onclick="setViewMode('3zones')">
+            <svg class="ui-icon" width="15" height="15"><use href="assets/icons.svg#counter"></use></svg>
+            Torre de Control (3 Zonas)
+          </button>
+          <button class="view-tab" data-mode="prep" onclick="setViewMode('prep')">
+            <svg class="ui-icon" width="15" height="15"><use href="assets/icons.svg#flame"></use></svg>
+            1. Preparación (<span id="tab-count-prep">0</span>)
+          </button>
+          <button class="view-tab" data-mode="salida" onclick="setViewMode('salida')">
+            <svg class="ui-icon" width="15" height="15"><use href="assets/icons.svg#check"></use></svg>
+            2. Mostrador (<span id="tab-count-salida">0</span>)
+          </button>
+          <button class="view-tab" data-mode="domicilio" onclick="setViewMode('domicilio')">
+            <svg class="ui-icon" width="15" height="15"><use href="assets/icons.svg#bike"></use></svg>
+            3. Domicilio (<span id="tab-count-domicilio">0</span>)
+          </button>
+          <button class="view-tab" data-mode="historial" onclick="setViewMode('historial')">
+            <svg class="ui-icon" width="15" height="15"><use href="assets/icons.svg#box"></use></svg>
+            Historial Hoy (<span id="tab-count-historial">0</span>)
+          </button>
+        </div>
 
-      <!-- Main Display Grid -->
-      <section class="expedition-grid" id="main-content-grid">
-        <div class="empty-hub">
-          <h3>Cargando pedidos de salida...</h3>
-          <p>Conectando con el motor de despacho de MealOps.</p>
+        <div class="dest-filter-tabs">
+          <button class="dest-filter-btn active" data-dest="all" onclick="setDestFilter('all')">Todos</button>
+          <button class="dest-filter-btn" data-dest="salon" onclick="setDestFilter('salon')">
+            <svg class="ui-icon" width="13" height="13"><use href="assets/icons.svg#dining"></use></svg> Salón
+          </button>
+          <button class="dest-filter-btn" data-dest="llevar" onclick="setDestFilter('llevar')">
+            <svg class="ui-icon" width="13" height="13"><use href="assets/icons.svg#bag"></use></svg> Llevar / Recoger
+          </button>
+          <button class="dest-filter-btn" data-dest="domicilio" onclick="setDestFilter('domicilio')">
+            <svg class="ui-icon" width="13" height="13"><use href="assets/icons.svg#bike"></use></svg> Domicilio
+          </button>
         </div>
       </section>
+
+      <!-- Main Display Layout (Dynamic 3 Zones or Single Lane) -->
+      <section id="tower-main-area"></section>
     </div>
   </main>
+
+  <!-- Side Drawer Incidencias -->
+  <div id="incidents-drawer-backdrop" class="incidents-drawer-backdrop hidden" onclick="if(event.target===this) toggleIncidentsDrawer()">
+    <aside class="incidents-drawer">
+      <div class="drawer-header">
+        <div style="display:flex;align-items:center;gap:10px">
+          <svg class="ui-icon" width="20" height="20" style="color:var(--danger)"><use href="assets/icons.svg#alert"></use></svg>
+          <h2>Bandeja de Incidencias</h2>
+        </div>
+        <button class="btn btn-ghost btn-sm" onclick="toggleIncidentsDrawer()" title="Cerrar">
+          <svg class="ui-icon" width="18" height="18"><use href="assets/icons.svg#close"></use></svg>
+        </button>
+      </div>
+      <div class="drawer-content" id="incidents-drawer-list">
+        <div class="empty-hub">
+          <svg class="ui-icon" style="width:36px;height:36px;color:var(--role-mesero);margin:0 auto"><use href="assets/icons.svg#check"></use></svg>
+          <h3>Sin incidencias activas</h3>
+          <p>No hay reportes ni contratiempos pendientes de resolución.</p>
+        </div>
+      </div>
+    </aside>
+  </div>
 
   <!-- Modal Resolver Incidencia -->
   <div id="resolve-incident-modal" class="modal-backdrop hidden">
     <div class="modal-box">
-      <h2>Resolver Incidencia Operativa</h2>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+        <h2 style="margin:0;font-size:18px;font-weight:800">Resolver Incidencia Operativa</h2>
+        <button class="btn btn-ghost btn-sm" onclick="closeIncidentModal()"><svg class="ui-icon" width="16" height="16"><use href="assets/icons.svg#close"></use></svg></button>
+      </div>
       <input type="hidden" id="incident-id-input">
-      <div class="form-grid">
-        <div class="field" style="grid-column: 1 / -1;">
-          <label for="incident-status-select">Estado de la Incidencia</label>
+      <div class="form-grid" style="grid-template-columns:1fr">
+        <div class="field">
+          <label for="incident-status-select">Estatus de Solución</label>
           <select id="incident-status-select">
-            <option value="resuelta">✅ Resuelta (Concluida)</option>
-            <option value="en_revision">⏳ En Revisión / Seguimiento</option>
-            <option value="cerrada">❌ Descartada / Cerrada</option>
+            <option value="resuelta">Resuelta (Concluida)</option>
+            <option value="en_revision">En Revisión / Seguimiento</option>
+            <option value="cerrada">Descartada / Cerrada</option>
           </select>
         </div>
-        <div class="field" style="grid-column: 1 / -1;">
-          <label for="incident-notes-input">Notas de Resolución / Acción Tomada</label>
-          <textarea id="incident-notes-input" rows="4" style="width:100%;border-radius:12px;border:1px solid var(--border);padding:10px;" placeholder="Detalles de la solución acordada con cliente o chofer..."></textarea>
+        <div class="field">
+          <label for="incident-notes-input">Notas de Solución / Acción Tomada</label>
+          <textarea id="incident-notes-input" rows="4" placeholder="Detalles de la solución acordada con cliente o repartidor..."></textarea>
         </div>
       </div>
-      <div class="spacer-24"></div>
-      <div style="display: flex; justify-content: flex-end; gap: 10px;">
+      <div class="spacer-16"></div>
+      <div style="display:flex;justify-content:flex-end;gap:10px">
         <button class="btn btn-secondary" onclick="closeIncidentModal()">Cancelar</button>
         <button class="btn btn-primary" onclick="submitIncidentResolution()">Guardar Solución</button>
       </div>
@@ -523,7 +680,8 @@
 
     let orders = [];
     let incidents = [];
-    let currentLane = 'prep';
+    let currentViewMode = '3zones'; // '3zones' | 'prep' | 'salida' | 'domicilio' | 'historial'
+    let currentDestFilter = 'all'; // 'all' | 'salon' | 'llevar' | 'domicilio'
     let refreshTimer;
     let knownReadyOrderIds = new Set();
 
@@ -532,13 +690,13 @@
       transports: ['websocket', 'polling']
     });
     socket.on('connect', () => {
-      document.getElementById('counter-sync').innerHTML = '<span class="role-dot"></span>Sincronizado en Vivo';
+      document.getElementById('counter-sync').innerHTML = '<span class="ui-icon" style="width:7px;height:7px;border-radius:50%;background:var(--role-mesero);display:inline-block"></span> En Vivo';
     });
     socket.on('disconnect', () => {
-      document.getElementById('counter-sync').innerHTML = '<span class="role-dot" style="background:#dc2626"></span>Reconectando…';
+      document.getElementById('counter-sync').innerHTML = '<span class="ui-icon" style="width:7px;height:7px;border-radius:50%;background:var(--danger);display:inline-block"></span> Reconectando…';
     });
 
-    // Realtime event subscribers
+    // Subscriptions
     socket.on('new-order', () => scheduleRefresh(true));
     socket.on('order-updated', () => scheduleRefresh(false));
     socket.on('orders-updated', () => scheduleRefresh(false));
@@ -561,41 +719,66 @@
       refreshTimer = setTimeout(() => loadAllData(playSound), 150);
     }
 
-    function setLane(laneKey) {
-      currentLane = laneKey;
-      document.querySelectorAll('.lane-tab').forEach(el => {
-        el.classList.toggle('active', el.getAttribute('data-lane') === laneKey);
+    function setViewMode(mode) {
+      currentViewMode = mode;
+      document.querySelectorAll('.view-tab').forEach(el => {
+        el.classList.toggle('active', el.getAttribute('data-mode') === mode);
       });
-      document.querySelectorAll('.metric-card').forEach(el => {
-        el.classList.remove('active');
-      });
-      if (laneKey === 'prep') document.getElementById('card-metric-prep')?.classList.add('active');
-      if (laneKey === 'salida') document.getElementById('card-metric-salida')?.classList.add('active');
-      if (laneKey === 'domicilio') document.getElementById('card-metric-domicilio')?.classList.add('active');
-      if (laneKey === 'incidencias') document.getElementById('card-metric-incidencias')?.classList.add('active');
-      if (laneKey === 'historial') document.getElementById('card-metric-historial')?.classList.add('active');
+      document.querySelectorAll('.metric-card').forEach(el => el.classList.remove('active'));
+      if (mode === 'prep') document.getElementById('card-kpi-prep')?.classList.add('active');
+      if (mode === 'salida') document.getElementById('card-kpi-salida')?.classList.add('active');
+      if (mode === 'domicilio') document.getElementById('card-kpi-domicilio')?.classList.add('active');
+      if (mode === 'historial') document.getElementById('card-kpi-historial')?.classList.add('active');
       render();
+    }
+
+    function setDestFilter(dest) {
+      currentDestFilter = dest;
+      document.querySelectorAll('.dest-filter-btn').forEach(el => {
+        el.classList.toggle('active', el.getAttribute('data-dest') === dest);
+      });
+      render();
+    }
+
+    function toggleIncidentsDrawer(open = null) {
+      const drawer = document.getElementById('incidents-drawer-backdrop');
+      const shouldOpen = open !== null ? open : drawer.classList.contains('hidden');
+      if (shouldOpen) {
+        drawer.classList.remove('hidden');
+        renderIncidentsDrawer();
+      } else {
+        drawer.classList.add('hidden');
+      }
     }
 
     function folioText(order) {
       return order.folio ? ('F' + String(order.folio).padStart(3, '0')) : ('#' + order.id);
     }
 
-    function serviceBadge(order) {
+    function serviceBadgeSvg(order) {
       const type = (order.service_type || order.type || 'local').toLowerCase();
       if (type === 'mesa') {
-        return '<span class="dest-pill dest-mesa">🍽️ ' + escapeHtml(order.table_name || order.type || 'Mesa') + '</span>';
+        return '<span class="dest-pill dest-mesa"><svg class="ui-icon" width="13" height="13"><use href="assets/icons.svg#dining"></use></svg>' + escapeHtml(order.table_name || order.type || 'Mesa') + '</span>';
       }
       if (type === 'local') {
         if (!order.table_session_id) {
-          return '<span class="dest-pill dest-local">🚶 Comer aquí (Sin mesa)</span>';
+          return '<span class="dest-pill dest-local"><svg class="ui-icon" width="13" height="13"><use href="assets/icons.svg#counter"></use></svg> Comer aquí</span>';
         }
-        return '<span class="dest-pill dest-mesa">🍽️ ' + escapeHtml(order.table_name || 'Salón') + '</span>';
+        return '<span class="dest-pill dest-mesa"><svg class="ui-icon" width="13" height="13"><use href="assets/icons.svg#dining"></use></svg>' + escapeHtml(order.table_name || 'Salón') + '</span>';
       }
-      if (type === 'llevar') return '<span class="dest-pill dest-llevar">🛍️ Para Llevar</span>';
-      if (type === 'recoger') return '<span class="dest-pill dest-llevar">📦 Recoger</span>';
-      if (type === 'domicilio') return '<span class="dest-pill dest-domicilio">🛵 A Domicilio</span>';
+      if (type === 'llevar') return '<span class="dest-pill dest-llevar"><svg class="ui-icon" width="13" height="13"><use href="assets/icons.svg#bag"></use></svg> Para Llevar</span>';
+      if (type === 'recoger') return '<span class="dest-pill dest-llevar"><svg class="ui-icon" width="13" height="13"><use href="assets/icons.svg#box"></use></svg> Recoger</span>';
+      if (type === 'domicilio') return '<span class="dest-pill dest-domicilio"><svg class="ui-icon" width="13" height="13"><use href="assets/icons.svg#bike"></use></svg> A Domicilio</span>';
       return '<span class="dest-pill dest-local">' + escapeHtml(type) + '</span>';
+    }
+
+    function matchesDestFilter(order) {
+      if (currentDestFilter === 'all') return true;
+      const type = (order.service_type || order.type || 'local').toLowerCase();
+      if (currentDestFilter === 'salon') return type === 'mesa' || type === 'local' || order.table_session_id;
+      if (currentDestFilter === 'llevar') return type === 'llevar' || type === 'recoger';
+      if (currentDestFilter === 'domicilio') return type === 'domicilio';
+      return true;
     }
 
     function renderOrderCard(order) {
@@ -606,40 +789,40 @@
       const isDelayed = summary.is_delayed;
       const serviceType = (order.service_type || 'local').toLowerCase();
 
-      // Check if order has open incidents
+      // Check open incidents
       const orderIncidents = incidents.filter(i => Number(i.order_id) === Number(order.id) && i.status !== 'resuelta' && i.status !== 'cerrada');
       const hasOpenIncident = orderIncidents.length > 0;
 
       let statusBadgeHtml = '';
       if (hasOpenIncident) {
-        statusBadgeHtml = '<span class="status-badge-hub badge-hub-incident" onclick="setLane(\'incidencias\')" title="Ver incidencia activa">🚨 Incidencia Activa</span>';
+        statusBadgeHtml = '<span class="status-badge-hub badge-hub-incident" onclick="toggleIncidentsDrawer(true)" title="Ver incidencia activa"><svg class="ui-icon" width="12" height="12"><use href="assets/icons.svg#alert"></use></svg> Incidencia</span>';
       } else if (isDelivered) {
-        statusBadgeHtml = '<span class="status-badge-hub badge-hub-delivered">✅ Entregado</span>';
+        statusBadgeHtml = '<span class="status-badge-hub badge-hub-delivered"><svg class="ui-icon" width="12" height="12"><use href="assets/icons.svg#check"></use></svg> Entregado</span>';
       } else if (isReady) {
         if (serviceType === 'domicilio') {
           const tripBadge = order.trip_folio ? (' · Viaje #' + order.trip_folio) : '';
           if (stage === 'en_ruta') {
-            statusBadgeHtml = '<span class="status-badge-hub badge-hub-transit">🚚 En ruta' + tripBadge + '</span>';
+            statusBadgeHtml = '<span class="status-badge-hub badge-hub-transit"><svg class="ui-icon" width="12" height="12"><use href="assets/icons.svg#bike"></use></svg> En ruta' + tripBadge + '</span>';
           } else if (stage === 'esperando_recogida' || order.driver_name) {
-            statusBadgeHtml = '<span class="status-badge-hub badge-hub-ready">🛵 ' + escapeHtml(order.driver_name || 'Repartidor') + ' asignado' + tripBadge + '</span>';
+            statusBadgeHtml = '<span class="status-badge-hub badge-hub-ready"><svg class="ui-icon" width="12" height="12"><use href="assets/icons.svg#bike"></use></svg> ' + escapeHtml(order.driver_name || 'Repartidor') + tripBadge + '</span>';
           } else if (stage === 'oferta_enviada' && summary.active_offer) {
-            statusBadgeHtml = '<span class="status-badge-hub badge-hub-prep" style="background:#fef3c7;color:#b45309;border-color:#fde68a">🛵 Oferta enviada (' + summary.active_offer.seconds_left + 's)</span>';
+            statusBadgeHtml = '<span class="status-badge-hub badge-hub-prep" style="background:var(--warning-soft);color:var(--warning);border-color:var(--warning-border)">Oferta (' + summary.active_offer.seconds_left + 's)</span>';
           } else {
-            statusBadgeHtml = '<span class="status-badge-hub badge-hub-prep" style="background:#f3e8ff;color:#7e22ce;border-color:#e9d5ff">🔎 Buscando repartidor</span>';
+            statusBadgeHtml = '<span class="status-badge-hub badge-hub-prep" style="background:var(--role-repartidor-soft);color:var(--role-repartidor)">Buscando repartidor</span>';
           }
         } else if (stage === 'listo_para_mesa') {
-          statusBadgeHtml = '<span class="status-badge-hub badge-hub-ready">🍽️ Listo Salón</span>';
+          statusBadgeHtml = '<span class="status-badge-hub badge-hub-ready"><svg class="ui-icon" width="12" height="12"><use href="assets/icons.svg#check"></use></svg> Listo Salón</span>';
         } else if (stage === 'en_camino_a_mesa') {
-          statusBadgeHtml = '<span class="status-badge-hub badge-hub-transit">🏃 Mesero en Camino</span>';
+          statusBadgeHtml = '<span class="status-badge-hub badge-hub-transit">En camino a mesa</span>';
         } else if (stage === 'listo_esperando_llegada') {
-          statusBadgeHtml = '<span class="status-badge-hub badge-hub-prep">🚶 Esperando Llegada</span>';
+          statusBadgeHtml = '<span class="status-badge-hub badge-hub-prep">Esperando llegada</span>';
         } else {
-          statusBadgeHtml = '<span class="status-badge-hub badge-hub-ready">✨ Listo en Mostrador</span>';
+          statusBadgeHtml = '<span class="status-badge-hub badge-hub-ready"><svg class="ui-icon" width="12" height="12"><use href="assets/icons.svg#check"></use></svg> Listo en Mostrador</span>';
         }
       } else if (stage === 'esperando_cocina') {
-        statusBadgeHtml = '<span class="status-badge-hub badge-hub-prep">⏳ En Cocina (' + (summary.kitchen_items_ready_count || 0) + '/' + (summary.kitchen_items_count || 1) + ')</span>';
+        statusBadgeHtml = '<span class="status-badge-hub badge-hub-prep"><svg class="ui-icon" width="12" height="12"><use href="assets/icons.svg#flame"></use></svg> Cocina (' + (summary.kitchen_items_ready_count || 0) + '/' + (summary.kitchen_items_count || 1) + ')</span>';
       } else {
-        statusBadgeHtml = '<span class="status-badge-hub badge-hub-prep">📦 Armando</span>';
+        statusBadgeHtml = '<span class="status-badge-hub badge-hub-prep">Armando</span>';
       }
 
       // Items list
@@ -680,69 +863,61 @@
         const tripLabel = order.trip_folio ? (' · <strong>Viaje #' + order.trip_folio + '</strong>') : '';
         if (isDelivered) {
           driverInfo = order.driver_name
-            ? ('🛵 <strong>Entregado por:</strong> ' + escapeHtml(order.driver_name) + tripLabel)
-            : ('✅ <strong>Entrega finalizada</strong>' + tripLabel);
+            ? ('<svg class="ui-icon" width="13" height="13"><use href="assets/icons.svg#bike"></use></svg> <strong>Entregado por:</strong> ' + escapeHtml(order.driver_name) + tripLabel)
+            : ('<strong>Entrega finalizada</strong>' + tripLabel);
         } else if (stage === 'en_ruta') {
-          driverInfo = '🚚 <strong>En ruta con:</strong> ' + escapeHtml(order.driver_name || 'Repartidor') + tripLabel + (order.delivery_pin ? (' · <strong>PIN:</strong> ' + order.delivery_pin) : '');
+          driverInfo = '<svg class="ui-icon" width="13" height="13"><use href="assets/icons.svg#bike"></use></svg> <strong>En ruta con:</strong> ' + escapeHtml(order.driver_name || 'Repartidor') + tripLabel + (order.delivery_pin ? (' · <strong>PIN:</strong> ' + order.delivery_pin) : '');
         } else if (stage === 'esperando_recogida' || order.driver_name) {
-          driverInfo = '🛵 <strong>Repartidor asignado:</strong> ' + escapeHtml(order.driver_name) + tripLabel + (order.delivery_pin ? (' · <strong>PIN:</strong> ' + order.delivery_pin) : '');
+          driverInfo = '<svg class="ui-icon" width="13" height="13"><use href="assets/icons.svg#bike"></use></svg> <strong>Asignado:</strong> ' + escapeHtml(order.driver_name) + tripLabel + (order.delivery_pin ? (' · <strong>PIN:</strong> ' + order.delivery_pin) : '');
         } else if (stage === 'oferta_enviada' && summary.active_offer) {
-          driverInfo = '🛵 <strong>Oferta exclusiva:</strong> ' + escapeHtml(summary.active_offer.driver_name) + ' (' + summary.active_offer.seconds_left + 's restantes)';
+          driverInfo = '<strong>Oferta enviada:</strong> ' + escapeHtml(summary.active_offer.driver_name) + ' (' + summary.active_offer.seconds_left + 's)';
         } else if (isReady) {
-          driverInfo = '🔎 <strong>Cola de Despacho:</strong> Buscando repartidor disponible en zona';
+          driverInfo = '<strong>Despacho:</strong> Buscando repartidor disponible';
         } else {
-          driverInfo = '📦 <strong>Preparación:</strong> Se enviará a despacho al estar listo';
+          driverInfo = '<strong>Preparación:</strong> Se enviará a despacho al estar listo';
         }
 
         metaBlockHtml += '<div class="address-box">' +
-          '<div>📍 <strong>' + escapeHtml(order.address || 'Dirección de entrega') + '</strong></div>' +
-          '<div style="margin-top:4px;font-size:11px;color:#7e22ce">' + driverInfo + '</div>' +
+          '<div><svg class="ui-icon" width="13" height="13" style="vertical-align:-2px"><use href="assets/icons.svg#map-pin"></use></svg> <strong>' + escapeHtml(order.address || 'Dirección de entrega') + '</strong></div>' +
+          '<div style="margin-top:4px;font-size:11px">' + driverInfo + '</div>' +
         '</div>';
       }
 
-      // Actions buttons
+      // Actions
       let actionsHtml = '';
       if (!isDelivered) {
         if (serviceType === 'mesa' || order.table_session_id) {
           if (isReady) {
             if (!order.picked_up_from_counter_at) {
-              actionsHtml += '<button class="btn-action btn-notify" onclick="notifyWaiter(' + order.id + ')">🔔 Avisar Mesero</button>' +
-                '<button class="btn-action btn-pickup-waiter" onclick="pickupWaiter(' + order.id + ')">🏃 Mesero Recogió</button>';
+              actionsHtml += '<button class="btn-action btn-notify" onclick="notifyWaiter(' + order.id + ')"><svg class="ui-icon" width="13" height="13"><use href="assets/icons.svg#bell"></use></svg> Avisar Mesero</button>' +
+                '<button class="btn-action btn-pickup-waiter" onclick="pickupWaiter(' + order.id + ')">Mesero Recogió</button>';
             } else {
-              actionsHtml += '<button class="btn-action btn-deliver" onclick="deliverTable(' + order.id + ')">✅ Servido en Mesa</button>';
+              actionsHtml += '<button class="btn-action btn-deliver" onclick="deliverTable(' + order.id + ')"><svg class="ui-icon" width="13" height="13"><use href="assets/icons.svg#check"></use></svg> Servido en Mesa</button>';
             }
           } else {
-            actionsHtml += '<button class="btn-action btn-ready" onclick="markReady(' + order.id + ')">✨ Marcar Listo</button>';
+            actionsHtml += '<button class="btn-action btn-ready" onclick="markReady(' + order.id + ')"><svg class="ui-icon" width="13" height="13"><use href="assets/icons.svg#check"></use></svg> Marcar Listo</button>';
           }
         } else if (serviceType === 'llevar' || serviceType === 'recoger') {
           if (isReady) {
-            actionsHtml += '<button class="btn-action btn-deliver" onclick="deliverOrder(' + order.id + ')">🤝 Entregar a Cliente</button>';
+            actionsHtml += '<button class="btn-action btn-deliver" onclick="deliverOrder(' + order.id + ')"><svg class="ui-icon" width="13" height="13"><use href="assets/icons.svg#check"></use></svg> Entregar a Cliente</button>';
           } else {
-            actionsHtml += '<button class="btn-action btn-ready" onclick="markReady(' + order.id + ')">✨ Marcar Listo</button>';
+            actionsHtml += '<button class="btn-action btn-ready" onclick="markReady(' + order.id + ')"><svg class="ui-icon" width="13" height="13"><use href="assets/icons.svg#check"></use></svg> Marcar Listo</button>';
           }
         } else if (serviceType === 'local' && !order.table_session_id) {
-          actionsHtml += '<button class="btn-action btn-secondary-hub" onclick="window.location.href=\'tables.html\'">🪑 Asignar a Mesa</button>' +
-            (!isReady ? '<button class="btn-action btn-ready" onclick="markReady(' + order.id + ')">✨ Marcar Listo</button>' : '');
+          actionsHtml += '<button class="btn-action btn-secondary-hub" onclick="window.location.href=\'tables.html\'">Asignar a Mesa</button>' +
+            (!isReady ? '<button class="btn-action btn-ready" onclick="markReady(' + order.id + ')"><svg class="ui-icon" width="13" height="13"><use href="assets/icons.svg#check"></use></svg> Marcar Listo</button>' : '');
         } else if (serviceType === 'domicilio') {
           if (!isReady) {
-            actionsHtml += '<button class="btn-action btn-ready" onclick="markReady(' + order.id + ')">✨ Marcar Listo para Reparto</button>';
+            actionsHtml += '<button class="btn-action btn-ready" onclick="markReady(' + order.id + ')"><svg class="ui-icon" width="13" height="13"><use href="assets/icons.svg#check"></use></svg> Listo para Reparto</button>';
           } else {
             if (currentUser && currentUser.role === 'admin') {
-              actionsHtml += '<button class="btn-action btn-secondary-hub" onclick="openAssignDriverModal(' + order.id + ')">⚡ Asignación Manual (Admin)</button>';
+              actionsHtml += '<button class="btn-action btn-secondary-hub" onclick="openAssignDriverModal(' + order.id + ')">Asignar Repartidor (Admin)</button>';
             }
           }
         }
       }
 
-      const cardClass = isDelivered
-        ? 'delivered'
-        : isReady
-        ? 'ready'
-        : isDelayed
-        ? 'delayed'
-        : stage === 'esperando_cocina'
-        ? 'waiting-kitchen'
-        : '';
+      const cardClass = isDelivered ? 'delivered' : isReady ? 'ready' : isDelayed ? 'delayed' : stage === 'esperando_cocina' ? 'waiting-kitchen' : '';
 
       return '<article class="order-card-hub ' + cardClass + '" id="hub-order-' + order.id + '">' +
         '<div class="card-top">' +
@@ -754,12 +929,12 @@
           statusBadgeHtml +
         '</div>' +
         '<div class="service-dest-row">' +
-          serviceBadge(order) +
+          serviceBadgeSvg(order) +
           '<span class="time-badge ' + (isDelayed ? 'alert' : '') + '">' +
-            '⏱️ ' + (summary.elapsed_minutes || 0) + ' min ' + (isDelayed ? '· DEMORADO' : '') +
+            '<svg class="ui-icon" width="11" height="11"><use href="assets/icons.svg#clock"></use></svg> ' + (summary.elapsed_minutes || 0) + ' min ' + (isDelayed ? '· DEMORADO' : '') +
           '</span>' +
           '<span class="time-badge">' +
-            (order.payment_status === 'paid' ? '💳 Pagado' : '💵 Pago pendiente') + ' · ' + formatCurrency(order.total) +
+            (order.payment_status === 'paid' ? 'Pagado' : 'Pago pendiente') + ' · ' + formatCurrency(order.total) +
           '</span>' +
         '</div>' +
         metaBlockHtml +
@@ -770,72 +945,74 @@
       '</article>';
     }
 
-    function renderIncidentCard(inc) {
-      const isResolved = inc.status === 'resuelta' || inc.status === 'cerrada';
-      const statusClass = inc.status === 'nueva' ? 'badge-hub-incident' : inc.status === 'en_revision' ? 'badge-hub-prep' : 'badge-hub-ready';
-      const statusLabel = inc.status === 'nueva' ? '🚨 Nueva Incidencia' : inc.status === 'en_revision' ? '⏳ En Revisión' : '✅ Resuelta';
-
-      return '<article class="incident-item-card" id="incident-' + inc.id + '">' +
-        '<div class="incident-top">' +
-          '<div>' +
-            '<span class="status-badge-hub ' + statusClass + '">' + statusLabel + '</span>' +
-            '<div class="folio-box" style="margin-top:6px">F' + String(inc.order_folio || inc.order_id).padStart(3, '0') + '</div>' +
-            '<div class="customer-line">' + escapeHtml(inc.customer_name || 'Cliente') + '</div>' +
-          '</div>' +
-          '<div style="text-align:right">' +
-            '<span class="dest-pill dest-domicilio">' + escapeHtml(inc.category || 'Incidencia') + '</span>' +
-            '<div style="font-size:11px;color:var(--muted);margin-top:4px">Prioridad: <strong>' + (inc.priority ? inc.priority.toUpperCase() : 'MEDIA') + '</strong></div>' +
-          '</div>' +
-        '</div>' +
-        '<div class="incident-desc">' +
-          '<strong>Descripción del Repartidor:</strong><br>' +
-          escapeHtml(inc.description || 'Sin notas adicionales') +
-        '</div>' +
-        (inc.admin_notes ? (
-          '<div style="font-size:12px;background:#ecfdf5;border:1px solid #a7f3d0;padding:8px 10px;border-radius:10px;color:#065f46">' +
-            '<strong>Solución Registrada:</strong> ' + escapeHtml(inc.admin_notes) +
-          '</div>'
-        ) : '') +
-        '<div class="incident-meta-row">' +
-          '<span>🛵 <strong>Chofer:</strong> ' + escapeHtml(inc.driver_name || 'Repartidor') + ' (' + (inc.driver_short_code || 'REP') + ')</span>' +
-          '<span>📍 ' + escapeHtml(inc.delivery_address || 'Dirección') + '</span>' +
-        '</div>' +
-        '<div class="actions-grid" style="margin-top:6px">' +
-          '<button class="btn-action btn-secondary-hub" onclick="focusOrderInLane(' + inc.order_id + ')">' +
-            '🔍 Ver Pedido F' + String(inc.order_folio || inc.order_id).padStart(3, '0') +
-          '</button>' +
-          (!isResolved ? (
-            '<button class="btn-action btn-deliver" onclick="openResolveModal(' + inc.id + ')">' +
-              '✅ Resolver Incidencia' +
-            '</button>'
-          ) : '') +
-        '</div>' +
-      '</article>';
-    }
-
-    function focusOrderInLane(orderId) {
-      const order = orders.find(o => Number(o.id) === Number(orderId));
-      if (!order) {
-        showToast('El pedido #' + orderId + ' ya no está activo o fue cerrado.', 'info');
+    function renderIncidentsDrawer() {
+      const list = document.getElementById('incidents-drawer-list');
+      if (!incidents.length) {
+        list.innerHTML = '<div class="empty-hub">' +
+          '<svg class="ui-icon" style="width:36px;height:36px;color:var(--role-mesero);margin:0 auto"><use href="assets/icons.svg#check"></use></svg>' +
+          '<h3>Sin incidencias registradas</h3>' +
+          '<p>No hay reportes ni contratiempos reportados hoy.</p>' +
+        '</div>';
         return;
       }
-      if (order.status === 'entregado') {
-        setLane('historial');
-      } else if (order.service_type === 'domicilio') {
-        setLane('domicilio');
-      } else if (order.status === 'listo') {
-        setLane('salida');
-      } else {
-        setLane('prep');
-      }
+
+      list.innerHTML = incidents.map(inc => {
+        const isResolved = inc.status === 'resuelta' || inc.status === 'cerrada';
+        const statusClass = inc.status === 'nueva' ? 'badge-danger' : inc.status === 'en_revision' ? 'badge-warning' : 'badge-success';
+        const statusLabel = inc.status === 'nueva' ? 'Nueva Incidencia' : inc.status === 'en_revision' ? 'En Revisión' : 'Resuelta';
+
+        return '<article class="incident-item-card" id="incident-' + inc.id + '">' +
+          '<div class="incident-top">' +
+            '<div>' +
+              '<span class="badge ' + statusClass + '">' + statusLabel + '</span>' +
+              '<div class="folio-box" style="font-size:18px;margin-top:6px">Pedido F' + String(inc.order_folio || inc.order_id).padStart(3, '0') + '</div>' +
+              '<div class="customer-line">' + escapeHtml(inc.customer_name || 'Cliente') + '</div>' +
+            '</div>' +
+            '<div style="text-align:right">' +
+              '<span class="dest-pill dest-domicilio">' + escapeHtml(inc.category || 'Incidencia') + '</span>' +
+              '<div style="font-size:10.5px;color:var(--muted);margin-top:4px">Prioridad: <strong>' + (inc.priority ? inc.priority.toUpperCase() : 'MEDIA') + '</strong></div>' +
+            '</div>' +
+          '</div>' +
+          '<div class="incident-desc">' +
+            '<strong>Reporte del Repartidor:</strong><br>' +
+            escapeHtml(inc.description || 'Sin notas adicionales') +
+          '</div>' +
+          (inc.admin_notes ? (
+            '<div style="font-size:11.5px;background:var(--role-mesero-soft);border:1px solid var(--role-mesero-border);padding:7px 10px;border-radius:8px;color:#065F46">' +
+              '<strong>Solución:</strong> ' + escapeHtml(inc.admin_notes) +
+            '</div>'
+          ) : '') +
+          '<div class="incident-meta-row">' +
+            '<span><svg class="ui-icon" width="12" height="12"><use href="assets/icons.svg#bike"></use></svg> ' + escapeHtml(inc.driver_name || 'Repartidor') + ' (' + (inc.driver_short_code || 'REP') + ')</span>' +
+            '<span><svg class="ui-icon" width="12" height="12"><use href="assets/icons.svg#map-pin"></use></svg> ' + escapeHtml(inc.delivery_address || 'Dirección') + '</span>' +
+          '</div>' +
+          '<div class="actions-grid" style="margin-top:4px">' +
+            '<button class="btn-action btn-secondary-hub" onclick="focusOrderFromIncident(' + inc.order_id + ')">' +
+              '<svg class="ui-icon" width="13" height="13"><use href="assets/icons.svg#search"></use></svg> Ver Pedido F' + String(inc.order_folio || inc.order_id).padStart(3, '0') +
+            '</button>' +
+            (!isResolved ? (
+              '<button class="btn-action btn-deliver" onclick="openResolveModal(' + inc.id + ')">' +
+                '<svg class="ui-icon" width="13" height="13"><use href="assets/icons.svg#check"></use></svg> Resolver' +
+              '</button>'
+            ) : '') +
+          '</div>' +
+        '</article>';
+      }).join('');
+    }
+
+    function focusOrderFromIncident(orderId) {
+      toggleIncidentsDrawer(false);
+      setViewMode('3zones');
       setTimeout(() => {
         const el = document.getElementById('hub-order-' + orderId);
         if (el) {
           el.scrollIntoView({ behavior: 'smooth', block: 'center' });
           el.style.outline = '3px solid var(--primary)';
           setTimeout(() => el.style.outline = '', 3000);
+        } else {
+          showToast('El pedido #' + orderId + ' no está visible en la vista actual.', 'info');
         }
-      }, 200);
+      }, 250);
     }
 
     function render() {
@@ -843,98 +1020,111 @@
       const activeOrders = nonCancelled.filter(o => o.status !== 'entregado');
       const deliveredToday = nonCancelled.filter(o => o.status === 'entregado');
 
-      // 1. PREPARACIÓN (Cocina en proceso o esperando cocina)
+      // 1. PREPARACIÓN (esperando_cocina, pendiente, aceptado, preparando, armando)
       const prepOrders = activeOrders.filter(o => {
         const stage = o.summary?.counter_stage;
         return o.status === 'pendiente' || o.status === 'aceptado' || o.status === 'preparando' || stage === 'esperando_cocina' || stage === 'armando';
-      });
+      }).filter(matchesDestFilter);
 
-      // 2. SALIDA & MOSTRADOR (Listos para salón/mesa, llevar o recoger)
+      // 2. EN MOSTRADOR (listos en mostrador para salón, llevar, recoger o esperando recolección de domicilio)
       const salidaOrders = activeOrders.filter(o => {
         return o.status === 'listo' && o.service_type !== 'domicilio';
-      });
+      }).filter(matchesDestFilter);
 
-      // 3. DOMICILIO (Todos los pedidos de domicilio activos: listo, oferta, en ruta, esperando recogida)
-      const domicilioOrders = activeOrders.filter(o => {
+      // 3. SALIDA / DOMICILIO (domicilios listos/en ruta, o salón en camino a mesa)
+      const dispatchOrders = activeOrders.filter(o => {
         return o.service_type === 'domicilio' && o.status !== 'entregado';
-      });
+      }).filter(matchesDestFilter);
 
-      // 4. INCIDENCIAS (Incidencias abiertas o en revisión)
+      // Open incidents
       const openIncidents = incidents.filter(i => i.status !== 'resuelta' && i.status !== 'cerrada');
 
-      // Update counters in DOM
+      // Update KPI counters
       document.getElementById('count-prep').textContent = prepOrders.length;
       document.getElementById('count-salida').textContent = salidaOrders.length;
-      document.getElementById('count-domicilio').textContent = domicilioOrders.length;
+      document.getElementById('count-domicilio').textContent = dispatchOrders.length;
       document.getElementById('count-incidencias').textContent = openIncidents.length;
       document.getElementById('count-historial').textContent = deliveredToday.length;
 
-      document.getElementById('badge-prep').textContent = prepOrders.length;
-      document.getElementById('badge-salida').textContent = salidaOrders.length;
-      document.getElementById('badge-domicilio').textContent = domicilioOrders.length;
-      
-      const incBadge = document.getElementById('badge-incidencias');
-      incBadge.textContent = openIncidents.length;
+      document.getElementById('tab-count-prep').textContent = prepOrders.length;
+      document.getElementById('tab-count-salida').textContent = salidaOrders.length;
+      document.getElementById('tab-count-domicilio').textContent = dispatchOrders.length;
+      document.getElementById('tab-count-historial').textContent = deliveredToday.length;
+
+      const headerBadge = document.getElementById('header-incidents-badge');
       if (openIncidents.length > 0) {
-        incBadge.classList.add('badge-num-danger');
+        headerBadge.style.display = 'inline-flex';
+        headerBadge.textContent = openIncidents.length;
       } else {
-        incBadge.classList.remove('badge-num-danger');
+        headerBadge.style.display = 'none';
       }
 
-      document.getElementById('badge-historial').textContent = deliveredToday.length;
+      const mainArea = document.getElementById('tower-main-area');
 
-      const grid = document.getElementById('main-content-grid');
+      // Render based on selected View Mode
+      if (currentViewMode === '3zones') {
+        mainArea.innerHTML = `
+          <div class="tower-3zones-layout">
+            <!-- Zona 1: PREPARACIÓN -->
+            <div class="zone-column">
+              <div class="zone-header prep">
+                <div class="zone-title">
+                  <svg class="ui-icon" width="16" height="16"><use href="assets/icons.svg#flame"></use></svg>
+                  1. Preparación / Cocina
+                </div>
+                <span class="zone-count">${prepOrders.length}</span>
+              </div>
+              <div class="zone-orders-list">
+                ${prepOrders.length ? prepOrders.map(renderOrderCard).join('') : '<div class="empty-hub"><p>Sin comandas pendientes en cocina</p></div>'}
+              </div>
+            </div>
 
-      if (currentLane === 'prep') {
-        if (!prepOrders.length) {
-          grid.innerHTML = '<div class="empty-hub">' +
-            '<svg class="ui-icon" style="width:48px;height:48px;margin:0 auto;color:#16a34a"><use href="assets/icons.svg#check"></use></svg>' +
-            '<h3>Sin órdenes pendientes en cocina</h3>' +
-            '<p>Todo el menú está preparado y listo para su entrega.</p>' +
-          '</div>';
-        } else {
-          grid.innerHTML = prepOrders.map(renderOrderCard).join('');
-        }
-      } else if (currentLane === 'salida') {
-        if (!salidaOrders.length) {
-          grid.innerHTML = '<div class="empty-hub">' +
-            '<svg class="ui-icon" style="width:48px;height:48px;margin:0 auto;color:#0284c7"><use href="assets/icons.svg#tables"></use></svg>' +
-            '<h3>Sin pedidos esperando en mostrador</h3>' +
-            '<p>Los pedidos de salón y para llevar han sido servidos y recogidos.</p>' +
-          '</div>';
-        } else {
-          grid.innerHTML = salidaOrders.map(renderOrderCard).join('');
-        }
-      } else if (currentLane === 'domicilio') {
-        if (!domicilioOrders.length) {
-          grid.innerHTML = '<div class="empty-hub">' +
-            '<svg class="ui-icon" style="width:48px;height:48px;margin:0 auto;color:#9333ea"><use href="assets/icons.svg#bike"></use></svg>' +
-            '<h3>Sin pedidos de domicilio pendientes</h3>' +
-            '<p>No hay órdenes de reparto esperando asignación ni en tránsito actualmente.</p>' +
-          '</div>';
-        } else {
-          grid.innerHTML = domicilioOrders.map(renderOrderCard).join('');
-        }
-      } else if (currentLane === 'incidencias') {
-        if (!incidents.length) {
-          grid.innerHTML = '<div class="empty-hub">' +
-            '<svg class="ui-icon" style="width:48px;height:48px;margin:0 auto;color:#16a34a"><use href="assets/icons.svg#check"></use></svg>' +
-            '<h3>Bandeja de incidencias limpia</h3>' +
-            '<p>No se han registrado reportes ni anomalías en las entregas de hoy.</p>' +
-          '</div>';
-        } else {
-          grid.innerHTML = incidents.map(renderIncidentCard).join('');
-        }
-      } else if (currentLane === 'historial') {
-        if (!deliveredToday.length) {
-          grid.innerHTML = '<div class="empty-hub">' +
-            '<svg class="ui-icon" style="width:48px;height:48px;margin:0 auto;color:var(--muted)"><use href="assets/icons.svg#counter"></use></svg>' +
-            '<h3>Sin entregas registradas hoy</h3>' +
-            '<p>Las órdenes concluidas aparecerán en este historial.</p>' +
-          '</div>';
-        } else {
-          grid.innerHTML = deliveredToday.map(renderOrderCard).join('');
-        }
+            <!-- Zona 2: EN MOSTRADOR -->
+            <div class="zone-column">
+              <div class="zone-header counter">
+                <div class="zone-title">
+                  <svg class="ui-icon" width="16" height="16"><use href="assets/icons.svg#check"></use></svg>
+                  2. En Mostrador / Listo
+                </div>
+                <span class="zone-count">${salidaOrders.length}</span>
+              </div>
+              <div class="zone-orders-list">
+                ${salidaOrders.length ? salidaOrders.map(renderOrderCard).join('') : '<div class="empty-hub"><p>Sin pedidos esperando en mostrador</p></div>'}
+              </div>
+            </div>
+
+            <!-- Zona 3: SALIDA & REPARTO -->
+            <div class="zone-column">
+              <div class="zone-header dispatch">
+                <div class="zone-title">
+                  <svg class="ui-icon" width="16" height="16"><use href="assets/icons.svg#bike"></use></svg>
+                  3. Salida & Domicilio
+                </div>
+                <span class="zone-count">${dispatchOrders.length}</span>
+              </div>
+              <div class="zone-orders-list">
+                ${dispatchOrders.length ? dispatchOrders.map(renderOrderCard).join('') : '<div class="empty-hub"><p>Sin entregas en curso o por despachar</p></div>'}
+              </div>
+            </div>
+          </div>
+        `;
+      } else if (currentViewMode === 'prep') {
+        mainArea.innerHTML = '<div class="single-lane-grid">' +
+          (prepOrders.length ? prepOrders.map(renderOrderCard).join('') : '<div class="empty-hub" style="grid-column:1/-1"><h3>Sin órdenes en cocina</h3><p>Todo está listo para entrega.</p></div>') +
+        '</div>';
+      } else if (currentViewMode === 'salida') {
+        mainArea.innerHTML = '<div class="single-lane-grid">' +
+          (salidaOrders.length ? salidaOrders.map(renderOrderCard).join('') : '<div class="empty-hub" style="grid-column:1/-1"><h3>Sin pedidos en mostrador</h3><p>Los pedidos listos han sido entregados.</p></div>') +
+        '</div>';
+      } else if (currentViewMode === 'domicilio') {
+        mainArea.innerHTML = '<div class="single-lane-grid">' +
+          (dispatchOrders.length ? dispatchOrders.map(renderOrderCard).join('') : '<div class="empty-hub" style="grid-column:1/-1"><h3>Sin pedidos de domicilio activos</h3><p>No hay órdenes en reparto en este momento.</p></div>') +
+        '</div>';
+      } else if (currentViewMode === 'historial') {
+        const filteredDelivered = deliveredToday.filter(matchesDestFilter);
+        mainArea.innerHTML = '<div class="single-lane-grid">' +
+          (filteredDelivered.length ? filteredDelivered.map(renderOrderCard).join('') : '<div class="empty-hub" style="grid-column:1/-1"><h3>Sin historial de entregas</h3><p>Las órdenes concluidas hoy aparecerán aquí.</p></div>') +
+        '</div>';
       }
     }
 
@@ -952,9 +1142,7 @@
           const currentReadyIds = new Set(orders.filter(o => o.status === 'listo').map(o => o.id));
           let hasNewReady = false;
           currentReadyIds.forEach(id => {
-            if (!knownReadyOrderIds.has(id)) {
-              hasNewReady = true;
-            }
+            if (!knownReadyOrderIds.has(id)) hasNewReady = true;
           });
           if (hasNewReady) {
             try { document.getElementById('alert-sound').play(); } catch (_) {}
@@ -963,12 +1151,15 @@
         }
 
         render();
+        if (!document.getElementById('incidents-drawer-backdrop').classList.contains('hidden')) {
+          renderIncidentsDrawer();
+        }
       } catch (err) {
         showToast(err.message, 'error');
       }
     }
 
-    // Actions
+    // Operational Actions
     async function markReady(orderId) {
       try {
         await apiFetch('/counter/orders/' + orderId + '/mark-ready', { method: 'PATCH' });
@@ -992,7 +1183,7 @@
     async function deliverTable(orderId) {
       try {
         await apiFetch('/counter/orders/' + orderId + '/deliver-table', { method: 'PATCH' });
-        showToast('Pedido servido en mesa exitosamente.', 'success');
+        showToast('Pedido servido en mesa.', 'success');
         await loadAllData(false);
       } catch (err) {
         showToast(err.message, 'error');
@@ -1022,36 +1213,26 @@
       try {
         const drivers = await apiFetch('/deliveries/drivers');
         if (!drivers.length) {
-          showToast('No hay repartidores registrados en el sistema.', 'error');
+          showToast('No hay repartidores registrados.', 'error');
           return;
         }
-
         const options = drivers.map(d => d.id + ': ' + d.name + ' [' + (d.driver_status || 'offline') + (d.active_trip_id ? ' · en viaje' : '') + ']').join('\n');
-        const chosen = prompt('Asignar repartidor manual (Override Admin) para Pedido #' + orderId + ':\nIngresa el ID del repartidor:\n\n' + options);
+        const chosen = prompt('Asignar repartidor manual (Admin Override) para Pedido #' + orderId + ':\nIngresa el ID del repartidor:\n\n' + options);
         if (!chosen) return;
-
         const driverId = Number(chosen.trim());
-        if (!driverId) {
-          showToast('ID de repartidor inválido', 'error');
-          return;
-        }
+        if (!driverId) return showToast('ID de repartidor inválido', 'error');
 
         await apiFetch('/deliveries/trips/override', {
           method: 'POST',
-          body: JSON.stringify({
-            driver_user_id: driverId,
-            order_ids: [orderId]
-          })
+          body: JSON.stringify({ driver_user_id: driverId, order_ids: [orderId] })
         });
-
-        showToast('Repartidor asignado correctamente mediante override de Admin.', 'success');
+        showToast('Repartidor asignado correctamente.', 'success');
         await loadAllData(false);
       } catch (err) {
         showToast(err.message, 'error');
       }
     }
 
-    // Incidents resolution modal
     function openResolveModal(incidentId) {
       document.getElementById('incident-id-input').value = incidentId;
       document.getElementById('incident-status-select').value = 'resuelta';
@@ -1074,7 +1255,7 @@
           body: JSON.stringify({ status, admin_notes })
         });
         closeIncidentModal();
-        showToast('Incidencia actualizada correctamente.', 'success');
+        showToast('Incidencia resuelta correctamente.', 'success');
         await loadAllData(false);
       } catch (err) {
         showToast(err.message, 'error');

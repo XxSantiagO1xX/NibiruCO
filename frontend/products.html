@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>MealOps · Productos</title>
   <link rel="stylesheet" href="../css/styles.css">
+  <link rel="stylesheet" href="../css/theme.css" data-mealops-theme="true">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 </head>
 <body>
@@ -44,7 +45,7 @@
         <div style="display: flex; gap: 16px; align-items: center; margin-top: 14px; flex-wrap: wrap;">
           <div style="display: flex; align-items: center; gap: 10px;">
             <div class="product-thumb" id="new-image-preview">
-              <div class="thumb-placeholder">🍽️</div>
+              <div class="thumb-placeholder"><svg class="icon" style="width:20px;height:20px"><use href="assets/icons.svg#dining"></use></svg></div>
             </div>
             <small class="muted">Vista previa de imagen</small>
           </div>
@@ -92,7 +93,7 @@
       </div>
       <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
         <div class="product-thumb" id="edit-image-preview">
-          <div class="thumb-placeholder">🍽️</div>
+          <div class="thumb-placeholder"><svg class="icon" style="width:20px;height:20px"><use href="assets/icons.svg#dining"></use></svg></div>
         </div>
         <small class="muted">Vista previa de imagen</small>
       </div>
@@ -117,9 +118,9 @@
       const url = document.getElementById('image').value.trim();
       const preview = document.getElementById('new-image-preview');
       if (url) {
-        preview.innerHTML = `<img src="${escapeHtml(url)}" alt="" onerror="this.classList.add('img-failed')"><div class="thumb-placeholder">🍽️</div>`;
+        preview.innerHTML = `<img src="${escapeHtml(url)}" alt="" onerror="this.classList.add('img-failed')"><div class="thumb-placeholder"><svg class="icon" style="width:20px;height:20px"><use href="assets/icons.svg#dining"></use></svg></div>`;
       } else {
-        preview.innerHTML = '<div class="thumb-placeholder">🍽️</div>';
+        preview.innerHTML = '<div class="thumb-placeholder"><svg class="icon" style="width:20px;height:20px"><use href="assets/icons.svg#dining"></use></svg></div>';
       }
     }
 
@@ -127,9 +128,9 @@
       const url = document.getElementById('edit-image').value.trim();
       const preview = document.getElementById('edit-image-preview');
       if (url) {
-        preview.innerHTML = `<img src="${escapeHtml(url)}" alt="" onerror="this.classList.add('img-failed')"><div class="thumb-placeholder">🍽️</div>`;
+        preview.innerHTML = `<img src="${escapeHtml(url)}" alt="" onerror="this.classList.add('img-failed')"><div class="thumb-placeholder"><svg class="icon" style="width:20px;height:20px"><use href="assets/icons.svg#dining"></use></svg></div>`;
       } else {
-        preview.innerHTML = '<div class="thumb-placeholder">🍽️</div>';
+        preview.innerHTML = '<div class="thumb-placeholder"><svg class="icon" style="width:20px;height:20px"><use href="assets/icons.svg#dining"></use></svg></div>';
       }
     }
 
@@ -156,7 +157,7 @@
         <div class="list-row">
           <div class="product-thumb">
             ${product.image ? `<img src="${escapeHtml(product.image)}" alt="" loading="lazy" onerror="this.classList.add('img-failed')">` : ''}
-            <div class="thumb-placeholder">🍽️</div>
+            <div class="thumb-placeholder"><svg class="icon" style="width:20px;height:20px"><use href="assets/icons.svg#dining"></use></svg></div>
           </div>
           <div class="list-main">
             <strong>${escapeHtml(product.name)}</strong>

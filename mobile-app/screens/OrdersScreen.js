@@ -299,6 +299,6 @@ const styles = StyleSheet.create({
   },
   listContainer: {
     padding: 16,
-    paddingBottom: 40
+    paddingBottom: 100
   }
 });

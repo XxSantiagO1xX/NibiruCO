@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>MealOps · Combos</title>
   <link rel="stylesheet" href="../css/styles.css">
+  <link rel="stylesheet" href="../css/theme.css" data-mealops-theme="true">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
     .day-checkboxes {
@@ -86,7 +87,7 @@
           <!-- EDICIÓN DE COMBO BÁSICO -->
           <div class="card card-pad" style="background: var(--bg-subtle, #f8fafc); border: 1px solid var(--border); margin-bottom: 20px;">
             <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 12px;">
-              <strong>✏️ Datos del combo</strong>
+              <strong>Datos del combo</strong>
               <button class="btn btn-sm btn-danger-soft" onclick="deleteCurrentCombo()">Eliminar este combo</button>
             </div>
             <div class="form-grid">
@@ -377,7 +378,7 @@
               <div class="list-row">
                 <div class="product-thumb">
                   ${imgUrl ? `<img src="${escapeHtml(imgUrl)}" alt="" loading="lazy" onerror="this.classList.add('img-failed')">` : ''}
-                  <div class="thumb-placeholder">🍽️</div>
+                  <div class="thumb-placeholder"><svg class="icon" style="width:20px;height:20px"><use href="assets/icons.svg#dining"></use></svg></div>
                 </div>
                 <div class="list-main">
                   <strong>${escapeHtml(option.name)}</strong>

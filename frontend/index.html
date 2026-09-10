@@ -2,178 +2,459 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>MealOps · Ventas</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>MealOps · Ventas y Punto de Venta</title>
   <link rel="stylesheet" href="../css/styles.css">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../css/theme.css" data-mealops-theme="true">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
   <style>
-    .quick-strip{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}.quick-card{padding:14px;text-align:left}.quick-card strong{display:block}.quick-card small{display:block;margin:5px 0 12px;color:var(--muted)}
-    .combo-modal{position:fixed;inset:0;z-index:100;background:rgba(15,23,42,.55);display:grid;place-items:center;padding:18px}.combo-modal.hidden{display:none}.combo-dialog{width:min(620px,100%);max-height:88vh;overflow:auto;background:var(--surface);border-radius:22px;padding:22px;box-shadow:var(--shadow-lg)}.combo-group{padding:15px 0;border-top:1px solid var(--border)}.combo-option{display:flex;align-items:center;gap:10px;padding:8px 0}.combo-option input{width:auto}.service-extra{display:grid;grid-template-columns:1fr 1fr;gap:10px}.service-extra.hidden{display:none}@media(max-width:640px){.service-extra{grid-template-columns:1fr}}
+    .pos-page { min-height: 100vh; display: flex; flex-direction: column; }
+    .pos-shell { max-width: 1750px; margin: 0 auto; width: 100%; padding: 24px 32px; }
+    
+    .pos-layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 400px;
+      gap: 24px;
+      align-items: start;
+    }
+    @media (max-width: 1200px) {
+      .pos-layout { grid-template-columns: 1fr; }
+    }
+
+    /* Category Filter Pills */
+    .category-pills-bar {
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      padding-bottom: 8px;
+      margin-bottom: 16px;
+    }
+    .category-pill {
+      padding: 8px 16px;
+      border-radius: var(--radius-pill);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--muted);
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all .15s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .category-pill:hover { border-color: var(--muted); color: var(--text); }
+    .category-pill.active {
+      background: var(--primary);
+      color: #fff;
+      border-color: var(--primary);
+      box-shadow: 0 2px 8px rgba(245, 102, 36, 0.25);
+    }
+
+    /* Products Grid */
+    .products-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+      gap: 16px;
+    }
+    .product-card-pos {
+      background: var(--surface);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px;
+      box-shadow: var(--shadow-xs);
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease;
+      cursor: pointer;
+    }
+    .product-card-pos:hover {
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-md);
+      border-color: var(--primary-border);
+    }
+    .product-card-pos h3 {
+      margin: 8px 0 2px;
+      font-size: 14px;
+      font-weight: 800;
+      letter-spacing: -.02em;
+      color: var(--text);
+    }
+    .product-card-pos .prep-tag {
+      font-size: 11px;
+      color: var(--muted);
+      margin-bottom: 8px;
+    }
+    .product-card-bottom {
+      margin-top: auto;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-top: 8px;
+      border-top: 1px solid var(--border-light);
+    }
+    .product-card-pos .price {
+      font-size: 16px;
+      font-weight: 900;
+      color: var(--text);
+      letter-spacing: -.02em;
+    }
+    .btn-add-pos {
+      width: 32px;
+      height: 32px;
+      border-radius: 9px;
+      background: var(--primary);
+      color: #fff;
+      border: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all .15s ease;
+      font-size: 16px;
+      font-weight: 900;
+    }
+    .btn-add-pos:hover {
+      background: var(--primary-hover);
+      transform: scale(1.08);
+    }
+
+    /* Cart / Pedido Panel */
+    .cart-panel-sticky {
+      position: sticky;
+      top: 24px;
+      background: var(--surface);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 22px;
+      box-shadow: var(--shadow-sm);
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .cart-panel-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border);
+    }
+    .cart-panel-head h2 { margin: 0; font-size: 18px; font-weight: 800; }
+    
+    /* Service Type Selector Pills */
+    .service-type-selector {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 5px;
+      background: var(--surface-2);
+      padding: 4px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+    }
+    .service-btn {
+      padding: 7px 4px;
+      border-radius: 7px;
+      background: transparent;
+      border: none;
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--muted);
+      cursor: pointer;
+      text-align: center;
+      transition: all .15s ease;
+    }
+    .service-btn:hover { color: var(--text); }
+    .service-btn.active {
+      background: var(--primary);
+      color: #fff;
+      box-shadow: 0 1px 4px rgba(245,102,36,0.2);
+    }
+
+    .cart-items-box {
+      max-height: 280px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .cart-item-row {
+      padding: 10px 0;
+      border-bottom: 1px solid var(--border-light);
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 10px;
+    }
+    .cart-item-info strong { display: block; font-size: 13px; font-weight: 700; color: var(--text); }
+    .cart-item-info small { color: var(--muted); font-size: 11px; }
+
+    /* Summary Rows */
+    .summary-box {
+      background: var(--surface-2);
+      border-radius: 12px;
+      padding: 12px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      border: 1px solid var(--border);
+    }
+    .summary-line {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12.5px;
+      color: var(--muted);
+    }
+    .summary-total {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      padding-top: 6px;
+      border-top: 1px dashed var(--border);
+      font-size: 15px;
+      font-weight: 900;
+      color: var(--text);
+    }
+    .summary-total strong {
+      font-size: 20px;
+      color: var(--primary);
+    }
+
+    /* Modal Combo */
+    .combo-dialog-modal {
+      position: fixed;
+      inset: 0;
+      z-index: 150;
+      background: rgba(36, 33, 31, 0.55);
+      backdrop-filter: blur(4px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .combo-dialog-modal.hidden { display: none; }
+    .combo-dialog-box {
+      width: min(580px, 100%);
+      max-height: 88vh;
+      overflow-y: auto;
+      background: var(--surface);
+      border-radius: var(--radius-md);
+      padding: 24px;
+      box-shadow: var(--shadow-lg);
+      border: 1px solid var(--border);
+    }
+    .combo-group-item {
+      padding: 14px 0;
+      border-top: 1px solid var(--border-light);
+    }
   </style>
 </head>
 <body>
   <div class="app-shell">
     <aside class="sidebar">
       <div class="brand">
-        <div class="brand-mark">M</div>
-        <div class="brand-copy"><strong>MealOps</strong><span>Restaurant operations</span></div>
+        <div class="brand-mark"><svg class="ui-icon" width="22" height="22"><use href="assets/icons.svg#logo"></use></svg></div>
+        <div class="brand-copy"><strong>MealOps</strong><span>Punto de Venta</span></div>
       </div>
-      <nav class="nav">
-        <a href="home.html">Panel</a>
-        <a href="index.html" class="active">Ventas</a>
-        <a href="kds.html" id="nav-kds">Cocina KDS</a>
-        <a href="menu.html" id="nav-menu">Menú</a>
-        <a href="products.html" id="nav-products">Productos</a>
-        <a href="combos.html" id="nav-combos">Combos</a>
-      </nav>
-      <div class="sidebar-footer">
-        <div class="sidebar-user"><strong id="sidebar-name">Usuario</strong><span id="sidebar-role"></span></div>
-        <button class="btn btn-ghost" onclick="logout()">Cerrar sesión</button>
-      </div>
+      <nav class="nav"></nav>
+      <div class="sidebar-footer"></div>
     </aside>
 
     <main class="main">
-      <header class="page-header">
-        <div>
-          <h1>Ventas</h1>
-          <p>Local, para llevar, recolección y venta rápida desde el mismo punto.</p>
-        </div>
-        <div class="header-actions">
-          <button class="btn btn-secondary" onclick="loadAll()">Actualizar</button>
-        </div>
-      </header>
-
-      <section id="quick-section" class="card card-pad hidden" style="margin-bottom:22px">
-        <div class="page-header" style="margin-bottom:14px">
+      <div class="pos-shell">
+        <header class="page-header">
           <div>
-            <h2 class="section-title" style="margin:0">Venta rápida</h2>
-            <p class="muted" style="margin:5px 0 0;font-size:11px">Entrega inmediata: se cobra y se cierra sin mandar una tarea al KDS.</p>
+            <h1>Ventas y Pedidos</h1>
+            <p>Registro de comandas locales, para llevar, recolección posterior y servicio a domicilio.</p>
           </div>
-          <div class="field" style="min-width:170px">
-            <label for="quick-payment">Cobro</label>
-            <select id="quick-payment">
-              <option value="efectivo">Efectivo</option>
-              <option value="tarjeta">Tarjeta</option>
-              <option value="transferencia">Transferencia</option>
-              <option value="otro">Otro</option>
-            </select>
+          <div class="header-actions">
+            <button class="btn btn-secondary btn-sm" onclick="loadAll()">
+              <svg class="ui-icon" width="14" height="14"><use href="assets/icons.svg#refresh"></use></svg> Actualizar
+            </button>
           </div>
+        </header>
+
+        <!-- Dynamic Category Pills Bar -->
+        <div class="category-pills-bar" id="category-pills-bar">
+          <button class="category-pill active" onclick="filterCategory('all')">Todos</button>
         </div>
-        <div id="quick-products" class="quick-strip"></div>
-      </section>
 
-      <div class="pos-layout">
-        <section>
-          <div class="toolbar">
-            <input class="search" id="search" placeholder="Buscar producto o combo..." oninput="renderProducts()">
-          </div>
-          <div id="products" class="products-grid"></div>
+        <div class="pos-layout">
+          <!-- Left: Search & Products Grid -->
+          <section>
+            <div class="toolbar">
+              <input class="search" id="search" placeholder="Buscar platillos o combos en el menú de hoy..." oninput="renderProducts()">
+            </div>
 
-          <div class="spacer-24"></div>
-          <h2 class="section-title">Mis pedidos recientes</h2>
-          <div id="orders" class="list"></div>
-        </section>
+            <!-- Quick Sale Strip (Immediate Delivery items) -->
+            <div id="quick-section" class="card card-pad hidden" style="margin-bottom:20px;background:var(--surface-2)">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+                <div>
+                  <strong style="font-size:13px;display:block">Venta Rápida (Entrega Inmediata)</strong>
+                  <small class="muted">Cobro directo sin envío a comanda de cocina</small>
+                </div>
+                <div class="field" style="width:160px">
+                  <select id="quick-payment" style="min-height:34px;padding:4px 8px;font-size:12px">
+                    <option value="efectivo">Efectivo</option>
+                    <option value="tarjeta">Tarjeta</option>
+                    <option value="transferencia">Transferencia</option>
+                    <option value="otro">Otro</option>
+                  </select>
+                </div>
+              </div>
+              <div id="quick-products" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px"></div>
+            </div>
 
-        <aside class="card cart-panel">
-          <h2>Pedido actual</h2>
-          <div class="cart-subtitle">Los precios y las opciones se validan nuevamente en el servidor.</div>
-          <div id="cart" class="cart-list"></div>
-          <div class="total-row" id="subtotal-row" style="font-size:13px;color:var(--muted);display:none"><span>Subtotal platillos</span><span id="subtotal-val">$0.00</span></div>
-          <div class="total-row" id="delivery-fee-row" style="font-size:13px;color:var(--primary);display:none"><span>Costo de envío</span><span id="delivery-fee-val">$0.00</span></div>
-          <div class="total-row"><span>Total</span><strong id="total">$0.00</strong></div>
+            <!-- Products Grid -->
+            <div id="products" class="products-grid"></div>
 
-          <div class="field">
-            <label for="type">Tipo de pedido</label>
-            <select id="type" onchange="updateServiceFields()">
-              <option value="local">Local</option>
-              <option value="llevar">Para llevar</option>
-              <option value="recoger">Recoger después</option>
-              <option value="domicilio">Domicilio</option>
-            </select>
-          </div>
+            <!-- Mis Pedidos Recientes Contextual Table -->
+            <div class="spacer-24"></div>
+            <h2 class="section-title" style="font-size:16px;font-weight:800">Mis pedidos recientes</h2>
+            <div id="orders" class="list"></div>
+          </section>
 
-          <!-- Campos para Llevar y Recoger -->
-          <div id="service-extra" class="service-extra hidden" style="margin-top:10px">
-            <div class="field"><label for="customer-name">Nombre / referencia</label><input id="customer-name" placeholder="Ej. Laura"></div>
-            <div class="field" id="pickup-field"><label for="pickup-at">Hora de recolección</label><input id="pickup-at" type="datetime-local"></div>
-          </div>
+          <!-- Right: Persistent Cart / Pedido Panel -->
+          <aside class="cart-panel-sticky">
+            <div class="cart-panel-head">
+              <h2>Pedido Actual</h2>
+              <button class="btn btn-ghost btn-sm" onclick="clearCart()" title="Vaciar Carrito">
+                <svg class="ui-icon" width="14" height="14"><use href="assets/icons.svg#close"></use></svg> Vaciar
+              </button>
+            </div>
 
-          <!-- Campos para Domicilio -->
-          <div id="delivery-extra" class="hidden" style="margin-top:10px;padding:12px;background:#f8fafc;border-radius:14px;border:1px solid var(--border);display:flex;flex-direction:column;gap:10px">
+            <!-- Service Type Selector -->
+            <div>
+              <div class="field" style="margin-bottom:6px">
+                <label>Tipo de servicio</label>
+              </div>
+              <div class="service-type-selector">
+                <button type="button" class="service-btn active" data-type="local" onclick="selectServiceType('local')">Local</button>
+                <button type="button" class="service-btn" data-type="llevar" onclick="selectServiceType('llevar')">Llevar</button>
+                <button type="button" class="service-btn" data-type="recoger" onclick="selectServiceType('recoger')">Recoger</button>
+                <button type="button" class="service-btn" data-type="domicilio" onclick="selectServiceType('domicilio')">Domicilio</button>
+              </div>
+              <input type="hidden" id="type" value="local">
+            </div>
+
+            <!-- Service Extras: Llevar y Recoger -->
+            <div id="service-extra" class="hidden" style="display:grid;gap:8px;background:var(--surface-2);padding:10px;border-radius:10px;border:1px solid var(--border)">
+              <div class="field">
+                <label for="customer-name">Nombre / Referencia</label>
+                <input id="customer-name" placeholder="Ej. Laura Gómez">
+              </div>
+              <div class="field" id="pickup-field">
+                <label for="pickup-at">Hora de recolección</label>
+                <input id="pickup-at" type="datetime-local">
+              </div>
+            </div>
+
+            <!-- Service Extras: Domicilio -->
+            <div id="delivery-extra" class="hidden" style="display:grid;gap:8px;background:var(--role-repartidor-soft);padding:12px;border-radius:12px;border:1px solid var(--role-repartidor-border)">
+              <div class="field">
+                <label for="delivery-zone">Zona de reparto</label>
+                <select id="delivery-zone" onchange="onZoneChange()"></select>
+              </div>
+              <div class="field">
+                <label for="delivery-customer-select">Cliente registrado (Opcional)</label>
+                <select id="delivery-customer-select" onchange="onCustomerSelect()"></select>
+              </div>
+              <div class="field" id="delivery-name-box">
+                <label for="delivery-name">Nombre del cliente</label>
+                <input id="delivery-name" placeholder="Ej. Juan Pérez">
+              </div>
+              <div class="field" id="delivery-phone-box">
+                <label for="delivery-phone">Teléfono de contacto</label>
+                <input id="delivery-phone" placeholder="5551234567">
+              </div>
+              <div class="field" id="delivery-address-select-box" style="display:none">
+                <label for="delivery-address-select">Direcciones guardadas</label>
+                <select id="delivery-address-select" onchange="onAddressSelect()"></select>
+              </div>
+              <div class="field" id="delivery-address-manual-box">
+                <label for="delivery-address-text">Calle, número y colonia</label>
+                <input id="delivery-address-text" placeholder="Ej. Av. Morelos #45, Col. Centro">
+              </div>
+              <div class="field">
+                <label for="delivery-address-details">Referencias de entrega (Opcional)</label>
+                <input id="delivery-address-details" placeholder="Ej. Fachada azul, portón negro">
+              </div>
+            </div>
+
+            <!-- Items List -->
+            <div class="field"><label>Productos en comanda</label></div>
+            <div id="cart" class="cart-items-box"></div>
+
+            <!-- Payment & Change -->
             <div class="field">
-              <label for="delivery-zone">Zona de reparto</label>
-              <select id="delivery-zone" onchange="onZoneChange()"></select>
+              <label for="payment-method">Forma de pago</label>
+              <select id="payment-method" onchange="onPaymentMethodChange()">
+                <option value="">Pendiente al entregar</option>
+                <option value="efectivo">Efectivo</option>
+                <option value="tarjeta">Tarjeta</option>
+                <option value="transferencia">Transferencia</option>
+                <option value="otro">Otro</option>
+              </select>
             </div>
-            <div class="field">
-              <label for="delivery-customer-select">Cliente registrado (Opcional)</label>
-              <select id="delivery-customer-select" onchange="onCustomerSelect()"></select>
-            </div>
-            <div class="field" id="delivery-name-box">
-              <label for="delivery-name">Nombre del cliente</label>
-              <input id="delivery-name" placeholder="Ej. Juan Pérez">
-            </div>
-            <div class="field" id="delivery-phone-box">
-              <label for="delivery-phone">Teléfono de contacto</label>
-              <input id="delivery-phone" placeholder="5551234567">
-            </div>
-            <div class="field" id="delivery-address-select-box" style="display:none">
-              <label for="delivery-address-select">Direcciones guardadas</label>
-              <select id="delivery-address-select" onchange="onAddressSelect()"></select>
-            </div>
-            <div class="field" id="delivery-address-manual-box">
-              <label for="delivery-address-text">Calle, número y colonia</label>
-              <input id="delivery-address-text" placeholder="Ej. Calle Morelos #45, Col. Centro">
-            </div>
-            <div class="field">
-              <label for="delivery-address-details">Referencias de entrega (Opcional)</label>
-              <input id="delivery-address-details" placeholder="Ej. Fachada azul, portón negro">
-            </div>
-          </div>
 
-          <div class="field" style="margin-top:10px">
-            <label for="payment-method">Forma de pago</label>
-            <select id="payment-method" onchange="onPaymentMethodChange()">
-              <option value="">Pendiente</option>
-              <option value="efectivo">Efectivo</option>
-              <option value="tarjeta">Tarjeta</option>
-              <option value="transferencia">Transferencia</option>
-              <option value="otro">Otro</option>
-            </select>
-          </div>
-
-          <div id="cash-change-box" class="hidden" style="margin-top:10px;padding:10px;background:#f1f5f9;border-radius:12px;border:1px solid var(--border)">
-            <div class="field">
-              <label for="cash-paid-with">Paga con ($)</label>
-              <input id="cash-paid-with" type="number" min="0" step="10" placeholder="Ej. 200.00" oninput="calculateCashChange()">
+            <div id="cash-change-box" class="hidden" style="background:var(--surface-2);padding:10px 12px;border-radius:10px;border:1px solid var(--border)">
+              <div class="field">
+                <label for="cash-paid-with">Paga con ($)</label>
+                <input id="cash-paid-with" type="number" min="0" step="10" placeholder="Ej. 200.00" oninput="calculateCashChange()">
+              </div>
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px;font-size:12px">
+                <span class="muted">Cambio a devolver:</span>
+                <strong id="cash-change-val" style="color:var(--primary);font-size:14px">$0.00</strong>
+              </div>
             </div>
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px;font-size:12.5px">
-              <span class="muted">Cambio a devolver:</span>
-              <strong id="cash-change-val" style="color:var(--primary);font-size:14px">$0.00</strong>
-            </div>
-          </div>
 
-          <label style="display:flex;align-items:center;gap:9px;margin-top:10px;font-size:12px;font-weight:700">
-            <input id="mark-paid" type="checkbox" style="width:auto"> Marcar como pagado al crear
-          </label>
-          <div class="spacer-16"></div>
-          <div class="cart-actions">
-            <button class="btn btn-primary" id="create-order" onclick="createOrder()">Crear pedido</button>
-            <button class="btn btn-secondary" onclick="clearCart()">Vaciar carrito</button>
-          </div>
-        </aside>
+            <label style="display:flex;align-items:center;gap:8px;font-size:12px;font-weight:700;cursor:pointer">
+              <input id="mark-paid" type="checkbox" style="width:auto"> Marcar como pagado al crear
+            </label>
+
+            <!-- Summary Box -->
+            <div class="summary-box">
+              <div class="summary-line">
+                <span>Subtotal</span>
+                <span id="subtotal-val">$0.00</span>
+              </div>
+              <div class="summary-line" id="delivery-fee-line" style="display:none">
+                <span>Tarifa de envío</span>
+                <span id="delivery-fee-val" style="color:var(--primary)">$0.00</span>
+              </div>
+              <div class="summary-total">
+                <span>Total</span>
+                <strong id="total">$0.00</strong>
+              </div>
+            </div>
+
+            <!-- Create Order Button -->
+            <button class="btn btn-primary" id="create-order" style="width:100%;height:44px;font-size:14px" onclick="createOrder()">
+              <svg class="ui-icon" width="16" height="16"><use href="assets/icons.svg#check"></use></svg> Crear Pedido
+            </button>
+          </aside>
+        </div>
       </div>
     </main>
   </div>
 
-  <div id="combo-modal" class="combo-modal hidden" role="dialog" aria-modal="true">
-    <div class="combo-dialog">
-      <div class="page-header" style="margin-bottom:10px">
-        <div><div class="eyebrow">Configurar comida</div><h2 id="combo-title" style="margin:5px 0 0"></h2></div>
-        <button class="btn btn-secondary" onclick="closeCombo()">Cerrar</button>
+  <!-- Combo Configuration Modal -->
+  <div id="combo-modal" class="combo-dialog-modal hidden" role="dialog" aria-modal="true">
+    <div class="combo-dialog-box">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px">
+        <div>
+          <div class="eyebrow">Personalizar Combo</div>
+          <h2 id="combo-title" style="margin:4px 0 0;font-size:18px;font-weight:800"></h2>
+        </div>
+        <button class="btn btn-ghost btn-sm" onclick="closeCombo()"><svg class="ui-icon" width="16" height="16"><use href="assets/icons.svg#close"></use></svg></button>
       </div>
       <div id="combo-groups"></div>
-      <div class="total-row"><span>Precio</span><strong id="combo-price">$0.00</strong></div>
-      <button class="btn btn-primary" style="width:100%;margin-top:12px" onclick="confirmCombo()">Agregar al pedido</button>
+      <div class="summary-total" style="margin:16px 0 12px;border:none">
+        <span>Precio final</span>
+        <strong id="combo-price">$0.00</strong>
+      </div>
+      <button class="btn btn-primary" style="width:100%" onclick="confirmCombo()">Agregar al Pedido</button>
     </div>
   </div>
 
@@ -189,20 +470,11 @@
     let deliveryZones = [];
     let customersList = [];
     let selectedCustomerAddresses = [];
-
-    if (currentUser) {
-      document.getElementById('sidebar-name').textContent = currentUser.name || currentUser.phone || 'Usuario';
-      document.getElementById('sidebar-role').textContent = currentUser.role || '';
-      if (!['admin', 'cocina'].includes(currentUser.role)) document.getElementById('nav-kds').classList.add('hidden');
-      if (currentUser.role !== 'admin') {
-        document.getElementById('nav-menu').classList.add('hidden');
-        document.getElementById('nav-products').classList.add('hidden');
-        document.getElementById('nav-combos').classList.add('hidden');
-      }
-    }
+    let selectedCategory = 'all';
 
     async function loadAll() {
       await Promise.all([loadProducts(), loadCombos(), loadOrders(), loadDeliveryZones(), loadCustomers()]);
+      buildDynamicCategories();
       renderProducts();
       renderQuickProducts();
     }
@@ -245,6 +517,41 @@
       } catch (error) {
         console.warn('Error cargando clientes:', error);
       }
+    }
+
+    function buildDynamicCategories() {
+      const container = document.getElementById('category-pills-bar');
+      const catsSet = new Set();
+      let hasCombos = false;
+
+      (products || []).forEach(p => {
+        if (p.product_kind === 'combo') hasCombos = true;
+        else if (p.category) catsSet.add(p.category);
+      });
+
+      let html = `<button class="category-pill ${selectedCategory === 'all' ? 'active' : ''}" onclick="filterCategory('all')">Todos</button>`;
+      catsSet.forEach(cat => {
+        html += `<button class="category-pill ${selectedCategory === cat ? 'active' : ''}" onclick="filterCategory('${escapeHtml(cat)}')">${escapeHtml(cat)}</button>`;
+      });
+      if (hasCombos) {
+        html += `<button class="category-pill ${selectedCategory === 'combos' ? 'active' : ''}" onclick="filterCategory('combos')"><svg class="ui-icon" width="13" height="13"><use href="assets/icons.svg#combo"></use></svg> Combos</button>`;
+      }
+      container.innerHTML = html;
+    }
+
+    function filterCategory(cat) {
+      selectedCategory = cat;
+      document.querySelectorAll('.category-pill').forEach(btn => btn.classList.remove('active'));
+      buildDynamicCategories();
+      renderProducts();
+    }
+
+    function selectServiceType(type) {
+      document.getElementById('type').value = type;
+      document.querySelectorAll('.service-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.getAttribute('data-type') === type);
+      });
+      updateServiceFields();
     }
 
     function onCustomerSelect() {
@@ -331,7 +638,7 @@
       let deliveryFee = 0;
       if (serviceType === 'domicilio') {
         const zoneSelect = document.getElementById('delivery-zone');
-        const selectedOption = zoneSelect.options[zoneSelect.selectedIndex];
+        const selectedOption = zoneSelect ? zoneSelect.options[zoneSelect.selectedIndex] : null;
         if (selectedOption && selectedOption.dataset.fee) {
           deliveryFee = Number(selectedOption.dataset.fee) || 0;
         }
@@ -344,7 +651,7 @@
         changeEl.style.color = 'var(--primary)';
       } else if (paidWith > 0) {
         changeEl.textContent = `Faltan ${formatCurrency(total - paidWith)}`;
-        changeEl.style.color = 'var(--danger, #dc2626)';
+        changeEl.style.color = 'var(--danger)';
       } else {
         changeEl.textContent = '$0.00';
         changeEl.style.color = 'var(--primary)';
@@ -360,36 +667,44 @@
       }
       section.classList.remove('hidden');
       document.getElementById('quick-products').innerHTML = quick.map((product) => `
-        <button class="card quick-card" onclick="quickSale(${product.id})">
-          <strong>${escapeHtml(product.name)}</strong>
-          <small>Entrega inmediata</small>
-          <span class="price">${formatCurrency(product.price)}</span>
+        <button class="card card-pad" style="padding:10px;text-align:left;cursor:pointer;border-color:var(--border)" onclick="quickSale(${product.id})">
+          <strong style="display:block;font-size:12.5px">${escapeHtml(product.name)}</strong>
+          <small class="muted" style="display:block;margin:3px 0 8px;font-size:10.5px">Inmediato</small>
+          <span style="font-weight:900;color:var(--text);font-size:13.5px">${formatCurrency(product.price)}</span>
         </button>
       `).join('');
     }
 
     function renderProducts() {
       const query = document.getElementById('search').value.trim().toLowerCase();
-      const filtered = products.filter((product) => product.name.toLowerCase().includes(query));
-      const container = document.getElementById('products');
+      let filtered = (products || []).filter((product) => product.name.toLowerCase().includes(query));
 
+      if (selectedCategory === 'combos') {
+        filtered = filtered.filter(p => p.product_kind === 'combo');
+      } else if (selectedCategory !== 'all') {
+        filtered = filtered.filter(p => p.category === selectedCategory);
+      }
+
+      const container = document.getElementById('products');
       if (!filtered.length) {
-        container.innerHTML = '<div class="card card-pad muted">No hay productos disponibles en el menú de hoy.</div>';
+        container.innerHTML = '<div class="card card-pad muted" style="grid-column:1/-1;text-align:center">No hay productos disponibles en esta selección del menú de hoy.</div>';
         return;
       }
 
       container.innerHTML = filtered.map((product) => {
         const isCombo = product.product_kind === 'combo';
         return `
-          <article class="card product-card">
+          <article class="product-card-pos" onclick="addProduct(${Number(product.id)})">
             <div class="product-media">
               ${product.image ? `<img src="${escapeHtml(product.image)}" alt="" loading="lazy" onerror="this.classList.add('img-failed')">` : ''}
-              <div class="product-placeholder">${isCombo ? '🍱' : '🍽️'}</div>
+              <div class="product-placeholder">${isCombo ? '<svg class="ui-icon" width="28" height="28"><use href="assets/icons.svg#combo"></use></svg>' : '<svg class="ui-icon" width="28" height="28"><use href="assets/icons.svg#dining"></use></svg>'}</div>
             </div>
             <h3>${escapeHtml(product.name)}</h3>
-            <p>${isCombo ? 'Comida / combo configurable' : (product.kitchen_required ? 'Preparación en cocina' : 'Entrega inmediata')}</p>
-            <div class="price">${formatCurrency(product.price)}</div>
-            <button class="btn btn-secondary" onclick="addProduct(${Number(product.id)})">${isCombo ? 'Elegir opciones' : 'Agregar'}</button>
+            <div class="prep-tag">${isCombo ? 'Combo configurable' : (product.kitchen_required ? 'Cocina KDS' : 'Entrega directa')}</div>
+            <div class="product-card-bottom">
+              <span class="price">${formatCurrency(product.price)}</span>
+              <button class="btn-add-pos" title="Agregar al pedido" onclick="event.stopPropagation(); addProduct(${Number(product.id)})">+</button>
+            </div>
           </article>
         `;
       }).join('');
@@ -447,47 +762,42 @@
         }
       }
 
+      document.getElementById('subtotal-val').textContent = formatCurrency(subtotal);
+      const feeLine = document.getElementById('delivery-fee-line');
+      if (deliveryFee > 0) {
+        feeLine.style.display = 'flex';
+        document.getElementById('delivery-fee-val').textContent = formatCurrency(deliveryFee);
+      } else {
+        feeLine.style.display = 'none';
+      }
+
       const total = subtotal + deliveryFee;
       document.getElementById('total').textContent = formatCurrency(total);
 
       if (!cart.length) {
-        container.innerHTML = '<div class="cart-empty">Aún no agregas productos.</div>';
+        container.innerHTML = '<div class="cart-empty"><svg class="ui-icon" style="width:28px;height:28px;margin:0 auto 6px;color:var(--muted)"><use href="assets/icons.svg#sales"></use></svg><div>Aún no agregas productos.</div></div>';
         return;
       }
 
-      let html = cart.map((item) => `
-        <div class="cart-item">
-          <div>
+      container.innerHTML = cart.map((item) => `
+        <div class="cart-item-row">
+          <div class="cart-item-info">
             <strong>${escapeHtml(item.name)}</strong>
             <small>${formatCurrency(item.price + item.extra)} × ${item.quantity}</small>
-            ${item.choices.length ? `<small style="display:block;margin-top:3px">${item.choices.map((choice) => escapeHtml(choice.option_name)).join(' · ')}</small>` : ''}
+            ${item.choices.length ? `<small style="display:block;margin-top:2px;color:var(--primary)">${item.choices.map((choice) => escapeHtml(choice.option_name)).join(' · ')}</small>` : ''}
           </div>
           <div class="qty-controls">
             <button class="qty-btn" onclick='decrease(${JSON.stringify(item.key)})'>−</button>
-            <span>${item.quantity}</span>
+            <span style="font-size:13px;font-weight:700">${item.quantity}</span>
             <button class="qty-btn" onclick='increase(${JSON.stringify(item.key)})'>+</button>
           </div>
         </div>
       `).join('');
-
-      if (deliveryFee > 0) {
-        html += `
-          <div class="cart-item" style="border-top:1px dashed var(--border);padding-top:8px">
-            <div>
-              <strong>Envío a domicilio</strong>
-              <small class="muted">Tarifa de zona</small>
-            </div>
-            <strong style="color:var(--primary)">${formatCurrency(deliveryFee)}</strong>
-          </div>
-        `;
-      }
-
-      container.innerHTML = html;
     }
 
     function openCombo(productId) {
       const combo = (combos && combos.find((item) => Number(item.id) === Number(productId))) || products.find((item) => Number(item.id) === Number(productId));
-      if (!combo) return showToast('Este combo todavía no tiene configuración disponible.', 'error');
+      if (!combo) return showToast('Este combo todavía no tiene opciones configuradas.', 'error');
       
       const groups = combo.groups || [];
       if (!groups.length) {
@@ -511,32 +821,26 @@
         const rangeText = min === max ? `Elige ${min}` : `Elige entre ${min} y ${max}`;
 
         return `
-          <div class="combo-group" data-group="${group.id}">
+          <div class="combo-group-item" data-group="${group.id}">
             <div style="display:flex;justify-content:space-between;align-items:center">
-              <strong>${escapeHtml(group.name)}</strong>
+              <strong style="font-size:13px">${escapeHtml(group.name)}</strong>
               <small class="muted">${reqText}</small>
             </div>
             <div class="muted" style="font-size:11px;margin-top:2px;margin-bottom:8px">${rangeText}</div>
             ${isSingle && min === 0 ? `
-              <label class="combo-option">
+              <label class="combo-option" style="display:flex;align-items:center;gap:8px;padding:4px 0">
                 <input type="radio" name="combo-group-${group.id}" value="" checked onchange="updateComboPrice()">
-                <span class="muted">Ninguno / Sin opción</span>
+                <span class="muted" style="font-size:12.5px">Sin opción adicional</span>
               </label>
             ` : ''}
             ${options.map((option, idx) => {
-              const optProd = products.find((p) => Number(p.id) === Number(option.option_product_id)) || {};
-              const imgUrl = optProd.image || option.image;
               return `
-              <label class="combo-option" style="display:flex;align-items:center;gap:12px;padding:6px 0">
+              <label class="combo-option" style="display:flex;align-items:center;gap:10px;padding:6px 0;cursor:pointer">
                 <input type="${inputType}" name="combo-group-${group.id}" value="${option.option_product_id}" data-extra="${Number(option.extra_price || 0)}" data-name="${escapeHtml(option.name)}" ${isSingle && min === 1 && idx === 0 ? 'checked' : ''} onchange="onComboOptionChange(this, ${group.id}, ${max})">
-                <div class="product-thumb" style="width:40px;height:40px;min-width:40px">
-                  ${imgUrl ? `<img src="${escapeHtml(imgUrl)}" alt="" loading="lazy" onerror="this.classList.add('img-failed')">` : ''}
-                  <div class="thumb-placeholder" style="font-size:14px">🍽️</div>
-                </div>
-                <span>${escapeHtml(option.name)} ${Number(option.extra_price) > 0 ? `<small class="muted" style="font-weight:600;color:var(--primary)">(+${formatCurrency(option.extra_price)})</small>` : ''}</span>
+                <span style="font-size:13px">${escapeHtml(option.name)} ${Number(option.extra_price) > 0 ? `<small style="color:var(--primary);font-weight:700">(+${formatCurrency(option.extra_price)})</small>` : ''}</span>
               </label>
             `;
-            }).join('') || '<div class="muted" style="margin-top:8px">No hay opciones disponibles.</div>'}
+            }).join('') || '<div class="muted" style="font-size:11px">No hay opciones disponibles.</div>'}
           </div>
         `;
       }).join('');
@@ -679,7 +983,7 @@
       } else if (['llevar', 'recoger'].includes(serviceType)) {
         customerName = document.getElementById('customer-name').value.trim();
         pickupValue = document.getElementById('pickup-at').value;
-        if (serviceType === 'recoger' && !customerName) return showToast('Agrega el nombre para el pedido a recoger.', 'error');
+        if (serviceType === 'recoger' && !customerName) return showToast('Agrega el nombre para la recolección.', 'error');
         if (serviceType === 'recoger' && !pickupValue) return showToast('Indica la hora de recolección.', 'error');
       }
 
@@ -718,7 +1022,7 @@
         document.getElementById('cash-paid-with').value = '';
         document.getElementById('mark-paid').checked = false;
         await loadOrders();
-        showToast(`Pedido F${String(order.folio || order.id).padStart(3, '0')} creado correctamente.`, 'success');
+        showToast(`Pedido F${String(order.folio || order.id).padStart(3, '0')} creado exitosamente.`, 'success');
       } catch (error) {
         showToast(error.message, 'error');
       } finally {
@@ -753,7 +1057,7 @@
         const data = await apiFetch('/orders');
         const container = document.getElementById('orders');
         if (!data.length) {
-          container.innerHTML = '<div class="card card-pad muted">Todavía no tienes pedidos registrados.</div>';
+          container.innerHTML = '<div class="card card-pad muted" style="text-align:center">Todavía no tienes pedidos registrados.</div>';
           return;
         }
 
