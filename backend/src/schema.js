@@ -72,6 +72,16 @@ async function ensureOperationalSchema() {
       `, params);
     }
 
+    // Cumulative order folio sequence (does not reset daily)
+    await client.query(`
+      CREATE SEQUENCE IF NOT EXISTS order_folio_seq START WITH 1;
+    `);
+    const maxFolioRes = await client.query("SELECT COALESCE(MAX(folio), 0)::int AS max_folio FROM orders");
+    const currentMax = maxFolioRes.rows[0]?.max_folio || 0;
+    if (currentMax > 0) {
+      await client.query("SELECT setval('order_folio_seq', GREATEST($1, 1), true)", [currentMax]);
+    }
+
     await client.query("COMMIT");
   } catch (error) {
     try {

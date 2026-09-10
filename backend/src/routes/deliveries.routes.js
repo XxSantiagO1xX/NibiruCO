@@ -1505,6 +1505,7 @@ router.get("/shift-summary", auth, driverOrAdmin, async (req, res) => {
 
     const completedDeliveries = deliveriesRes.rows.map((d) => ({
       ...d,
+      total: Number(d.order_total),
       order_total: Number(d.order_total),
       cash_paid_with: d.cash_paid_with ? Number(d.cash_paid_with) : (d.payment_collected_by === "driver" && d.payment_method === "efectivo" ? Number(d.order_total) : null),
       cash_change_due: d.cash_change_due ? Number(d.cash_change_due) : 0,
@@ -1520,7 +1521,10 @@ router.get("/shift-summary", auth, driverOrAdmin, async (req, res) => {
       FROM delivery_trip_stops dts
       JOIN delivery_trips dt ON dt.id = dts.trip_id
       WHERE dt.driver_user_id = $1
-        AND (dt.created_at >= $2::date OR ($3::bigint IS NOT NULL AND dt.id IN (SELECT DISTINCT trip_id FROM delivery_trip_stops WHERE order_id IN (SELECT id FROM orders WHERE shift_id = $3))))
+        AND (
+          ($3::bigint IS NOT NULL AND dt.id IN (SELECT DISTINCT trip_id FROM delivery_trip_stops WHERE order_id IN (SELECT id FROM orders WHERE shift_id = $3)))
+          OR ($3::bigint IS NULL AND dt.created_at >= $2::date)
+        )
     `, [driverId, businessDayStr, shiftId]);
 
     const stopsCounts = stopsCountRes.rows[0] || { assigned_stops_count: 0, delivered_count: 0, failed_count: 0 };

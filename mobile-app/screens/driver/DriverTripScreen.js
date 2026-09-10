@@ -738,25 +738,6 @@ export default function DriverTripScreen({ navigation }) {
                   </View>
                 </View>
               ) : null}
-
-              {/* Start trip button if assigned */}
-              {isAssigned && (
-                <TouchableOpacity
-                  style={[styles.startTripBtn, startingTrip && { opacity: 0.6 }]}
-                  onPress={handleStartTrip}
-                  disabled={startingTrip}
-                  activeOpacity={0.85}
-                >
-                  {startingTrip ? (
-                    <ActivityIndicator color="#ffffff" />
-                  ) : (
-                    <>
-                      <Ionicons name="navigate" size={18} color="#ffffff" />
-                      <Text style={styles.startTripBtnText}>Salir a Ruta / Iniciar Viaje</Text>
-                    </>
-                  )}
-                </TouchableOpacity>
-              )}
             </View>
 
             {/* Stops list */}

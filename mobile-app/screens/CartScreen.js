@@ -33,7 +33,6 @@ export default function CartScreen({ navigation }) {
 
   // Delivery zones & fee
   const [zones, setZones] = useState([]);
-  const [selectedZoneId, setSelectedZoneId] = useState(null);
 
   // Payment methods
   const [paymentMethod, setPaymentMethod] = useState("efectivo"); // 'efectivo' | 'tarjeta' | 'transferencia' | 'pago_en_app'
@@ -47,6 +46,13 @@ export default function CartScreen({ navigation }) {
   // Submit order loading state
   const [submitting, setSubmitting] = useState(false);
 
+  // Derived delivery zone & fee from selected address
+  const selectedAddress = addresses.find((a) => a.id === selectedAddressId);
+  const effectiveZoneId = selectedAddress?.delivery_zone_id || (zones.length > 0 ? zones[0].id : null);
+  const activeZone = zones.find((z) => z.id === effectiveZoneId);
+  const deliveryFee = serviceType === "domicilio" && activeZone ? Number(activeZone.fee || 0) : 0;
+  const finalTotal = cartTotal + deliveryFee;
+
   // Load delivery zones
   useEffect(() => {
     async function loadZones() {
@@ -54,9 +60,6 @@ export default function CartScreen({ navigation }) {
         const res = await axios.get(`${API_URL}/deliveries/zones`);
         if (Array.isArray(res.data)) {
           setZones(res.data);
-          if (res.data.length > 0 && !selectedZoneId) {
-            setSelectedZoneId(res.data[0].id);
-          }
         }
       } catch (err) {
         console.log("Error loading delivery zones:", err.message);
@@ -151,7 +154,7 @@ export default function CartScreen({ navigation }) {
         service_type: serviceType,
         customer_name: customerName.trim() || undefined,
         address_id: serviceType === "domicilio" ? selectedAddressId : undefined,
-        delivery_zone_id: serviceType === "domicilio" ? selectedZoneId : undefined,
+        delivery_zone_id: serviceType === "domicilio" ? effectiveZoneId : undefined,
         payment_method: paymentMethod,
         cash_paid_with: paymentMethod === "efectivo" && cashPaidWith ? Number(cashPaidWith) : undefined
       };
@@ -380,43 +383,13 @@ export default function CartScreen({ navigation }) {
                 </View>
               )}
 
-              {/* Delivery Zone Selector */}
-              {zones.length > 0 ? (
-                <View style={styles.zoneSection}>
-                  <Text style={styles.subHeading}>Zona de Entrega</Text>
-                  <View style={styles.zoneGrid}>
-                    {zones.map((z) => {
-                      const isZSelected = selectedZoneId === z.id;
-                      return (
-                        <TouchableOpacity
-                          key={z.id}
-                          style={[
-                            styles.zoneCard,
-                            isZSelected && styles.zoneCardSelected
-                          ]}
-                          onPress={() => setSelectedZoneId(z.id)}
-                          activeOpacity={0.8}
-                        >
-                          <Text
-                            style={[
-                              styles.zoneName,
-                              isZSelected && styles.zoneNameSelected
-                            ]}
-                          >
-                            {z.name}
-                          </Text>
-                          <Text
-                            style={[
-                              styles.zoneFee,
-                              isZSelected && styles.zoneFeeSelected
-                            ]}
-                          >
-                            +${Number(z.fee).toFixed(2)}
-                          </Text>
-                        </TouchableOpacity>
-                      );
-                    })}
-                  </View>
+              {/* Derived Delivery Zone Badge */}
+              {activeZone ? (
+                <View style={styles.derivedZoneBox}>
+                  <Ionicons name="location" size={15} color={colors.primary} />
+                  <Text style={styles.derivedZoneText}>
+                    Zona asignada: <Text style={{ fontWeight: "800", color: colors.text }}>{activeZone.name}</Text> · Envío <Text style={{ fontWeight: "800", color: colors.primary }}>+${Number(activeZone.fee).toFixed(2)}</Text>
+                  </Text>
                 </View>
               ) : null}
             </View>
@@ -478,8 +451,8 @@ export default function CartScreen({ navigation }) {
                 </View>
                 {Number(cashPaidWith) > 0 ? (
                   <Text style={styles.changeNotice}>
-                    {Number(cashPaidWith) >= (cartTotal + (serviceType === "domicilio" && zones.find((z) => z.id === selectedZoneId) ? Number(zones.find((z) => z.id === selectedZoneId).fee || 0) : 0))
-                      ? `Tu cambio estimado será de: $${(Number(cashPaidWith) - (cartTotal + (serviceType === "domicilio" && zones.find((z) => z.id === selectedZoneId) ? Number(zones.find((z) => z.id === selectedZoneId).fee || 0) : 0))).toFixed(2)}`
+                    {Number(cashPaidWith) >= finalTotal
+                      ? `Tu cambio estimado será de: $${(Number(cashPaidWith) - finalTotal).toFixed(2)}`
                       : "El monto ingresado es menor al total"}
                   </Text>
                 ) : null}
@@ -500,62 +473,46 @@ export default function CartScreen({ navigation }) {
           </View>
 
           {/* Order Summary breakdown */}
-          {(() => {
-            const activeZone = zones.find((z) => z.id === selectedZoneId);
-            const deliveryFee = serviceType === "domicilio" && activeZone ? Number(activeZone.fee || 0) : 0;
-            const finalTotal = cartTotal + deliveryFee;
-
-            return (
-              <View style={styles.summaryCard}>
-                <Text style={styles.summaryTitle}>Resumen de Cuenta</Text>
-                <View style={styles.summaryRow}>
-                  <Text style={styles.summaryLabel}>Subtotal</Text>
-                  <Text style={styles.summaryValue}>${cartTotal.toFixed(2)}</Text>
-                </View>
-                <View style={styles.summaryRow}>
-                  <Text style={styles.summaryLabel}>Servicio ({serviceType})</Text>
-                  <Text style={styles.summaryValueFree}>
-                    {deliveryFee > 0 ? `$${deliveryFee.toFixed(2)}` : "Incluido"}
-                  </Text>
-                </View>
-                <View style={styles.divider} />
-                <View style={styles.totalRow}>
-                  <Text style={styles.totalLabel}>Total a Pagar</Text>
-                  <Text style={styles.totalAmount}>${finalTotal.toFixed(2)}</Text>
-                </View>
-              </View>
-            );
-          })()}
+          <View style={styles.summaryCard}>
+            <Text style={styles.summaryTitle}>Resumen de Cuenta</Text>
+            <View style={styles.summaryRow}>
+              <Text style={styles.summaryLabel}>Subtotal</Text>
+              <Text style={styles.summaryValue}>${cartTotal.toFixed(2)}</Text>
+            </View>
+            <View style={styles.summaryRow}>
+              <Text style={styles.summaryLabel}>Servicio ({serviceType})</Text>
+              <Text style={styles.summaryValueFree}>
+                {deliveryFee > 0 ? `$${deliveryFee.toFixed(2)}` : "Incluido"}
+              </Text>
+            </View>
+            <View style={styles.divider} />
+            <View style={styles.totalRow}>
+              <Text style={styles.totalLabel}>Total a Pagar</Text>
+              <Text style={styles.totalAmount}>${finalTotal.toFixed(2)}</Text>
+            </View>
+          </View>
         </ScrollView>
 
         {/* Fixed Footer Checkout Button */}
-        {(() => {
-          const activeZone = zones.find((z) => z.id === selectedZoneId);
-          const deliveryFee = serviceType === "domicilio" && activeZone ? Number(activeZone.fee || 0) : 0;
-          const finalTotal = cartTotal + deliveryFee;
-
-          return (
-            <View style={styles.footer}>
-              <TouchableOpacity
-                style={[styles.checkoutBtn, submitting && styles.checkoutBtnDisabled]}
-                onPress={handleCreateOrder}
-                disabled={submitting}
-                activeOpacity={0.85}
-              >
-                {submitting ? (
-                  <ActivityIndicator color="#ffffff" />
-                ) : (
-                  <>
-                    <Ionicons name="checkmark-circle" size={20} color="#ffffff" />
-                    <Text style={styles.checkoutBtnText}>
-                      Confirmar Pedido · ${finalTotal.toFixed(2)}
-                    </Text>
-                  </>
-                )}
-              </TouchableOpacity>
-            </View>
-          );
-        })()}
+        <View style={styles.footer}>
+          <TouchableOpacity
+            style={[styles.checkoutBtn, submitting && styles.checkoutBtnDisabled]}
+            onPress={handleCreateOrder}
+            disabled={submitting}
+            activeOpacity={0.85}
+          >
+            {submitting ? (
+              <ActivityIndicator color="#ffffff" />
+            ) : (
+              <>
+                <Ionicons name="checkmark-circle" size={20} color="#ffffff" />
+                <Text style={styles.checkoutBtnText}>
+                  Confirmar Pedido · ${finalTotal.toFixed(2)}
+                </Text>
+              </>
+            )}
+          </TouchableOpacity>
+        </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -571,7 +528,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: 16,
-    paddingBottom: 30
+    paddingBottom: 40
   },
   clearBtn: {
     paddingHorizontal: 10,
@@ -814,10 +771,28 @@ const styles = StyleSheet.create({
     letterSpacing: -0.5
   },
   footer: {
-    padding: 16,
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: Platform.OS === "ios" ? 96 : 84,
     backgroundColor: colors.surface,
     borderTopWidth: 1,
     borderTopColor: colors.borderLight
+  },
+  derivedZoneBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: colors.primarySoft,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 12,
+    marginTop: 8,
+    borderWidth: 1,
+    borderColor: colors.borderLight
+  },
+  derivedZoneText: {
+    fontSize: 12,
+    color: colors.muted
   },
   checkoutBtn: {
     flexDirection: "row",

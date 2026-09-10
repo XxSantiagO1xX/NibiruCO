@@ -115,7 +115,7 @@ export default function ProfileScreen({ navigation }) {
             <>
               <TouchableOpacity
                 style={styles.menuRow}
-                onPress={() => navigation.navigate("Reparto")}
+                onPress={() => navigation.navigate("Ruta")}
                 activeOpacity={0.7}
               >
                 <View style={[styles.menuIconCircle, { backgroundColor: colors.primarySoft }]}>
@@ -143,15 +143,31 @@ export default function ProfileScreen({ navigation }) {
                 </View>
                 <Ionicons name="chevron-forward" size={18} color={colors.textSubtle} />
               </TouchableOpacity>
-              <View style={styles.menuDivider} />
             </>
+          )}
+
+          {user.role === "mesero" && (
+            <TouchableOpacity
+              style={styles.menuRow}
+              onPress={() => navigation.navigate("Mesas")}
+              activeOpacity={0.7}
+            >
+              <View style={[styles.menuIconCircle, { backgroundColor: colors.roleWaiterSoft || colors.primarySoft }]}>
+                <Ionicons name="restaurant-outline" size={18} color={colors.roleWaiter || colors.primary} />
+              </View>
+              <View style={styles.menuTextCol}>
+                <Text style={styles.menuTitle}>Salón y Mesas</Text>
+                <Text style={styles.menuSubtitle}>Comandas y atención a comensales</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color={colors.textSubtle} />
+            </TouchableOpacity>
           )}
 
           {user.role === "admin" && (
             <>
               <TouchableOpacity
                 style={styles.menuRow}
-                onPress={() => navigation.navigate("AdminDeliveryDispatch")}
+                onPress={() => navigation.navigate("Despacho")}
                 activeOpacity={0.7}
               >
                 <View style={[styles.menuIconCircle, { backgroundColor: colors.primarySoft }]}>
@@ -167,37 +183,41 @@ export default function ProfileScreen({ navigation }) {
             </>
           )}
 
-          <TouchableOpacity
-            style={styles.menuRow}
-            onPress={() => navigation.navigate("Addresses")}
-            activeOpacity={0.7}
-          >
-            <View style={[styles.menuIconCircle, { backgroundColor: colors.primarySoft }]}>
-              <Ionicons name="location-outline" size={18} color={colors.primary} />
-            </View>
-            <View style={styles.menuTextCol}>
-              <Text style={styles.menuTitle}>Direcciones de Entrega</Text>
-              <Text style={styles.menuSubtitle}>Gestiona tus lugares de entrega</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={18} color={colors.textSubtle} />
-          </TouchableOpacity>
+          {(!user.role || user.role === "cliente" || user.role === "admin") && (
+            <>
+              <TouchableOpacity
+                style={styles.menuRow}
+                onPress={() => navigation.navigate("Addresses")}
+                activeOpacity={0.7}
+              >
+                <View style={[styles.menuIconCircle, { backgroundColor: colors.primarySoft }]}>
+                  <Ionicons name="location-outline" size={18} color={colors.primary} />
+                </View>
+                <View style={styles.menuTextCol}>
+                  <Text style={styles.menuTitle}>Direcciones de Entrega</Text>
+                  <Text style={styles.menuSubtitle}>Gestiona tus lugares de entrega</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color={colors.textSubtle} />
+              </TouchableOpacity>
 
-          <View style={styles.menuDivider} />
+              <View style={styles.menuDivider} />
 
-          <TouchableOpacity
-            style={styles.menuRow}
-            onPress={() => navigation.navigate("Pedidos")}
-            activeOpacity={0.7}
-          >
-            <View style={[styles.menuIconCircle, { backgroundColor: colors.infoSoft }]}>
-              <Ionicons name="receipt-outline" size={18} color={colors.info} />
-            </View>
-            <View style={styles.menuTextCol}>
-              <Text style={styles.menuTitle}>Historial de Pedidos</Text>
-              <Text style={styles.menuSubtitle}>Revisa tus compras anteriores</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={18} color={colors.textSubtle} />
-          </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.menuRow}
+                onPress={() => navigation.navigate("Pedidos")}
+                activeOpacity={0.7}
+              >
+                <View style={[styles.menuIconCircle, { backgroundColor: colors.infoSoft }]}>
+                  <Ionicons name="receipt-outline" size={18} color={colors.info} />
+                </View>
+                <View style={styles.menuTextCol}>
+                  <Text style={styles.menuTitle}>Historial de Pedidos</Text>
+                  <Text style={styles.menuSubtitle}>Revisa tus compras anteriores</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color={colors.textSubtle} />
+              </TouchableOpacity>
+            </>
+          )}
         </View>
 
         {/* Service & System Info Section */}
@@ -205,20 +225,24 @@ export default function ProfileScreen({ navigation }) {
         <View style={styles.infoCard}>
           <View style={styles.infoRow}>
             <Text style={styles.infoLabel}>Versión de App</Text>
-            <Text style={styles.infoValue}>v1.0.0 (SDK 57)</Text>
-          </View>
-          <View style={styles.infoDivider} />
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Servidor Backend</Text>
-            <Text style={styles.infoValue} numberOfLines={1}>
-              {API_URL}
-            </Text>
+            <Text style={styles.infoValue}>v1.0.0</Text>
           </View>
           <View style={styles.infoDivider} />
           <View style={styles.infoRow}>
             <Text style={styles.infoLabel}>Identificador</Text>
             <Text style={styles.infoValue}>ID #{user.id}</Text>
           </View>
+          {typeof __DEV__ !== "undefined" && __DEV__ ? (
+            <>
+              <View style={styles.infoDivider} />
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>Servidor (Dev)</Text>
+                <Text style={styles.infoValue} numberOfLines={1}>
+                  {API_URL}
+                </Text>
+              </View>
+            </>
+          ) : null}
         </View>
 
         {/* Logout Button */}

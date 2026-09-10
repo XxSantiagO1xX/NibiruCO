@@ -14,7 +14,7 @@ function normalizeServiceType(value) {
     delivery: "domicilio"
   };
   const canonical = aliases[normalized] || normalized;
-  const allowed = ["local", "llevar", "recoger", "domicilio"];
+  const allowed = ["local", "mesa", "llevar", "recoger", "domicilio"];
   return allowed.includes(canonical) ? canonical : "local";
 }
 
@@ -287,6 +287,43 @@ router.post("/", auth, async (req, res) => {
       customerName = null;
       pickupAt = null;
       addressId = null;
+    } else if (staffCanCollect && (serviceType === "mesa" || (type && String(type).toLowerCase().startsWith("mesa")) || req.body.table_id)) {
+      // Auto-resolver o abrir sesión de mesa para comanda/POS
+      let tableRow = null;
+      if (req.body.table_id) {
+        const tRes = await client.query("SELECT id, name FROM restaurant_tables WHERE id = $1 AND active = TRUE", [Number(req.body.table_id)]);
+        tableRow = tRes.rows[0] || null;
+      } else if (type) {
+        const tRes = await client.query("SELECT id, name FROM restaurant_tables WHERE LOWER(name) = LOWER($1) AND active = TRUE", [String(type).trim()]);
+        tableRow = tRes.rows[0] || null;
+      }
+
+      if (tableRow) {
+        const activeSessRes = await client.query(`
+          SELECT id, status FROM table_sessions
+          WHERE table_id = $1 AND status = 'open'
+          ORDER BY id DESC LIMIT 1
+        `, [tableRow.id]);
+
+        if (activeSessRes.rows.length) {
+          tableSessionId = activeSessRes.rows[0].id;
+        } else {
+          const newSessRes = await client.query(`
+            INSERT INTO table_sessions (table_id, opened_at, status)
+            VALUES ($1, NOW(), 'open')
+            RETURNING id
+          `, [tableRow.id]);
+          tableSessionId = newSessRes.rows[0].id;
+        }
+
+        serviceType = "mesa";
+        effectiveType = tableRow.name;
+        customerName = null;
+        pickupAt = null;
+        addressId = null;
+      } else {
+        effectiveType = serviceType;
+      }
     } else {
       effectiveType = serviceType;
 
@@ -410,14 +447,10 @@ router.post("/", auth, async (req, res) => {
     const todayStr = getBusinessDateStr();
     if (!tableSessionId) {
       const folioResult = await client.query(`
-        INSERT INTO daily_folio_counters (day, last_folio)
-        VALUES ($1::date, 1)
-        ON CONFLICT (day)
-        DO UPDATE SET last_folio = daily_folio_counters.last_folio + 1
-        RETURNING day, last_folio
-      `, [todayStr]);
+        SELECT nextval('order_folio_seq') AS last_folio
+      `);
       folio = Number(folioResult.rows[0].last_folio);
-      serviceDate = folioResult.rows[0].day;
+      serviceDate = todayStr;
     } else {
       serviceDate = todayStr;
     }

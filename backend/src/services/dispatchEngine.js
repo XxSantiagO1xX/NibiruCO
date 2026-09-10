@@ -475,12 +475,32 @@ async function evaluateDispatchQueue(io) {
     const assignedDriverIds = new Set();
 
     for (const group of orderGroups) {
-      // Filtrar choferes disponibles que aún no hayan recibido oferta en este pase
-      const availableCandidates = eligibleDrivers.filter((d) => !assignedDriverIds.has(d.id));
-      if (!availableCandidates.length) break;
+      const orderIds = group.map((o) => o.id);
 
-      // Calcular puntuación para cada candidato
-      const scoredCandidates = availableCandidates.map((driver) => {
+      // Buscar repartidores que hayan rechazado o dejado expirar una oferta para este grupo recientemente
+      const refusedRes = await client.query(`
+        SELECT DISTINCT driver_user_id
+        FROM delivery_assignment_offers
+        WHERE order_ids && $1::bigint[]
+          AND status IN ('rejected', 'declined', 'expired')
+          AND created_at > NOW() - INTERVAL '30 minutes'
+      `, [orderIds]);
+      const refusedDriverIds = new Set(refusedRes.rows.map((r) => Number(r.driver_user_id)));
+
+      // Priorizar candidatos que NO hayan declinado/expirado esta oferta recientemente
+      const freshCandidates = eligibleDrivers.filter(
+        (d) => !assignedDriverIds.has(d.id) && !refusedDriverIds.has(d.id)
+      );
+
+      // Si todos los disponibles ya la declinaron/expiraron, fallback a los disponibles que aún no tengan oferta en este pase
+      const poolCandidates = freshCandidates.length > 0
+        ? freshCandidates
+        : eligibleDrivers.filter((d) => !assignedDriverIds.has(d.id));
+
+      if (!poolCandidates.length) continue;
+
+      // Calcular puntuación para cada candidato del pool
+      const scoredCandidates = poolCandidates.map((driver) => {
         const { score, recommendation_reason } = scoreCandidateDriver(driver, group);
         if (process.env.NODE_ENV !== "production") {
           console.log(`[DISPATCH DIAGNOSTIC] Driver ${driver.name} (ID: ${driver.id}): score=${score}, reason=${recommendation_reason}`);
@@ -623,6 +643,12 @@ async function checkExpiredOffers(io, client = pool) {
         io.emit("delivery-updated", { driver_id: offer.driver_user_id });
         io.emit("counter-updated");
       }
+    }
+
+    if (expiredList.length > 0 && io && client === pool) {
+      setTimeout(() => {
+        evaluateDispatchQueue(io).catch((e) => console.error("DISPATCH AFTER EXPIRE ERROR:", e));
+      }, 100);
     }
 
     return expiredList;

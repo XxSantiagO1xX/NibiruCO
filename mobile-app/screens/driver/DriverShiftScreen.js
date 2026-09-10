@@ -108,10 +108,11 @@ export default function DriverShiftScreen({ navigation }) {
   const shift = summary?.shift || (summary?.shift_id ? summary : null);
   const isShiftActive = summary?.status === "open" || summary?.status === "abierto" || summary?.shift?.status === "open" || summary?.shift?.status === "abierto";
   const deliveredCount = summary?.delivered_count || 0;
+  const initialFloat = Number(summary?.initial_cash_float ?? 0);
   const grossCash = Number(summary?.gross_cash_received ?? summary?.cash_collected ?? 0);
   const changeGiven = Number(summary?.total_cash_change_given ?? 0);
   const netCash = Number(summary?.net_cash_for_business ?? (grossCash - changeGiven));
-  const expectedCash = Number(summary?.total_cash_expected ?? summary?.expected_cash ?? netCash);
+  const expectedCash = Number(summary?.total_cash_expected ?? summary?.expected_cash ?? (netCash + initialFloat));
   const cashSettled = Number(summary?.total_cash_settled ?? summary?.settled_cash ?? summary?.cash_settled ?? 0);
   const pendingSettlement = Number(summary?.pending_settlement ?? (expectedCash - cashSettled));
   const difference = Number(summary?.difference ?? (cashSettled - expectedCash));
@@ -187,6 +188,14 @@ export default function DriverShiftScreen({ navigation }) {
               : "Todo el efectivo recaudado está liquidado y al día."}
           </Text>
 
+          {initialFloat > 0 && (
+            <View style={{ marginBottom: 12, paddingHorizontal: 12, paddingVertical: 6, backgroundColor: colors.surfaceMuted, borderRadius: 10, borderWidth: 1, borderColor: colors.borderLight }}>
+              <Text style={{ fontSize: 11, color: colors.muted, textAlign: "center" }}>
+                Incluye fondo inicial para cambio de <Text style={{ fontWeight: "800", color: colors.text }}>${initialFloat.toFixed(2)}</Text>
+              </Text>
+            </View>
+          )}
+
           <View style={styles.statsGrid}>
             <View style={styles.statBox}>
               <Text style={styles.statLabel}>Entregas</Text>
@@ -227,54 +236,58 @@ export default function DriverShiftScreen({ navigation }) {
             description="Cuando completes entregas con validación de PIN o autorización, aparecerán en este desglose."
           />
         ) : (
-          orders.map((ord) => (
-            <View key={ord.id} style={styles.orderRowCard}>
-              <View style={styles.orderLeft}>
-                <View style={styles.folioBadge}>
-                  <Text style={styles.folioText}>
-                    F{String(ord.folio || ord.id).padStart(3, "0")}
-                  </Text>
+          orders.map((ord) => {
+            const orderTime = ord.delivery_time || ord.delivered_at;
+            const orderTotalNum = Number(ord.total ?? ord.order_total ?? 0);
+            return (
+              <View key={ord.id} style={styles.orderRowCard}>
+                <View style={styles.orderLeft}>
+                  <View style={styles.folioBadge}>
+                    <Text style={styles.folioText}>
+                      F{String(ord.folio || ord.id).padStart(3, "0")}
+                    </Text>
+                  </View>
+                  <View>
+                    <Text style={styles.customerText}>{ord.customer_name || "Cliente"}</Text>
+                    <Text style={styles.timeText}>
+                      {orderTime
+                        ? new Date(orderTime).toLocaleTimeString([], {
+                            hour: "2-digit",
+                            minute: "2-digit"
+                          })
+                        : "Entregado"}
+                    </Text>
+                  </View>
                 </View>
-                <View>
-                  <Text style={styles.customerText}>{ord.customer_name || "Cliente"}</Text>
-                  <Text style={styles.timeText}>
-                    {ord.delivered_at
-                      ? new Date(ord.delivered_at).toLocaleTimeString([], {
-                          hour: "2-digit",
-                          minute: "2-digit"
-                        })
-                      : "Entregado"}
-                  </Text>
-                </View>
-              </View>
 
-              <View style={styles.orderRight}>
-                <Text style={styles.orderTotal}>${Number(ord.total).toFixed(2)}</Text>
-                <View
-                  style={[
-                    styles.methodBadge,
-                    ord.payment_method === "efectivo"
-                      ? styles.methodCash
-                      : styles.methodDigital
-                  ]}
-                >
-                  <Text
+                <View style={styles.orderRight}>
+                  <Text style={styles.orderTotal}>${orderTotalNum.toFixed(2)}</Text>
+                  <View
                     style={[
-                      styles.methodBadgeText,
-                      {
-                        color:
-                          ord.payment_method === "efectivo"
-                            ? colors.primary
-                            : colors.success
-                      }
+                      styles.methodBadge,
+                      ord.payment_method === "efectivo"
+                        ? styles.methodCash
+                        : styles.methodDigital
                     ]}
                   >
-                    {ord.payment_method === "efectivo" ? "Efectivo" : "App / Digital"}
-                  </Text>
+                    <Text
+                      style={[
+                        styles.methodBadgeText,
+                        {
+                          color:
+                            ord.payment_method === "efectivo"
+                              ? colors.primary
+                              : colors.success
+                        }
+                      ]}
+                    >
+                      {ord.payment_method === "efectivo" ? "Efectivo" : "App / Digital"}
+                    </Text>
+                  </View>
                 </View>
               </View>
-            </View>
-          ))
+            );
+          })
         )}
       </ScrollView>
     </SafeAreaView>
