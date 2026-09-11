@@ -204,45 +204,47 @@ export default function ProfileScreen({ navigation }) {
 
               <TouchableOpacity
                 style={styles.menuRow}
-                onPress={() => navigation.navigate("Pedidos")}
+                onPress={() => {
+                  Alert.alert(
+                    "Datos de Facturación",
+                    "Módulo de facturación y RFC próximamente disponible."
+                  );
+                }}
                 activeOpacity={0.7}
               >
                 <View style={[styles.menuIconCircle, { backgroundColor: colors.infoSoft }]}>
-                  <Ionicons name="receipt-outline" size={18} color={colors.info} />
+                  <Ionicons name="document-text-outline" size={18} color={colors.info} />
                 </View>
                 <View style={styles.menuTextCol}>
-                  <Text style={styles.menuTitle}>Historial de Pedidos</Text>
-                  <Text style={styles.menuSubtitle}>Revisa tus compras anteriores</Text>
+                  <Text style={styles.menuTitle}>Datos de Facturación</Text>
+                  <Text style={styles.menuSubtitle}>RFC y datos fiscales</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color={colors.textSubtle} />
+              </TouchableOpacity>
+
+              <View style={styles.menuDivider} />
+
+              <TouchableOpacity
+                style={styles.menuRow}
+                onPress={() => {
+                  Alert.alert(
+                    "Soporte y Ayuda",
+                    "¿Necesitas ayuda con tu pedido o cuenta? Contáctanos a través de soporte."
+                  );
+                }}
+                activeOpacity={0.7}
+              >
+                <View style={[styles.menuIconCircle, { backgroundColor: colors.successSoft }]}>
+                  <Ionicons name="chatbubble-ellipses-outline" size={18} color={colors.success} />
+                </View>
+                <View style={styles.menuTextCol}>
+                  <Text style={styles.menuTitle}>Soporte y Ayuda</Text>
+                  <Text style={styles.menuSubtitle}>Contáctanos vía WhatsApp</Text>
                 </View>
                 <Ionicons name="chevron-forward" size={18} color={colors.textSubtle} />
               </TouchableOpacity>
             </>
           )}
-        </View>
-
-        {/* Service & System Info Section */}
-        <Text style={styles.sectionTitle}>Sistema MealOps</Text>
-        <View style={styles.infoCard}>
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Versión de App</Text>
-            <Text style={styles.infoValue}>v1.0.0</Text>
-          </View>
-          <View style={styles.infoDivider} />
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Identificador</Text>
-            <Text style={styles.infoValue}>ID #{user.id}</Text>
-          </View>
-          {typeof __DEV__ !== "undefined" && __DEV__ ? (
-            <>
-              <View style={styles.infoDivider} />
-              <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>Servidor (Dev)</Text>
-                <Text style={styles.infoValue} numberOfLines={1}>
-                  {API_URL}
-                </Text>
-              </View>
-            </>
-          ) : null}
         </View>
 
         {/* Logout Button */}
@@ -254,6 +256,9 @@ export default function ProfileScreen({ navigation }) {
           <Ionicons name="log-out-outline" size={18} color={colors.danger} />
           <Text style={styles.logoutText}>Cerrar Sesión</Text>
         </TouchableOpacity>
+
+        {/* App Version Info */}
+        <Text style={styles.appVersionText}>Versión de App v1.0.0</Text>
       </ScrollView>
     </SafeAreaView>
   );
@@ -447,35 +452,6 @@ const styles = StyleSheet.create({
     height: 1,
     backgroundColor: colors.borderLight,
     marginLeft: 64
-  },
-  infoCard: {
-    backgroundColor: colors.surface,
-    borderRadius: 20,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: colors.borderLight,
-    marginBottom: 24
-  },
-  infoRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center"
-  },
-  infoLabel: {
-    fontSize: 13,
-    color: colors.muted
-  },
-  infoValue: {
-    fontSize: 12,
-    fontWeight: "700",
-    color: colors.text,
-    maxWidth: 200
-  },
-  infoDivider: {
-    height: 1,
-    backgroundColor: colors.borderLight,
-    marginVertical: 10
-  },
   logoutButton: {
     flexDirection: "row",
     alignItems: "center",
@@ -491,5 +467,12 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "800",
     color: colors.danger
+  },
+  appVersionText: {
+    fontSize: 11.5,
+    color: colors.muted,
+    textAlign: "center",
+    marginTop: 16,
+    fontWeight: "500"
   }
 });
