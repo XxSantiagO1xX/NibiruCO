@@ -780,6 +780,13 @@ export default function DriverTripScreen({ navigation }) {
               const isArrived = stop.status === "arrived";
               const isCash = stop.payment_method === "efectivo";
 
+              // Clean customer name and phone separation
+              const rawName = stop.customer_name || "Cliente";
+              const nameMatch = rawName.match(/^(.*?)(?:\s*\((.*?)\))?$/);
+              const customerDisplayName = (nameMatch && nameMatch[1] ? nameMatch[1].trim() : rawName) || "Cliente";
+              const parsedPhone = nameMatch && nameMatch[2] ? nameMatch[2].trim() : "";
+              const customerDisplayPhone = parsedPhone || stop.customer_phone || "";
+
               return (
                 <View
                   key={stop?.id ? `${stop.id}-${index}` : index.toString()}
@@ -789,19 +796,21 @@ export default function DriverTripScreen({ navigation }) {
                     isFailed && styles.stopCardFailed
                   ]}
                 >
-                  {/* Sequence header with discreet alert in top right */}
-                  <View style={styles.stopHeader}>
-                    <View style={styles.seqBadge}>
-                      <Text style={styles.seqText}>{stop.sequence}</Text>
-                    </View>
-                    <View style={{ flex: 1, marginLeft: 10 }}>
-                      <Text style={styles.stopFolio}>
-                        Folio F{String(stop.folio || "").padStart(3, "0")}
+                  {/* Top Bar: Folio Ribbon on the Left, Badges & Discreet Alert on the Right */}
+                  <View style={styles.stopCardTopBar}>
+                    {/* Folio Ribbon flush with top-left corner */}
+                    <View style={styles.stopFolioRibbon}>
+                      <Text style={styles.stopFolioRibbonText}>
+                        F{String(stop.folio || "").padStart(3, "0")}
                       </Text>
-                      <Text style={styles.stopZone}>{stop.zone_name || "Zona de Entrega"}</Text>
                     </View>
 
-                    <View style={styles.headerRightBadges}>
+                    {/* Right side status badges & alert */}
+                    <View style={styles.stopTopRightArea}>
+                      <View style={styles.seqBadgeSmall}>
+                        <Text style={styles.seqTextSmall}>#{stop.sequence}</Text>
+                      </View>
+
                       {isDelivered ? (
                         <View style={styles.deliveredBadge}>
                           <Ionicons name="checkmark-done" size={13} color={colors.success} />
@@ -827,24 +836,41 @@ export default function DriverTripScreen({ navigation }) {
                           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                           activeOpacity={0.7}
                         >
-                          <Ionicons name="warning-outline" size={18} color={colors.danger} />
+                          <Ionicons name="warning-outline" size={16} color={colors.danger} />
                         </TouchableOpacity>
                       )}
                     </View>
                   </View>
 
-                  {/* Customer details with GPS button aligned to the right of address */}
-                  <View style={styles.customerRow}>
-                    <View style={{ flex: 1, paddingRight: 8 }}>
-                      <Text style={styles.custName}>{stop.customer_name || "Cliente"}</Text>
-                      <Text style={styles.addressLine}>{stop.address}</Text>
-                      {stop.address_details ? (
-                        <Text style={styles.refLine}>Ref: {stop.address_details}</Text>
+                  {/* Stop Card Inner Body with padding */}
+                  <View style={styles.stopCardBody}>
+                    {/* Customer Identity (The Hero) & Phone */}
+                    <View style={styles.custIdentitySection}>
+                      <Text style={styles.custHeroName} numberOfLines={1}>
+                        {customerDisplayName}
+                      </Text>
+
+                      {customerDisplayPhone ? (
+                        <TouchableOpacity
+                          style={styles.custPhoneRow}
+                          onPress={() => openPhoneCall(customerDisplayPhone)}
+                          activeOpacity={0.7}
+                        >
+                          <Ionicons name="call" size={13} color={colors.muted} />
+                          <Text style={styles.custPhoneText}>{customerDisplayPhone}</Text>
+                        </TouchableOpacity>
                       ) : null}
                     </View>
 
-                    <View style={styles.customerActionCol}>
-                      {/* GPS Navigation button aligned with address */}
+                    {/* Address & Navigation Button in the same row */}
+                    <View style={styles.addressNavRow}>
+                      <View style={{ flex: 1, paddingRight: 8 }}>
+                        <Text style={styles.addressLine}>{stop.address}</Text>
+                        {stop.address_details ? (
+                          <Text style={styles.refLine}>Ref: {stop.address_details}</Text>
+                        ) : null}
+                      </View>
+
                       {!isDelivered && !isFailed && (
                         <TouchableOpacity
                           style={styles.gpsNavPill}
@@ -859,7 +885,7 @@ export default function DriverTripScreen({ navigation }) {
                         >
                           <Ionicons
                             name={navPreference === "google_maps" ? "map" : "navigate"}
-                            size={14}
+                            size={13}
                             color="#ffffff"
                           />
                           <Text style={styles.gpsNavPillText}>
@@ -867,68 +893,58 @@ export default function DriverTripScreen({ navigation }) {
                           </Text>
                         </TouchableOpacity>
                       )}
-
-                      {stop.customer_phone ? (
-                        <TouchableOpacity
-                          style={styles.callCircle}
-                          onPress={() => openPhoneCall(stop.customer_phone)}
-                          activeOpacity={0.8}
-                        >
-                          <Ionicons name="call" size={15} color="#ffffff" />
-                        </TouchableOpacity>
-                      ) : null}
-                    </View>
-                  </View>
-
-                  {/* Cash / Payment details box */}
-                  <View style={styles.stopPaymentBox}>
-                    <View style={styles.paymentStatusRow}>
-                      <Text style={styles.paymentMethodLabel}>
-                        {isCash ? "Pago en Efectivo:" : "Pago en App / Digital:"}
-                      </Text>
-                      <Text style={styles.orderTotalAmount}>
-                        ${Number(stop.order_total || 0).toFixed(2)}
-                      </Text>
                     </View>
 
-                    {isCash && Number(stop.cash_paid_with) > 0 ? (
-                      <View style={styles.cashDetailRow}>
-                        <Text style={styles.cashSubdetail}>
-                          Cliente paga con: ${Number(stop.cash_paid_with).toFixed(2)}
+                    {/* Highlighted Cash / Payment Box */}
+                    <View style={styles.stopPaymentBoxLight}>
+                      <View style={styles.paymentStatusRow}>
+                        <Text style={styles.paymentMethodLabel}>
+                          {isCash ? "Pago en Efectivo:" : "Pago en App / Digital:"}
                         </Text>
-                        <Text style={styles.cashChangeHighlight}>
-                          Cambio a dar: ${Number(stop.cash_change_due || 0).toFixed(2)}
+                        <Text style={styles.orderTotalAmountHero}>
+                          ${Number(stop.order_total || 0).toFixed(2)}
                         </Text>
                       </View>
-                    ) : null}
-                  </View>
 
-                  {/* Vertically stacked pill action buttons */}
-                  {!isDelivered && !isFailed && (
-                    <View style={styles.stopActionsStacked}>
-                      {/* Arrived button (full width pill) */}
-                      {!isArrived && (
+                      {isCash && Number(stop.cash_paid_with) > 0 ? (
+                        <View style={styles.cashDetailRow}>
+                          <Text style={styles.cashSubdetail}>
+                            Cliente paga con: ${Number(stop.cash_paid_with).toFixed(2)}
+                          </Text>
+                          <Text style={styles.cashChangeHighlight}>
+                            Cambio a dar: ${Number(stop.cash_change_due || 0).toFixed(2)}
+                          </Text>
+                        </View>
+                      ) : null}
+                    </View>
+
+                    {/* Vertically stacked pill action buttons */}
+                    {!isDelivered && !isFailed && (
+                      <View style={styles.stopActionsStacked}>
+                        {/* Arrived button (full width pill) */}
+                        {!isArrived && (
+                          <TouchableOpacity
+                            style={styles.arrivedBtnFull}
+                            onPress={() => handleMarkArrived(stop)}
+                            activeOpacity={0.8}
+                          >
+                            <Ionicons name="location-outline" size={17} color={colors.primary} />
+                            <Text style={styles.arrivedBtnText}>¡Ya Llegué al Domicilio!</Text>
+                          </TouchableOpacity>
+                        )}
+
+                        {/* Verify PIN button (full width pill) */}
                         <TouchableOpacity
-                          style={styles.arrivedBtnFull}
-                          onPress={() => handleMarkArrived(stop)}
+                          style={styles.pinBtnFull}
+                          onPress={() => handleOpenPinModal(stop)}
                           activeOpacity={0.8}
                         >
-                          <Ionicons name="location-outline" size={17} color={colors.primary} />
-                          <Text style={styles.arrivedBtnText}>¡Ya Llegué al Domicilio!</Text>
+                          <Ionicons name="key" size={17} color="#ffffff" />
+                          <Text style={styles.pinBtnText}>Validar PIN del Cliente</Text>
                         </TouchableOpacity>
-                      )}
-
-                      {/* Verify PIN button (full width pill) */}
-                      <TouchableOpacity
-                        style={styles.pinBtnFull}
-                        onPress={() => handleOpenPinModal(stop)}
-                        activeOpacity={0.8}
-                      >
-                        <Ionicons name="key" size={17} color="#ffffff" />
-                        <Text style={styles.pinBtnText}>Validar PIN del Cliente</Text>
-                      </TouchableOpacity>
-                    </View>
-                  )}
+                      </View>
+                    )}
+                  </View>
                 </View>
               );
             })}
@@ -1291,11 +1307,10 @@ const styles = StyleSheet.create({
   },
   stopCard: {
     backgroundColor: colors.surface,
-    borderRadius: 20,
-    padding: 16,
+    borderRadius: 18,
     borderWidth: 1.5,
     borderColor: colors.borderLight,
-    gap: 12
+    overflow: "hidden"
   },
   stopCardDelivered: {
     opacity: 0.6,
@@ -1305,115 +1320,86 @@ const styles = StyleSheet.create({
     borderColor: colors.dangerBorder,
     backgroundColor: colors.dangerSoft
   },
-  stopHeader: {
+  stopCardTopBar: {
     flexDirection: "row",
-    alignItems: "center"
-  },
-  seqBadge: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: colors.primary,
     alignItems: "center",
-    justifyContent: "center"
+    justifyContent: "space-between"
   },
-  seqText: {
+  stopFolioRibbon: {
+    backgroundColor: colors.primary,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderBottomRightRadius: 12,
+    alignSelf: "flex-start"
+  },
+  stopFolioRibbonText: {
     fontSize: 13,
     fontWeight: "900",
-    color: "#ffffff"
+    color: "#ffffff",
+    letterSpacing: 0.5
   },
-  stopFolio: {
-    fontSize: 15,
-    fontWeight: "900",
-    color: colors.text
-  },
-  stopZone: {
-    fontSize: 11,
-    color: colors.muted,
-    fontWeight: "600"
-  },
-  headerRightBadges: {
+  stopTopRightArea: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6
+    gap: 6,
+    paddingRight: 10,
+    paddingTop: 6
   },
-  deliveredBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    backgroundColor: colors.successSoft,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8
-  },
-  deliveredText: {
-    fontSize: 11,
-    fontWeight: "800",
-    color: colors.success
-  },
-  failedBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    backgroundColor: colors.dangerSoft,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8
-  },
-  failedText: {
-    fontSize: 11,
-    fontWeight: "800",
-    color: colors.danger
-  },
-  arrivedBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    backgroundColor: colors.primarySoft,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8
-  },
-  arrivedText: {
-    fontSize: 11,
-    fontWeight: "800",
-    color: colors.primary
-  },
-  discreetAlertBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: colors.dangerSoft,
+  seqBadgeSmall: {
+    backgroundColor: colors.surfaceMuted,
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    borderRadius: 6,
     borderWidth: 1,
-    borderColor: colors.dangerBorder,
-    alignItems: "center",
-    justifyContent: "center"
+    borderColor: colors.borderLight
   },
-  customerRow: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    justifyContent: "space-between",
+  seqTextSmall: {
+    fontSize: 11,
+    fontWeight: "800",
+    color: colors.muted
+  },
+  stopCardBody: {
+    paddingHorizontal: 14,
+    paddingTop: 4,
+    paddingBottom: 14,
     gap: 10
   },
-  custName: {
-    fontSize: 14,
-    fontWeight: "800",
-    color: colors.text
+  custIdentitySection: {
+    gap: 3
+  },
+  custHeroName: {
+    fontSize: 17,
+    fontWeight: "900",
+    color: colors.text,
+    letterSpacing: 0.2
+  },
+  custPhoneRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5
+  },
+  custPhoneText: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: colors.muted
+  },
+  addressNavRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 8
   },
   addressLine: {
-    fontSize: 12,
-    color: colors.muted,
-    marginTop: 2
+    fontSize: 12.5,
+    color: colors.text,
+    fontWeight: "500",
+    lineHeight: 17
   },
   refLine: {
     fontSize: 11,
-    color: colors.textSubtle,
-    marginTop: 1
-  },
-  customerActionCol: {
-    flexDirection: "column",
-    alignItems: "flex-end",
-    gap: 6
+    color: colors.muted,
+    marginTop: 2,
+    fontStyle: "italic"
   },
   gpsNavPill: {
     flexDirection: "row",
@@ -1430,22 +1416,16 @@ const styles = StyleSheet.create({
     elevation: 2
   },
   gpsNavPillText: {
-    fontSize: 11,
+    fontSize: 11.5,
     fontWeight: "800",
     color: "#ffffff"
   },
-  callCircle: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: colors.success,
-    alignItems: "center",
-    justifyContent: "center"
-  },
-  stopPaymentBox: {
-    backgroundColor: colors.surfaceMuted,
+  stopPaymentBoxLight: {
+    backgroundColor: "#f8f9fa",
+    borderWidth: 1,
+    borderColor: "#e9ecef",
     padding: 10,
-    borderRadius: 12,
+    borderRadius: 10,
     gap: 4
   },
   paymentStatusRow: {
@@ -1458,8 +1438,8 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: colors.muted
   },
-  orderTotalAmount: {
-    fontSize: 14,
+  orderTotalAmountHero: {
+    fontSize: 15.5,
     fontWeight: "900",
     color: colors.text
   },
@@ -1517,6 +1497,58 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: "900",
     color: "#ffffff"
+  },
+  deliveredBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: colors.successSoft,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8
+  },
+  deliveredText: {
+    fontSize: 11,
+    fontWeight: "800",
+    color: colors.success
+  },
+  failedBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: colors.dangerSoft,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8
+  },
+  failedText: {
+    fontSize: 11,
+    fontWeight: "800",
+    color: colors.danger
+  },
+  arrivedBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: colors.primarySoft,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8
+  },
+  arrivedText: {
+    fontSize: 11,
+    fontWeight: "800",
+    color: colors.primary
+  },
+  discreetAlertBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: colors.dangerSoft,
+    borderWidth: 1,
+    borderColor: colors.dangerBorder,
+    alignItems: "center",
+    justifyContent: "center"
   },
   offerAlertCard: {
     backgroundColor: "#fffbeb",
