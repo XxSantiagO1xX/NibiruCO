@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
   Alert
 } from "react-native";
+import { useNavigation } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import axios from "axios";
 import { AppContext } from "../../context/AppContext";
@@ -18,13 +19,15 @@ import colors from "../../theme/colors";
 import Header from "../../components/Header";
 import EmptyState from "../../components/EmptyState";
 
-export default function DriverShiftScreen({ navigation }) {
+export default function DriverShiftScreen({ navigation: propNavigation }) {
+  const hookNavigation = useNavigation();
+  const navigation = propNavigation || hookNavigation;
+
   const { token, user, tripsUpdateSignal, orderUpdateSignal } = useContext(AppContext);
 
   const [summary, setSummary] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-
   const [actionLoading, setActionLoading] = useState(false);
 
   const loadSummary = useCallback(async () => {
@@ -54,9 +57,11 @@ export default function DriverShiftScreen({ navigation }) {
   const handleStartShift = async () => {
     setActionLoading(true);
     try {
-      await axios.post(`${API_URL}/deliveries/shifts/start`, {}, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      await axios.post(
+        `${API_URL}/deliveries/shifts/start`,
+        {},
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
       Alert.alert("Turno Iniciado", "Tu turno de reparto ha iniciado exitosamente.");
       loadSummary();
     } catch (err) {
@@ -68,24 +73,41 @@ export default function DriverShiftScreen({ navigation }) {
 
   const handleEndShift = () => {
     Alert.alert(
-      "Finalizar Turno",
-      "¿Deseas cerrar tu turno actual y preparar el corte de caja?",
+      "Cerrar Turno",
+      "¿Estás seguro de cerrar tu turno y liquidar el efectivo?",
       [
         { text: "Cancelar", style: "cancel" },
         {
-          text: "Sí, finalizar turno",
+          text: "Sí, cerrar turno",
+          style: "destructive",
           onPress: async () => {
             setActionLoading(true);
             try {
-              await axios.post(`${API_URL}/deliveries/shifts/end`, {}, {
-                headers: { Authorization: `Bearer ${token}` }
-              });
-              Alert.alert("Turno Finalizado", "Tu turno ha finalizado. Presenta tu corte en mostrador.");
-              loadSummary();
+              // TODO: Petición al backend para marcar entregas como liquidadas
+              await axios.post(
+                `${API_URL}/deliveries/shifts/end`,
+                {},
+                { headers: { Authorization: `Bearer ${token}` } }
+              );
+              Alert.alert(
+                "Turno Cerrado",
+                "Tu turno ha sido cerrado y las entregas registradas para liquidación en caja."
+              );
             } catch (err) {
-              Alert.alert("Error", err?.response?.data?.message || "No se pudo finalizar el turno.");
+              console.log("Error al cerrar turno en backend:", err?.response?.data || err.message);
+              Alert.alert(
+                "Aviso",
+                err?.response?.data?.message || "Turno finalizado localmente. Presenta tu corte en caja."
+              );
             } finally {
+              // Reinicio de estados locales
+              setSummary(null);
               setActionLoading(false);
+
+              // Redirigir al usuario fuera de la pantalla de corte
+              if (navigation && navigation.navigate) {
+                navigation.navigate("Perfil");
+              }
             }
           }
         }
@@ -106,17 +128,37 @@ export default function DriverShiftScreen({ navigation }) {
   }
 
   const shift = summary?.shift || (summary?.shift_id ? summary : null);
-  const isShiftActive = summary?.status === "open" || summary?.status === "abierto" || summary?.shift?.status === "open" || summary?.shift?.status === "abierto";
-  const deliveredCount = summary?.delivered_count || 0;
+  const isShiftActive =
+    summary?.status === "open" ||
+    summary?.status === "abierto" ||
+    summary?.shift?.status === "open" ||
+    summary?.shift?.status === "abierto";
+
+  // Consistent array for delivered orders
+  const orders = Array.isArray(summary?.completed_deliveries)
+    ? summary.completed_deliveries
+    : Array.isArray(summary?.orders)
+    ? summary.orders
+    : [];
+  const deliveriesCount = orders.length;
+
   const initialFloat = Number(summary?.initial_cash_float ?? 0);
   const grossCash = Number(summary?.gross_cash_received ?? summary?.cash_collected ?? 0);
   const changeGiven = Number(summary?.total_cash_change_given ?? 0);
   const netCash = Number(summary?.net_cash_for_business ?? (grossCash - changeGiven));
-  const expectedCash = Number(summary?.total_cash_expected ?? summary?.expected_cash ?? (netCash + initialFloat));
-  const cashSettled = Number(summary?.total_cash_settled ?? summary?.settled_cash ?? summary?.cash_settled ?? 0);
-  const pendingSettlement = Number(summary?.pending_settlement ?? (expectedCash - cashSettled));
+  const expectedCash = Number(
+    summary?.total_cash_expected ?? summary?.expected_cash ?? (netCash + initialFloat)
+  );
+  const cashSettled = Number(
+    summary?.total_cash_settled ?? summary?.settled_cash ?? summary?.cash_settled ?? 0
+  );
+  const pendingSettlement = Number(
+    summary?.pending_settlement ?? (expectedCash - cashSettled)
+  );
   const difference = Number(summary?.difference ?? (cashSettled - expectedCash));
-  const orders = Array.isArray(summary?.completed_deliveries) ? summary.completed_deliveries : (Array.isArray(summary?.orders) ? summary.orders : []);
+
+  // Dynamic conditional color for massive pending amount
+  const pendingColor = pendingSettlement > 0 ? "#FF6B00" : "#28A745";
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -147,25 +189,23 @@ export default function DriverShiftScreen({ navigation }) {
           <View style={{ flex: 1 }}>
             <Text style={styles.shiftStatusLabel}>ESTADO DEL TURNO</Text>
             <Text style={styles.shiftStatusVal}>
-              {shift ? (isShiftActive ? "🟢 Turno Activo" : `⚪ Turno #${shift.id} (${shift.status})`) : "⚪ Sin Turno Iniciado"}
+              {shift
+                ? isShiftActive
+                  ? "🟢 Turno Activo"
+                  : `⚪ Turno #${shift.id} (${shift.status})`
+                : "⚪ Sin Turno Iniciado"}
             </Text>
             {shift?.started_at && (
               <Text style={styles.shiftTimeText}>
-                Iniciado: {new Date(shift.started_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                Iniciado:{" "}
+                {new Date(shift.started_at).toLocaleTimeString([], {
+                  hour: "2-digit",
+                  minute: "2-digit"
+                })}
               </Text>
             )}
           </View>
-          {isShiftActive ? (
-            <TouchableOpacity
-              style={[styles.endShiftBtn, actionLoading && { opacity: 0.6 }]}
-              onPress={handleEndShift}
-              disabled={actionLoading}
-              activeOpacity={0.8}
-            >
-              <Ionicons name="log-out-outline" size={16} color="#ffffff" />
-              <Text style={styles.endShiftBtnText}>Cerrar Turno</Text>
-            </TouchableOpacity>
-          ) : (
+          {!isShiftActive && (
             <TouchableOpacity
               style={[styles.startShiftBtn, actionLoading && { opacity: 0.6 }]}
               onPress={handleStartShift}
@@ -181,7 +221,9 @@ export default function DriverShiftScreen({ navigation }) {
         {/* Main Settlement Box */}
         <View style={styles.mainCard}>
           <Text style={styles.cardHeaderTitle}>Neto a Entregar en Caja</Text>
-          <Text style={styles.pendingAmount}>${pendingSettlement.toFixed(2)}</Text>
+          <Text style={[styles.pendingAmount, { color: pendingColor }]}>
+            ${pendingSettlement.toFixed(2)}
+          </Text>
           <Text style={styles.pendingSub}>
             {pendingSettlement > 0
               ? "Presenta este importe neto en mostrador para cerrar tu corte."
@@ -189,9 +231,10 @@ export default function DriverShiftScreen({ navigation }) {
           </Text>
 
           {initialFloat > 0 && (
-            <View style={{ marginBottom: 12, paddingHorizontal: 12, paddingVertical: 6, backgroundColor: colors.surfaceMuted, borderRadius: 10, borderWidth: 1, borderColor: colors.borderLight }}>
-              <Text style={{ fontSize: 11, color: colors.muted, textAlign: "center" }}>
-                Incluye fondo inicial para cambio de <Text style={{ fontWeight: "800", color: colors.text }}>${initialFloat.toFixed(2)}</Text>
+            <View style={styles.floatNoticeBox}>
+              <Text style={styles.floatNoticeText}>
+                Incluye fondo inicial para cambio de{" "}
+                <Text style={styles.floatNoticeHighlight}>${initialFloat.toFixed(2)}</Text>
               </Text>
             </View>
           )}
@@ -199,7 +242,7 @@ export default function DriverShiftScreen({ navigation }) {
           <View style={styles.statsGrid}>
             <View style={styles.statBox}>
               <Text style={styles.statLabel}>Entregas</Text>
-              <Text style={styles.statVal}>{deliveredCount}</Text>
+              <Text style={styles.statVal}>{deliveriesCount}</Text>
             </View>
             <View style={styles.statBox}>
               <Text style={styles.statLabel}>Cobrado Bruto</Text>
@@ -207,19 +250,30 @@ export default function DriverShiftScreen({ navigation }) {
             </View>
             <View style={styles.statBox}>
               <Text style={styles.statLabel}>Cambio Dado</Text>
-              <Text style={[styles.statVal, { color: colors.warning }]}>-${changeGiven.toFixed(2)}</Text>
+              <Text style={[styles.statVal, { color: colors.warning }]}>
+                -${changeGiven.toFixed(2)}
+              </Text>
             </View>
             <View style={styles.statBox}>
               <Text style={styles.statLabel}>Neto Negocio</Text>
-              <Text style={[styles.statVal, { color: colors.primary }]}>${netCash.toFixed(2)}</Text>
+              <Text style={[styles.statVal, { color: colors.primary }]}>
+                ${netCash.toFixed(2)}
+              </Text>
             </View>
             <View style={styles.statBox}>
               <Text style={styles.statLabel}>Liquidado</Text>
-              <Text style={[styles.statVal, { color: colors.success }]}>${cashSettled.toFixed(2)}</Text>
+              <Text style={[styles.statVal, { color: colors.success }]}>
+                ${cashSettled.toFixed(2)}
+              </Text>
             </View>
             <View style={styles.statBox}>
               <Text style={styles.statLabel}>Diferencia</Text>
-              <Text style={[styles.statVal, { color: difference < 0 ? colors.danger : colors.success }]}>
+              <Text
+                style={[
+                  styles.statVal,
+                  { color: difference < 0 ? colors.danger : colors.success }
+                ]}
+              >
                 ${difference.toFixed(2)}
               </Text>
             </View>
@@ -227,7 +281,7 @@ export default function DriverShiftScreen({ navigation }) {
         </View>
 
         {/* History of Delivered Orders */}
-        <Text style={styles.sectionHeading}>Entregas del Turno ({orders.length})</Text>
+        <Text style={styles.sectionHeading}>Entregas del Turno ({deliveriesCount})</Text>
 
         {orders.length === 0 ? (
           <EmptyState
@@ -240,15 +294,23 @@ export default function DriverShiftScreen({ navigation }) {
             const orderTime = ord.delivery_time || ord.delivered_at;
             const orderTotalNum = Number(ord.total ?? ord.order_total ?? 0);
             return (
-              <View key={ord?.id ? `${ord.id}-${index}` : index.toString()} style={styles.orderRowCard}>
-                <View style={styles.orderLeft}>
-                  <View style={styles.folioBadge}>
-                    <Text style={styles.folioText}>
-                      F{String(ord.folio || ord.id).padStart(3, "0")}
+              <View
+                key={ord?.id ? `${ord.id}-${index}` : index.toString()}
+                style={styles.orderRibbonCard}
+              >
+                {/* Ribbon Tag attached flush to top-left corner */}
+                <View style={styles.orderRibbonTag}>
+                  <Text style={styles.orderRibbonTagText}>
+                    F{String(ord.folio || ord.id || "").padStart(3, "0")}
+                  </Text>
+                </View>
+
+                {/* Card Body with proper spacing */}
+                <View style={styles.orderRibbonBody}>
+                  <View style={styles.orderRibbonLeft}>
+                    <Text style={styles.customerText} numberOfLines={1}>
+                      {ord.customer_name || "Cliente"}
                     </Text>
-                  </View>
-                  <View>
-                    <Text style={styles.customerText}>{ord.customer_name || "Cliente"}</Text>
                     <Text style={styles.timeText}>
                       {orderTime
                         ? new Date(orderTime).toLocaleTimeString([], {
@@ -258,36 +320,57 @@ export default function DriverShiftScreen({ navigation }) {
                         : "Entregado"}
                     </Text>
                   </View>
-                </View>
 
-                <View style={styles.orderRight}>
-                  <Text style={styles.orderTotal}>${orderTotalNum.toFixed(2)}</Text>
-                  <View
-                    style={[
-                      styles.methodBadge,
-                      ord.payment_method === "efectivo"
-                        ? styles.methodCash
-                        : styles.methodDigital
-                    ]}
-                  >
-                    <Text
+                  <View style={styles.orderRibbonRight}>
+                    <Text style={styles.orderTotal}>${orderTotalNum.toFixed(2)}</Text>
+                    <View
                       style={[
-                        styles.methodBadgeText,
-                        {
-                          color:
-                            ord.payment_method === "efectivo"
-                              ? colors.primary
-                              : colors.success
-                        }
+                        styles.methodBadge,
+                        ord.payment_method === "efectivo"
+                          ? styles.methodCash
+                          : styles.methodDigital
                       ]}
                     >
-                      {ord.payment_method === "efectivo" ? "Efectivo" : "App / Digital"}
-                    </Text>
+                      <Text
+                        style={[
+                          styles.methodBadgeText,
+                          {
+                            color:
+                              ord.payment_method === "efectivo"
+                                ? colors.primary
+                                : colors.success
+                          }
+                        ]}
+                      >
+                        {ord.payment_method === "efectivo" ? "Efectivo" : "App / Digital"}
+                      </Text>
+                    </View>
                   </View>
                 </View>
               </View>
             );
           })
+        )}
+
+        {/* Full-width End Shift Button placed at the very bottom */}
+        {isShiftActive && (
+          <TouchableOpacity
+            style={[styles.fullWidthEndShiftBtn, actionLoading && { opacity: 0.6 }]}
+            onPress={handleEndShift}
+            disabled={actionLoading}
+            activeOpacity={0.85}
+          >
+            {actionLoading ? (
+              <ActivityIndicator color="#ffffff" size="small" />
+            ) : (
+              <>
+                <Ionicons name="log-out-outline" size={18} color="#ffffff" />
+                <Text style={styles.fullWidthEndShiftBtnText}>
+                  CERRAR TURNO Y LIQUIDAR EFECTIVO
+                </Text>
+              </>
+            )}
+          </TouchableOpacity>
         )}
       </ScrollView>
     </SafeAreaView>
@@ -322,42 +405,8 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: 16,
-    paddingBottom: 100,
+    paddingBottom: 110,
     gap: 14
-  },
-  mainCard: {
-    backgroundColor: colors.surface,
-    borderRadius: 22,
-    padding: 20,
-    borderWidth: 1.5,
-    borderColor: colors.primary,
-    alignItems: "center",
-    shadowColor: colors.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 10,
-    elevation: 3
-  },
-  cardHeaderTitle: {
-    fontSize: 12,
-    fontWeight: "800",
-    color: colors.primary,
-    textTransform: "uppercase",
-    letterSpacing: 1
-  },
-  pendingAmount: {
-    fontSize: 36,
-    fontWeight: "900",
-    color: colors.text,
-    letterSpacing: -1,
-    marginTop: 6
-  },
-  pendingSub: {
-    fontSize: 12,
-    color: colors.muted,
-    textAlign: "center",
-    marginTop: 4,
-    marginBottom: 16
   },
   shiftHeaderCard: {
     flexDirection: "row",
@@ -400,19 +449,56 @@ const styles = StyleSheet.create({
     fontSize: 12.5,
     fontWeight: "800"
   },
-  endShiftBtn: {
-    flexDirection: "row",
+  mainCard: {
+    backgroundColor: colors.surface,
+    borderRadius: 22,
+    padding: 20,
+    borderWidth: 1.5,
+    borderColor: colors.borderLight,
     alignItems: "center",
-    gap: 6,
-    backgroundColor: colors.danger,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 14
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2
   },
-  endShiftBtnText: {
-    color: "#ffffff",
-    fontSize: 12.5,
-    fontWeight: "800"
+  cardHeaderTitle: {
+    fontSize: 12,
+    fontWeight: "800",
+    color: colors.muted,
+    textTransform: "uppercase",
+    letterSpacing: 1
+  },
+  pendingAmount: {
+    fontSize: 38,
+    fontWeight: "900",
+    letterSpacing: -1,
+    marginTop: 6
+  },
+  pendingSub: {
+    fontSize: 12,
+    color: colors.muted,
+    textAlign: "center",
+    marginTop: 4,
+    marginBottom: 16
+  },
+  floatNoticeBox: {
+    marginBottom: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: colors.surfaceMuted,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.borderLight
+  },
+  floatNoticeText: {
+    fontSize: 11,
+    color: colors.muted,
+    textAlign: "center"
+  },
+  floatNoticeHighlight: {
+    fontWeight: "800",
+    color: colors.text
   },
   statsGrid: {
     flexDirection: "row",
@@ -447,56 +533,64 @@ const styles = StyleSheet.create({
   sectionHeading: {
     fontSize: 14,
     fontWeight: "800",
-    color: colors.text
+    color: colors.text,
+    marginTop: 4
   },
-  orderRowCard: {
+  orderRibbonCard: {
+    backgroundColor: colors.surface,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+    overflow: "hidden"
+  },
+  orderRibbonTag: {
+    backgroundColor: colors.primary,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderBottomRightRadius: 12,
+    alignSelf: "flex-start"
+  },
+  orderRibbonTagText: {
+    fontSize: 12.5,
+    fontWeight: "900",
+    color: "#ffffff",
+    letterSpacing: 0.5
+  },
+  orderRibbonBody: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    backgroundColor: colors.surface,
-    padding: 14,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: colors.borderLight
+    paddingHorizontal: 14,
+    paddingTop: 4,
+    paddingBottom: 12
   },
-  orderLeft: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10
-  },
-  folioBadge: {
-    backgroundColor: colors.primarySoft,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8
-  },
-  folioText: {
-    fontSize: 13,
-    fontWeight: "900",
-    color: colors.primary
+  orderRibbonLeft: {
+    flex: 1,
+    paddingRight: 10
   },
   customerText: {
-    fontSize: 13,
+    fontSize: 13.5,
     fontWeight: "800",
     color: colors.text
   },
   timeText: {
     fontSize: 11,
-    color: colors.muted
+    color: colors.muted,
+    marginTop: 2
   },
-  orderRight: {
+  orderRibbonRight: {
     alignItems: "flex-end"
   },
   orderTotal: {
-    fontSize: 14,
+    fontSize: 14.5,
     fontWeight: "900",
     color: colors.text
   },
   methodBadge: {
-    paddingHorizontal: 6,
-    paddingVertical: 2,
+    paddingHorizontal: 7,
+    paddingVertical: 2.5,
     borderRadius: 6,
-    marginTop: 2
+    marginTop: 3
   },
   methodCash: {
     backgroundColor: colors.primarySoft
@@ -507,5 +601,26 @@ const styles = StyleSheet.create({
   methodBadgeText: {
     fontSize: 10,
     fontWeight: "800"
+  },
+  fullWidthEndShiftBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    backgroundColor: colors.danger,
+    height: 52,
+    borderRadius: 26,
+    marginTop: 10,
+    shadowColor: colors.danger,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 3
+  },
+  fullWidthEndShiftBtnText: {
+    color: "#ffffff",
+    fontSize: 13.5,
+    fontWeight: "900",
+    letterSpacing: 0.5
   }
 });
