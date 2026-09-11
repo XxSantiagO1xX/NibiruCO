@@ -24,8 +24,8 @@ export default function Header({
         )}
 
         {showBrandMark && (
-          <View style={styles.brandMark}>
-            <Ionicons name="restaurant" size={16} color="#ffffff" />
+          <View style={styles.brandMarkContainer}>
+            <Ionicons name="restaurant" size={18} color={colors.primary} />
           </View>
         )}
 
@@ -53,7 +53,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 18,
+    paddingHorizontal: 16,
     paddingVertical: 14,
     backgroundColor: colors.surface,
     borderBottomWidth: 1,
@@ -66,40 +66,43 @@ const styles = StyleSheet.create({
     gap: 12
   },
   backButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 12,
+    width: 38,
+    height: 38,
+    borderRadius: 20,
     backgroundColor: colors.surfaceMuted,
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1,
     borderColor: colors.border
   },
-  brandMark: {
-    width: 34,
-    height: 34,
-    borderRadius: 11,
-    backgroundColor: colors.primary,
+  // REGLA ESTRICTA DE LOGOTIPOS: backgroundColor: '#FFFFFF' obligatorio
+  brandMarkContainer: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    backgroundColor: "#FFFFFF",
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: colors.primary,
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.28,
-    shadowRadius: 6,
-    elevation: 3
+    borderWidth: 1.5,
+    borderColor: colors.borderLight,
+    shadowColor: "#000000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
+    elevation: 2
   },
   titleCol: {
     flex: 1
   },
   title: {
-    fontSize: 18,
-    fontWeight: "800",
+    fontSize: 19,
+    fontWeight: "900",
     letterSpacing: -0.4,
     color: colors.text
   },
   subtitle: {
-    fontSize: 11,
-    fontWeight: "500",
+    fontSize: 12,
+    fontWeight: "600",
     color: colors.muted,
     marginTop: 1
   },

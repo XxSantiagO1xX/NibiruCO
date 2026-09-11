@@ -38,44 +38,47 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24
   },
   iconCircle: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
+    width: 76,
+    height: 76,
+    borderRadius: 38,
     backgroundColor: colors.primarySoft,
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 16
+    marginBottom: 16,
+    borderWidth: 1.5,
+    borderColor: colors.primaryBorder
   },
   title: {
-    fontSize: 17,
+    fontSize: 18,
     fontWeight: "800",
     color: colors.text,
     textAlign: "center",
     letterSpacing: -0.3
   },
   description: {
-    fontSize: 13,
+    fontSize: 13.5,
     color: colors.muted,
     textAlign: "center",
     marginTop: 6,
-    lineHeight: 19,
-    maxWidth: 280
+    lineHeight: 20,
+    maxWidth: 290
   },
+  // Pill button (borderRadius: 25)
   button: {
-    marginTop: 20,
+    marginTop: 22,
     backgroundColor: colors.primary,
-    paddingHorizontal: 20,
+    paddingHorizontal: 24,
     paddingVertical: 12,
-    borderRadius: 14,
+    borderRadius: 25,
     shadowColor: colors.primary,
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.2,
-    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
     elevation: 3
   },
   buttonText: {
     color: "#ffffff",
-    fontSize: 13,
-    fontWeight: "700"
+    fontSize: 13.5,
+    fontWeight: "800"
   }
 });

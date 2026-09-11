@@ -1,25 +1,26 @@
 export default {
-  // Brand
-  primary: "#F56624",
-  primaryDark: "#DF4E13",
-  primarySoft: "#FFF0E8",
-  primaryLight: "#FFEADB",
-  primaryBorder: "#FFD2BC",
+  // Brand & Primary (Cocina Económica Moderna)
+  primary: "#FF6B00",
+  primaryDark: "#E05D00",
+  primarySoft: "#FFF2E8",
+  primaryLight: "#FFE3D1",
+  primaryBorder: "#FFD4BA",
+  legacyPrimary: "#F56624",
 
   // Background & Surfaces
-  background: "#F8F6F3",
+  background: "#F8F9FA",
   surface: "#FFFFFF",
-  surfaceMuted: "#FAF9F7",
+  surfaceMuted: "#F4F5F7",
   surfaceCard: "#FFFFFF",
   dark: "#1E1B18",
 
   // Typography & Borders
-  text: "#24211F",
-  textMuted: "#736F69",
-  textSubtle: "#9E9891",
-  muted: "#736F69",
-  border: "#EAE6E1",
-  borderLight: "#F2EFEB",
+  text: "#1E1B18",
+  textMuted: "#6B7280",
+  textSubtle: "#9CA3AF",
+  muted: "#6B7280",
+  border: "#E5E7EB",
+  borderLight: "#F3F4F6",
 
   // Role Accents
   roleAdmin: "#2563EB",
@@ -51,7 +52,7 @@ export default {
   infoBorder: "#BFDBFE",
 
   // Misc
-  accent: "#F56624",
+  accent: "#FF6B00",
   white: "#FFFFFF",
-  overlay: "rgba(36, 33, 31, 0.45)"
+  overlay: "rgba(30, 27, 24, 0.5)"
 };

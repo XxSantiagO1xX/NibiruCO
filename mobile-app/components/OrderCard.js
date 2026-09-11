@@ -19,9 +19,9 @@ const STATUS_MAP = {
   },
   preparando: {
     label: "En Preparación",
-    bg: "#fff7ed",
-    text: "#ea580c",
-    border: "#fed7aa",
+    bg: "#FFF7ED",
+    text: "#EA580C",
+    border: "#FED7AA",
     icon: "flame-outline"
   },
   listo: {
@@ -33,9 +33,9 @@ const STATUS_MAP = {
   },
   entregado: {
     label: "Entregado",
-    bg: "#f3f4f6",
-    text: "#4b5563",
-    border: "#e5e7eb",
+    bg: "#F3F4F6",
+    text: "#4B5563",
+    border: "#E5E7EB",
     icon: "checkmark-done-outline"
   },
   cancelado: {
@@ -114,13 +114,13 @@ export default function OrderCard({ order, onCancel, onTrack }) {
       {/* Customer / Address info if applicable */}
       {order.customer_name ? (
         <Text style={styles.customerName}>
-          Cliente: <Text style={{ color: colors.text }}>{order.customer_name}</Text>
+          Cliente: <Text style={{ color: colors.text, fontWeight: "700" }}>{order.customer_name}</Text>
         </Text>
       ) : null}
 
       {order.address ? (
         <View style={styles.addressRow}>
-          <Ionicons name="location-outline" size={13} color={colors.muted} />
+          <Ionicons name="location-outline" size={14} color={colors.primary} />
           <Text style={styles.addressText} numberOfLines={1}>
             {order.address} {order.details ? `(${order.details})` : ""}
           </Text>
@@ -178,9 +178,9 @@ export default function OrderCard({ order, onCancel, onTrack }) {
             <TouchableOpacity
               style={styles.trackButton}
               onPress={() => onTrack(order.id)}
-              activeOpacity={0.8}
+              activeOpacity={0.85}
             >
-              <Ionicons name="location" size={13} color="#ffffff" />
+              <Ionicons name="location" size={14} color="#ffffff" />
               <Text style={styles.trackButtonText}>
                 {order.delivery_pin ? `PIN: ${order.delivery_pin}` : "Seguimiento"}
               </Text>
@@ -191,7 +191,7 @@ export default function OrderCard({ order, onCancel, onTrack }) {
             <TouchableOpacity
               style={styles.cancelButton}
               onPress={() => onCancel(order.id)}
-              activeOpacity={0.7}
+              activeOpacity={0.75}
             >
               <Text style={styles.cancelButtonText}>Cancelar</Text>
             </TouchableOpacity>
@@ -205,14 +205,14 @@ export default function OrderCard({ order, onCancel, onTrack }) {
 const styles = StyleSheet.create({
   card: {
     backgroundColor: colors.surface,
-    borderRadius: 20,
+    borderRadius: 16,
     padding: 16,
     marginBottom: 14,
     borderWidth: 1,
     borderColor: colors.borderLight,
-    shadowColor: "#1d1814",
+    shadowColor: "#000000",
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
+    shadowOpacity: 0.04,
     shadowRadius: 8,
     elevation: 2
   },
@@ -242,7 +242,7 @@ const styles = StyleSheet.create({
     borderColor: colors.borderLight
   },
   serviceBadgeText: {
-    fontSize: 10,
+    fontSize: 10.5,
     fontWeight: "700",
     color: colors.muted
   },
@@ -261,7 +261,7 @@ const styles = StyleSheet.create({
     textTransform: "capitalize"
   },
   customerName: {
-    fontSize: 12,
+    fontSize: 12.5,
     color: colors.muted,
     fontWeight: "500",
     marginBottom: 4
@@ -269,16 +269,16 @@ const styles = StyleSheet.create({
   addressRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 4,
+    gap: 5,
     marginBottom: 10
   },
   addressText: {
-    fontSize: 11,
+    fontSize: 11.5,
     color: colors.muted,
     flex: 1
   },
   itemsContainer: {
-    paddingVertical: 8,
+    paddingVertical: 10,
     borderTopWidth: 1,
     borderBottomWidth: 1,
     borderColor: colors.borderLight,
@@ -297,7 +297,7 @@ const styles = StyleSheet.create({
   },
   itemQty: {
     fontSize: 13,
-    fontWeight: "800",
+    fontWeight: "900",
     color: colors.primary,
     marginTop: 1
   },
@@ -305,7 +305,7 @@ const styles = StyleSheet.create({
     flex: 1
   },
   itemName: {
-    fontSize: 13,
+    fontSize: 13.5,
     fontWeight: "700",
     color: colors.text
   },
@@ -318,8 +318,8 @@ const styles = StyleSheet.create({
     color: colors.muted
   },
   itemPrice: {
-    fontSize: 13,
-    fontWeight: "700",
+    fontSize: 13.5,
+    fontWeight: "800",
     color: colors.text
   },
   footer: {
@@ -332,12 +332,12 @@ const styles = StyleSheet.create({
     flex: 1
   },
   timeText: {
-    fontSize: 10,
+    fontSize: 10.5,
     color: colors.muted,
     fontWeight: "600"
   },
   totalText: {
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: "900",
     color: colors.primary,
     marginTop: 2,
@@ -348,30 +348,37 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 8
   },
+  // Pill button (borderRadius: 25)
   trackButton: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 4,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 10,
-    backgroundColor: colors.primary
+    gap: 5,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 25,
+    backgroundColor: colors.primary,
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.22,
+    shadowRadius: 5,
+    elevation: 2
   },
   trackButtonText: {
-    fontSize: 11,
+    fontSize: 11.5,
     fontWeight: "800",
     color: "#ffffff"
   },
+  // Pill secondary button (borderRadius: 25)
   cancelButton: {
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-    borderRadius: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 25,
     backgroundColor: colors.dangerSoft,
     borderWidth: 1,
     borderColor: colors.dangerBorder
   },
   cancelButtonText: {
-    fontSize: 11,
+    fontSize: 11.5,
     fontWeight: "800",
     color: colors.danger
   }

@@ -337,7 +337,7 @@ export default function ComboConfigModal({
                 </TouchableOpacity>
               </View>
 
-              {/* Submit Button */}
+              {/* Submit Pill Button */}
               <TouchableOpacity
                 style={[
                   styles.addButton,
@@ -345,7 +345,7 @@ export default function ComboConfigModal({
                 ]}
                 onPress={handleConfirm}
                 disabled={!validationInfo.isValid}
-                activeOpacity={0.8}
+                activeOpacity={0.85}
               >
                 <Ionicons name="cart" size={18} color="#ffffff" />
                 <Text style={styles.addButtonText}>
@@ -400,14 +400,14 @@ const styles = StyleSheet.create({
   comboBadgeText: {
     color: colors.primary,
     fontSize: 11,
-    fontWeight: "800",
+    fontWeight: "900",
     textTransform: "uppercase",
     letterSpacing: 0.5
   },
   closeButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     backgroundColor: colors.surfaceMuted,
     alignItems: "center",
     justifyContent: "center",
@@ -416,14 +416,14 @@ const styles = StyleSheet.create({
   },
   comboName: {
     fontSize: 22,
-    fontWeight: "800",
+    fontWeight: "900",
     color: colors.text,
     letterSpacing: -0.5,
     marginTop: 8
   },
   comboPrice: {
-    fontSize: 15,
-    fontWeight: "700",
+    fontSize: 16,
+    fontWeight: "800",
     color: colors.primary,
     marginTop: 2
   },
@@ -450,12 +450,12 @@ const styles = StyleSheet.create({
   },
   groupCard: {
     backgroundColor: colors.surface,
-    borderRadius: 20,
+    borderRadius: 16,
     padding: 16,
     marginBottom: 14,
     borderWidth: 1,
     borderColor: colors.borderLight,
-    shadowColor: "#1d1814",
+    shadowColor: "#000000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.04,
     shadowRadius: 6,
@@ -480,7 +480,8 @@ const styles = StyleSheet.create({
   groupRule: {
     fontSize: 12,
     color: colors.muted,
-    marginTop: 2
+    marginTop: 2,
+    fontWeight: "500"
   },
   statusPill: {
     paddingHorizontal: 10,
@@ -494,7 +495,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.warningSoft
   },
   statusPillText: {
-    fontSize: 10,
+    fontSize: 10.5,
     fontWeight: "800"
   },
   statusTextValid: {
@@ -597,12 +598,12 @@ const styles = StyleSheet.create({
     backgroundColor: colors.warningSoft,
     paddingHorizontal: 12,
     paddingVertical: 8,
-    borderRadius: 10,
+    borderRadius: 12,
     marginBottom: 12
   },
   errorNoticeText: {
     color: colors.warning,
-    fontSize: 11,
+    fontSize: 11.5,
     fontWeight: "700",
     flex: 1
   },
@@ -615,13 +616,13 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: colors.surfaceMuted,
-    borderRadius: 14,
+    borderRadius: 25,
     borderWidth: 1,
     borderColor: colors.border,
-    paddingHorizontal: 4
+    paddingHorizontal: 6
   },
   qtyButton: {
-    width: 38,
+    width: 36,
     height: 44,
     alignItems: "center",
     justifyContent: "center"
@@ -633,6 +634,7 @@ const styles = StyleSheet.create({
     minWidth: 24,
     textAlign: "center"
   },
+  // Pill button (borderRadius: 25)
   addButton: {
     flex: 1,
     flexDirection: "row",
@@ -641,7 +643,7 @@ const styles = StyleSheet.create({
     gap: 8,
     backgroundColor: colors.primary,
     height: 48,
-    borderRadius: 16,
+    borderRadius: 25,
     shadowColor: colors.primary,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.25,

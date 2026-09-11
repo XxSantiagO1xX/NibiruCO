@@ -178,7 +178,7 @@ export default function ProductsScreen({ navigation }) {
           ) : null}
         </View>
 
-        {/* Filter Pills */}
+        {/* Filter Pills (pill-shaped, borderRadius: 25) */}
         <View style={styles.filterRow}>
           <TouchableOpacity
             style={[
@@ -186,6 +186,7 @@ export default function ProductsScreen({ navigation }) {
               selectedFilter === "all" && styles.filterPillActive
             ]}
             onPress={() => setSelectedFilter("all")}
+            activeOpacity={0.75}
           >
             <Text
               style={[
@@ -203,6 +204,7 @@ export default function ProductsScreen({ navigation }) {
               selectedFilter === "combos" && styles.filterPillActive
             ]}
             onPress={() => setSelectedFilter("combos")}
+            activeOpacity={0.75}
           >
             <Ionicons
               name="layers-outline"
@@ -225,6 +227,7 @@ export default function ProductsScreen({ navigation }) {
               selectedFilter === "regular" && styles.filterPillActive
             ]}
             onPress={() => setSelectedFilter("regular")}
+            activeOpacity={0.75}
           >
             <Ionicons
               name="restaurant-outline"
@@ -312,7 +315,7 @@ const styles = StyleSheet.create({
   cartButton: {
     width: 40,
     height: 40,
-    borderRadius: 14,
+    borderRadius: 20,
     backgroundColor: colors.surfaceMuted,
     borderWidth: 1,
     borderColor: colors.border,
@@ -322,8 +325,8 @@ const styles = StyleSheet.create({
   },
   cartBadge: {
     position: "absolute",
-    top: -4,
-    right: -4,
+    top: -3,
+    right: -3,
     backgroundColor: colors.primary,
     minWidth: 18,
     height: 18,
@@ -352,7 +355,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderRadius: 16,
-    shadowColor: "#000",
+    shadowColor: "#000000",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.25,
     shadowRadius: 10,
@@ -367,7 +370,7 @@ const styles = StyleSheet.create({
   searchSection: {
     paddingHorizontal: 16,
     paddingTop: 12,
-    paddingBottom: 8,
+    paddingBottom: 10,
     backgroundColor: colors.surface,
     borderBottomWidth: 1,
     borderBottomColor: colors.borderLight
@@ -376,16 +379,16 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: colors.surfaceMuted,
-    borderRadius: 14,
+    borderRadius: 25,
     borderWidth: 1,
     borderColor: colors.border,
-    paddingHorizontal: 12,
+    paddingHorizontal: 14,
     height: 44,
     gap: 8
   },
   searchInput: {
     flex: 1,
-    fontSize: 13,
+    fontSize: 13.5,
     color: colors.text
   },
   filterRow: {
@@ -396,20 +399,25 @@ const styles = StyleSheet.create({
   filterPill: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 5,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 999,
+    gap: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 25,
     backgroundColor: colors.surfaceMuted,
     borderWidth: 1,
     borderColor: colors.borderLight
   },
   filterPillActive: {
     backgroundColor: colors.primary,
-    borderColor: colors.primary
+    borderColor: colors.primary,
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 2
   },
   filterText: {
-    fontSize: 11,
+    fontSize: 11.5,
     fontWeight: "700",
     color: colors.muted
   },

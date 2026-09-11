@@ -336,7 +336,7 @@ export default function OrderTrackModal({
                 </View>
               ) : null}
 
-              {/* Live Tracking Architecture Container (Ready for MapLibre/Google/Geoapify renderer) */}
+              {/* Live Tracking Status */}
               {isInTransit && trackingData?.customer_lat && (
                 <View style={styles.routeCard}>
                   <View style={styles.routeHeader}>
@@ -354,6 +354,7 @@ export default function OrderTrackModal({
                 </View>
               )}
 
+              {/* Refresh Pill Button */}
               <TouchableOpacity
                 style={styles.refreshBtn}
                 onPress={loadTracking}
@@ -435,7 +436,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: colors.surface,
-    borderRadius: 20,
+    borderRadius: 16,
     padding: 18,
     borderWidth: 2,
     borderColor: colors.primary,
@@ -479,7 +480,7 @@ const styles = StyleSheet.create({
   statusCard: {
     flexDirection: "row",
     alignItems: "center",
-    borderRadius: 18,
+    borderRadius: 16,
     padding: 16,
     borderWidth: 1,
     gap: 12
@@ -512,7 +513,7 @@ const styles = StyleSheet.create({
   },
   timelineCard: {
     backgroundColor: colors.surface,
-    borderRadius: 20,
+    borderRadius: 16,
     padding: 16,
     borderWidth: 1,
     borderColor: colors.borderLight
@@ -605,15 +606,16 @@ const styles = StyleSheet.create({
     alignItems: "center",
     backgroundColor: colors.surface,
     padding: 14,
-    borderRadius: 18,
+    borderRadius: 16,
     borderWidth: 1,
     borderColor: colors.borderLight,
     gap: 12
   },
+  // REGLA ESTRICTA DE LOGOTIPOS/AVATARES: fondo nítido
   driverAvatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
+    width: 46,
+    height: 46,
+    borderRadius: 23,
     backgroundColor: colors.primary,
     alignItems: "center",
     justifyContent: "center",
@@ -634,40 +636,42 @@ const styles = StyleSheet.create({
     textTransform: "uppercase"
   },
   driverName: {
-    fontSize: 14,
+    fontSize: 14.5,
     fontWeight: "800",
     color: colors.text,
     marginTop: 2
   },
   driverCode: {
-    fontSize: 10.5,
+    fontSize: 11,
     fontWeight: "700",
     color: colors.primary,
     marginTop: 1
   },
+  // Pill button (borderRadius: 25)
   callBtn: {
     flexDirection: "row",
     alignItems: "center",
     gap: 5,
     backgroundColor: colors.success,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 12
+    paddingHorizontal: 16,
+    paddingVertical: 9,
+    borderRadius: 25
   },
   callBtnText: {
     color: "#ffffff",
     fontSize: 12,
     fontWeight: "800"
   },
+  // Pill button (borderRadius: 25)
   refreshBtn: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: 6,
     paddingVertical: 12,
-    borderRadius: 14,
+    borderRadius: 25,
     backgroundColor: colors.surfaceMuted,
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: colors.borderLight
   },
   refreshBtnText: {
@@ -678,7 +682,7 @@ const styles = StyleSheet.create({
   routeCard: {
     backgroundColor: colors.surface,
     padding: 16,
-    borderRadius: 18,
+    borderRadius: 16,
     borderWidth: 1,
     borderColor: colors.borderLight,
     gap: 8

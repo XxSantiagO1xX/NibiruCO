@@ -16,7 +16,7 @@ export default function ProductCard({
     <TouchableOpacity
       style={styles.card}
       onPress={() => (onPress ? onPress(product) : onAdd(product))}
-      activeOpacity={0.85}
+      activeOpacity={0.88}
     >
       {/* Product Image */}
       <View style={styles.imageContainer}>
@@ -46,7 +46,11 @@ export default function ProductCard({
                 ? `${product.groups.length} grupos a elegir`
                 : "Personalizable"}
             </Text>
-          ) : null}
+          ) : (
+            <Text style={styles.comboDescription} numberOfLines={1}>
+              {product.kitchen_required ? "Preparado al momento" : "Entrega directa"}
+            </Text>
+          )}
         </View>
 
         {/* Footer: Price & Add Button */}
@@ -90,24 +94,24 @@ const styles = StyleSheet.create({
   card: {
     flexDirection: "row",
     backgroundColor: colors.surface,
-    borderRadius: 20,
-    padding: 12,
+    borderRadius: 16,
+    padding: 14,
     marginBottom: 12,
     borderWidth: 1,
     borderColor: colors.borderLight,
-    shadowColor: "#1d1814",
+    shadowColor: "#000000",
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
+    shadowOpacity: 0.04,
     shadowRadius: 6,
     elevation: 2,
-    gap: 12
+    gap: 14
   },
   imageContainer: {
     position: "relative"
   },
   image: {
-    width: 92,
-    height: 92
+    width: 90,
+    height: 90
   },
   comboBadge: {
     position: "absolute",
@@ -117,15 +121,16 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 3,
     backgroundColor: colors.primary,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 6
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: 8
   },
   comboBadgeText: {
     color: "#ffffff",
     fontSize: 9,
-    fontWeight: "800",
-    textTransform: "uppercase"
+    fontWeight: "900",
+    textTransform: "uppercase",
+    letterSpacing: 0.4
   },
   content: {
     flex: 1,
@@ -135,14 +140,14 @@ const styles = StyleSheet.create({
     paddingTop: 2
   },
   name: {
-    fontSize: 15,
+    fontSize: 15.5,
     fontWeight: "800",
     color: colors.text,
     letterSpacing: -0.3,
     lineHeight: 20
   },
   comboDescription: {
-    fontSize: 11,
+    fontSize: 11.5,
     color: colors.muted,
     marginTop: 3,
     fontWeight: "500"
@@ -151,45 +156,45 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "flex-end",
-    marginTop: 6
+    marginTop: 8
   },
   pricePrefix: {
-    fontSize: 9,
+    fontSize: 9.5,
     fontWeight: "700",
     color: colors.muted,
     textTransform: "uppercase",
-    letterSpacing: 0.3
+    letterSpacing: 0.4
   },
   price: {
-    fontSize: 17,
+    fontSize: 18,
     fontWeight: "900",
     color: colors.primary,
     letterSpacing: -0.5
   },
+  // Pill-shaped button (borderRadius: 25)
   addButton: {
     alignItems: "center",
     justifyContent: "center",
-    borderRadius: 12,
+    borderRadius: 25,
+    backgroundColor: colors.primary,
     shadowColor: colors.primary,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
     elevation: 3
   },
   regularAddButton: {
     width: 38,
-    height: 38,
-    backgroundColor: colors.primary
+    height: 38
   },
   comboAddButton: {
-    paddingHorizontal: 12,
-    height: 36,
-    backgroundColor: colors.primary
+    paddingHorizontal: 14,
+    height: 36
   },
   btnRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 2
+    gap: 3
   },
   comboBtnText: {
     color: "#ffffff",
@@ -200,11 +205,11 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 3,
-    paddingHorizontal: 6
+    paddingHorizontal: 8
   },
   inCartText: {
     color: "#ffffff",
-    fontSize: 12,
+    fontSize: 12.5,
     fontWeight: "800"
   }
 });

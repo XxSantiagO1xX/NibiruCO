@@ -38,7 +38,7 @@ export default function ServiceTypeSelector({ selected, onSelect }) {
                 isSelected && styles.optionCardSelected
               ]}
               onPress={() => onSelect(opt.id)}
-              activeOpacity={0.7}
+              activeOpacity={0.75}
             >
               <View
                 style={[
@@ -72,10 +72,10 @@ export default function ServiceTypeSelector({ selected, onSelect }) {
 
 const styles = StyleSheet.create({
   container: {
-    marginVertical: 10
+    marginVertical: 12
   },
   title: {
-    fontSize: 14,
+    fontSize: 14.5,
     fontWeight: "800",
     color: colors.text,
     marginBottom: 10,
@@ -83,7 +83,7 @@ const styles = StyleSheet.create({
   },
   grid: {
     flexDirection: "row",
-    gap: 8
+    gap: 10
   },
   optionCard: {
     flex: 1,
@@ -91,12 +91,12 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 12,
     alignItems: "center",
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: colors.borderLight,
-    shadowColor: "#1d1814",
-    shadowOffset: { width: 0, height: 1 },
+    shadowColor: "#000000",
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.04,
-    shadowRadius: 4,
+    shadowRadius: 5,
     elevation: 1
   },
   optionCardSelected: {
@@ -104,16 +104,19 @@ const styles = StyleSheet.create({
     borderColor: colors.primary
   },
   iconContainer: {
-    width: 38,
-    height: 38,
-    borderRadius: 12,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     backgroundColor: colors.surfaceMuted,
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 8
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: colors.borderLight
   },
   iconContainerSelected: {
-    backgroundColor: colors.primary
+    backgroundColor: colors.primary,
+    borderColor: colors.primary
   },
   label: {
     fontSize: 12,
@@ -125,9 +128,10 @@ const styles = StyleSheet.create({
     color: colors.primaryDark
   },
   description: {
-    fontSize: 9,
+    fontSize: 9.5,
     color: colors.muted,
     textAlign: "center",
-    marginTop: 2
+    marginTop: 2,
+    fontWeight: "500"
   }
 });
