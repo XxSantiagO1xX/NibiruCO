@@ -577,10 +577,12 @@ export default function DriverTripScreen({ navigation }) {
         }
       />
 
-      {/* Dominant Status Card */}
-      <View style={styles.dominantContainer}>
-        {renderDominantHeader()}
-      </View>
+      {/* Dominant Status Card when no active trip */}
+      {!trip && (
+        <View style={styles.dominantContainer}>
+          {renderDominantHeader()}
+        </View>
+      )}
 
       <ScrollView
         contentContainerStyle={styles.scrollContent}
@@ -675,40 +677,35 @@ export default function DriverTripScreen({ navigation }) {
           />
         ) : (
           <View style={{ gap: 14 }}>
-            {/* Active Trip Header Card */}
-            <View style={styles.tripCard}>
-              <View style={styles.tripHeaderRow}>
-                <View>
-                  <Text style={styles.tripId}>{tripFolioDisplay}</Text>
-                  <Text style={styles.stopsCount}>
-                    {stops.length} {stops.length === 1 ? "entrega agrupada" : "entregas agrupadas"}
-                  </Text>
-                </View>
-                <View
-                  style={[
-                    styles.tripStatusBadge,
-                    isInTransit ? styles.badgeInTransit : styles.badgeAssigned
-                  ]}
-                >
-                  <Ionicons
-                    name={isInTransit ? "bicycle" : "restaurant"}
-                    size={14}
-                    color={isInTransit ? colors.primary : colors.warning}
-                  />
-                  <Text
+            {/* Unified Hero Panel (Viaje + Estado + Salir a Ruta + Efectivo) */}
+            <View style={[styles.unifiedHeroCard, isAssigned ? styles.heroCardAssigned : styles.heroCardInTransit]}>
+              {/* Top Row: Folio, Status Badge and GPS Switcher */}
+              <View style={styles.heroTopRow}>
+                <View style={styles.heroTitleGroup}>
+                  <Text style={styles.heroTripId}>{tripFolioDisplay}</Text>
+                  <View
                     style={[
-                      styles.tripStatusText,
-                      { color: isInTransit ? colors.primary : colors.warning }
+                      styles.heroStatusBadge,
+                      isInTransit ? styles.heroBadgeInTransit : styles.heroBadgeAssigned
                     ]}
                   >
-                    {isInTransit ? "En Ruta" : "Listo en Restaurante"}
-                  </Text>
+                    <Ionicons
+                      name={isInTransit ? "bicycle" : "restaurant"}
+                      size={13}
+                      color={isInTransit ? colors.primary : "#c2410c"}
+                    />
+                    <Text
+                      style={[
+                        styles.heroStatusText,
+                        { color: isInTransit ? colors.primary : "#c2410c" }
+                      ]}
+                    >
+                      {isInTransit ? "En Ruta" : "Esperando Recogida"}
+                    </Text>
+                  </View>
                 </View>
-              </View>
 
-              {/* Navigation Preference Bar */}
-              <View style={styles.navPrefRow}>
-                <Text style={styles.navPrefLabel}>Navegación GPS:</Text>
+                {/* GPS Navigation Switcher */}
                 <TouchableOpacity
                   style={styles.navPrefBadge}
                   onPress={handleToggleNavPreference}
@@ -720,24 +717,58 @@ export default function DriverTripScreen({ navigation }) {
                     color={colors.primary}
                   />
                   <Text style={styles.navPrefValue}>
-                    {navPreference === "google_maps" ? "Google Maps" : "Waze"}
+                    {navPreference === "google_maps" ? "Maps" : "Waze"}
                   </Text>
                   <Ionicons name="swap-horizontal" size={12} color={colors.muted} />
                 </TouchableOpacity>
               </View>
 
-              {/* Cash collection alert */}
+              {/* Stops Summary and Instructions */}
+              <View style={styles.heroInfoRow}>
+                <Text style={styles.heroStopsCount}>
+                  {stops.length} {stops.length === 1 ? "entrega agrupada" : "entregas agrupadas"}
+                  {isInTransit
+                    ? ` · ${stops.filter((s) => s.status !== "delivered" && s.status !== "failed").length} pendientes`
+                    : ""}
+                </Text>
+                <Text style={styles.heroInstructionText}>
+                  {isAssigned
+                    ? "Pasa a Mostrador a recoger los paquetes antes de salir."
+                    : "Valida el PIN de 4 dígitos de cada cliente para confirmar la entrega."}
+                </Text>
+              </View>
+
+              {/* Compact Cash to Collect Highlight Banner */}
               {totalCashToCollect > 0 ? (
-                <View style={styles.cashAlertBox}>
-                  <Ionicons name="cash" size={20} color={colors.primary} />
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.cashAlertTitle}>Efectivo a Cobrar en Ruta</Text>
-                    <Text style={styles.cashAlertAmount}>
-                      ${totalCashToCollect.toFixed(2)}
-                    </Text>
+                <View style={styles.heroCashBanner}>
+                  <View style={styles.heroCashLeft}>
+                    <Ionicons name="cash" size={18} color="#ffffff" />
+                    <Text style={styles.heroCashLabel}>EFECTIVO A COBRAR EN RUTA</Text>
                   </View>
+                  <Text style={styles.heroCashValue}>
+                    ${totalCashToCollect.toFixed(2)}
+                  </Text>
                 </View>
               ) : null}
+
+              {/* Main Action Button (Salir a Ruta) */}
+              {(isAssigned || driverStatus === "esperando_recogida") && (
+                <TouchableOpacity
+                  style={[styles.heroActionBtn, startingTrip && { opacity: 0.6 }]}
+                  onPress={handleStartTrip}
+                  disabled={startingTrip}
+                  activeOpacity={0.85}
+                >
+                  {startingTrip ? (
+                    <ActivityIndicator color="#ffffff" />
+                  ) : (
+                    <>
+                      <Ionicons name="navigate" size={18} color="#ffffff" />
+                      <Text style={styles.heroActionBtnText}>SALIR A RUTA / INICIAR VIAJE</Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              )}
             </View>
 
             {/* Stops list */}
@@ -758,39 +789,53 @@ export default function DriverTripScreen({ navigation }) {
                     isFailed && styles.stopCardFailed
                   ]}
                 >
-                  {/* Sequence header */}
+                  {/* Sequence header with discreet alert in top right */}
                   <View style={styles.stopHeader}>
                     <View style={styles.seqBadge}>
                       <Text style={styles.seqText}>{stop.sequence}</Text>
                     </View>
-                    <View style={{ flex: 1, marginLeft: 8 }}>
+                    <View style={{ flex: 1, marginLeft: 10 }}>
                       <Text style={styles.stopFolio}>
                         Folio F{String(stop.folio || "").padStart(3, "0")}
                       </Text>
                       <Text style={styles.stopZone}>{stop.zone_name || "Zona de Entrega"}</Text>
                     </View>
 
-                    {isDelivered ? (
-                      <View style={styles.deliveredBadge}>
-                        <Ionicons name="checkmark-done" size={14} color={colors.success} />
-                        <Text style={styles.deliveredText}>Entregado</Text>
-                      </View>
-                    ) : isFailed ? (
-                      <View style={styles.failedBadge}>
-                        <Ionicons name="close" size={14} color={colors.danger} />
-                        <Text style={styles.failedText}>Incidencia</Text>
-                      </View>
-                    ) : isArrived ? (
-                      <View style={styles.arrivedBadge}>
-                        <Ionicons name="location" size={14} color={colors.primary} />
-                        <Text style={styles.arrivedText}>En Destino</Text>
-                      </View>
-                    ) : null}
+                    <View style={styles.headerRightBadges}>
+                      {isDelivered ? (
+                        <View style={styles.deliveredBadge}>
+                          <Ionicons name="checkmark-done" size={13} color={colors.success} />
+                          <Text style={styles.deliveredText}>Entregado</Text>
+                        </View>
+                      ) : isFailed ? (
+                        <View style={styles.failedBadge}>
+                          <Ionicons name="close" size={13} color={colors.danger} />
+                          <Text style={styles.failedText}>Incidencia</Text>
+                        </View>
+                      ) : isArrived ? (
+                        <View style={styles.arrivedBadge}>
+                          <Ionicons name="location" size={13} color={colors.primary} />
+                          <Text style={styles.arrivedText}>En Destino</Text>
+                        </View>
+                      ) : null}
+
+                      {/* Discrete Alert/Issue Button in top right corner */}
+                      {!isDelivered && !isFailed && (
+                        <TouchableOpacity
+                          style={styles.discreetAlertBtn}
+                          onPress={() => handleOpenIssueModal(stop)}
+                          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                          activeOpacity={0.7}
+                        >
+                          <Ionicons name="warning-outline" size={18} color={colors.danger} />
+                        </TouchableOpacity>
+                      )}
+                    </View>
                   </View>
 
-                  {/* Customer details */}
+                  {/* Customer details with GPS button aligned to the right of address */}
                   <View style={styles.customerRow}>
-                    <View style={{ flex: 1 }}>
+                    <View style={{ flex: 1, paddingRight: 8 }}>
                       <Text style={styles.custName}>{stop.customer_name || "Cliente"}</Text>
                       <Text style={styles.addressLine}>{stop.address}</Text>
                       {stop.address_details ? (
@@ -798,15 +843,41 @@ export default function DriverTripScreen({ navigation }) {
                       ) : null}
                     </View>
 
-                    {stop.customer_phone ? (
-                      <TouchableOpacity
-                        style={styles.callCircle}
-                        onPress={() => openPhoneCall(stop.customer_phone)}
-                        activeOpacity={0.8}
-                      >
-                        <Ionicons name="call" size={18} color="#ffffff" />
-                      </TouchableOpacity>
-                    ) : null}
+                    <View style={styles.customerActionCol}>
+                      {/* GPS Navigation button aligned with address */}
+                      {!isDelivered && !isFailed && (
+                        <TouchableOpacity
+                          style={styles.gpsNavPill}
+                          onPress={() =>
+                            openPreferredNavigation(
+                              stop.latitude,
+                              stop.longitude,
+                              stop.address
+                            )
+                          }
+                          activeOpacity={0.8}
+                        >
+                          <Ionicons
+                            name={navPreference === "google_maps" ? "map" : "navigate"}
+                            size={14}
+                            color="#ffffff"
+                          />
+                          <Text style={styles.gpsNavPillText}>
+                            {navPreference === "google_maps" ? "Maps" : "Waze"}
+                          </Text>
+                        </TouchableOpacity>
+                      )}
+
+                      {stop.customer_phone ? (
+                        <TouchableOpacity
+                          style={styles.callCircle}
+                          onPress={() => openPhoneCall(stop.customer_phone)}
+                          activeOpacity={0.8}
+                        >
+                          <Ionicons name="call" size={15} color="#ffffff" />
+                        </TouchableOpacity>
+                      ) : null}
+                    </View>
                   </View>
 
                   {/* Cash / Payment details box */}
@@ -832,60 +903,29 @@ export default function DriverTripScreen({ navigation }) {
                     ) : null}
                   </View>
 
-                  {/* Actions if pending */}
+                  {/* Vertically stacked pill action buttons */}
                   {!isDelivered && !isFailed && (
-                    <View style={styles.stopActions}>
-                      {/* Preferred GPS Navigation */}
-                      <TouchableOpacity
-                        style={styles.wazeBtn}
-                        onPress={() =>
-                          openPreferredNavigation(
-                            stop.latitude,
-                            stop.longitude,
-                            stop.address
-                          )
-                        }
-                        activeOpacity={0.8}
-                      >
-                        <Ionicons
-                          name={navPreference === "google_maps" ? "map" : "navigate"}
-                          size={16}
-                          color="#ffffff"
-                        />
-                        <Text style={styles.wazeBtnText}>
-                          {navPreference === "google_maps" ? "Google Maps" : "Navegar Waze"}
-                        </Text>
-                      </TouchableOpacity>
-
-                      {/* Arrived button */}
+                    <View style={styles.stopActionsStacked}>
+                      {/* Arrived button (full width pill) */}
                       {!isArrived && (
                         <TouchableOpacity
-                          style={styles.arrivedBtn}
+                          style={styles.arrivedBtnFull}
                           onPress={() => handleMarkArrived(stop)}
                           activeOpacity={0.8}
                         >
-                          <Ionicons name="location-outline" size={16} color={colors.primary} />
-                          <Text style={styles.arrivedBtnText}>¡Ya Llegué!</Text>
+                          <Ionicons name="location-outline" size={17} color={colors.primary} />
+                          <Text style={styles.arrivedBtnText}>¡Ya Llegué al Domicilio!</Text>
                         </TouchableOpacity>
                       )}
 
-                      {/* Verify PIN */}
+                      {/* Verify PIN button (full width pill) */}
                       <TouchableOpacity
-                        style={styles.pinBtn}
+                        style={styles.pinBtnFull}
                         onPress={() => handleOpenPinModal(stop)}
                         activeOpacity={0.8}
                       >
-                        <Ionicons name="key" size={16} color="#ffffff" />
-                        <Text style={styles.pinBtnText}>Validar PIN</Text>
-                      </TouchableOpacity>
-
-                      {/* Report issue */}
-                      <TouchableOpacity
-                        style={styles.issueBtn}
-                        onPress={() => handleOpenIssueModal(stop)}
-                        activeOpacity={0.7}
-                      >
-                        <Ionicons name="warning-outline" size={16} color={colors.danger} />
+                        <Ionicons name="key" size={17} color="#ffffff" />
+                        <Text style={styles.pinBtnText}>Validar PIN del Cliente</Text>
                       </TouchableOpacity>
                     </View>
                   )}
@@ -1110,71 +1150,63 @@ const styles = StyleSheet.create({
     padding: 16,
     paddingBottom: 100
   },
-  tripCard: {
+  unifiedHeroCard: {
     backgroundColor: colors.surface,
-    borderRadius: 22,
+    borderRadius: 20,
     padding: 16,
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: colors.borderLight,
+    gap: 12,
     shadowColor: "#1d1814",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
     shadowRadius: 8,
-    elevation: 2,
-    gap: 12
+    elevation: 2
   },
-  tripHeaderRow: {
+  heroCardAssigned: {
+    backgroundColor: "#fff7ed",
+    borderColor: "#fdba74"
+  },
+  heroCardInTransit: {
+    backgroundColor: "#faf5ff",
+    borderColor: "#c084fc"
+  },
+  heroTopRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center"
   },
-  tripId: {
-    fontSize: 20,
-    fontWeight: "900",
-    color: colors.text
-  },
-  stopsCount: {
-    fontSize: 12,
-    color: colors.muted,
-    marginTop: 2,
-    fontWeight: "600"
-  },
-  tripStatusBadge: {
+  heroTitleGroup: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
+    gap: 8
+  },
+  heroTripId: {
+    fontSize: 19,
+    fontWeight: "900",
+    color: colors.text,
+    letterSpacing: -0.3
+  },
+  heroStatusBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
     borderRadius: 999,
     borderWidth: 1
   },
-  badgeInTransit: {
-    backgroundColor: colors.primarySoft,
-    borderColor: colors.primary
+  heroBadgeAssigned: {
+    backgroundColor: "#ffedd5",
+    borderColor: "#fed7aa"
   },
-  badgeAssigned: {
-    backgroundColor: colors.warningSoft,
-    borderColor: colors.warningBorder
+  heroBadgeInTransit: {
+    backgroundColor: "#f3e8ff",
+    borderColor: "#e9d5ff"
   },
-  tripStatusText: {
-    fontSize: 11,
+  heroStatusText: {
+    fontSize: 10.5,
     fontWeight: "800"
-  },
-  navPrefRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    backgroundColor: colors.surfaceMuted,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.borderLight
-  },
-  navPrefLabel: {
-    fontSize: 12,
-    fontWeight: "700",
-    color: colors.muted
   },
   navPrefBadge: {
     flexDirection: "row",
@@ -1192,40 +1224,64 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     color: colors.primary
   },
-  cashAlertBox: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: colors.primarySoft,
-    padding: 12,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: colors.primary,
-    gap: 10
+  heroInfoRow: {
+    gap: 2
   },
-  cashAlertTitle: {
-    fontSize: 11,
+  heroStopsCount: {
+    fontSize: 13.5,
     fontWeight: "800",
-    color: colors.primary,
-    textTransform: "uppercase"
-  },
-  cashAlertAmount: {
-    fontSize: 18,
-    fontWeight: "900",
     color: colors.text
   },
-  startTripBtn: {
+  heroInstructionText: {
+    fontSize: 12,
+    color: colors.muted,
+    lineHeight: 16
+  },
+  heroCashBanner: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    backgroundColor: "#ea580c",
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    borderRadius: 12
+  },
+  heroCashLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6
+  },
+  heroCashLabel: {
+    fontSize: 11,
+    fontWeight: "900",
+    color: "#ffffff",
+    letterSpacing: 0.3
+  },
+  heroCashValue: {
+    fontSize: 16,
+    fontWeight: "900",
+    color: "#ffffff"
+  },
+  heroActionBtn: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
     backgroundColor: colors.primary,
     height: 48,
-    borderRadius: 14
+    borderRadius: 25,
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 5,
+    elevation: 2,
+    marginTop: 2
   },
-  startTripBtnText: {
+  heroActionBtnText: {
     color: "#ffffff",
-    fontSize: 14,
-    fontWeight: "800"
+    fontSize: 13.5,
+    fontWeight: "900",
+    letterSpacing: 0.5
   },
   sectionHeading: {
     fontSize: 14,
@@ -1276,6 +1332,11 @@ const styles = StyleSheet.create({
     color: colors.muted,
     fontWeight: "600"
   },
+  headerRightBadges: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6
+  },
   deliveredBadge: {
     flexDirection: "row",
     alignItems: "center",
@@ -1318,6 +1379,16 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     color: colors.primary
   },
+  discreetAlertBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: colors.dangerSoft,
+    borderWidth: 1,
+    borderColor: colors.dangerBorder,
+    alignItems: "center",
+    justifyContent: "center"
+  },
   customerRow: {
     flexDirection: "row",
     alignItems: "flex-start",
@@ -1339,10 +1410,34 @@ const styles = StyleSheet.create({
     color: colors.textSubtle,
     marginTop: 1
   },
+  customerActionCol: {
+    flexDirection: "column",
+    alignItems: "flex-end",
+    gap: 6
+  },
+  gpsNavPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    backgroundColor: "#0284c7",
+    paddingHorizontal: 11,
+    paddingVertical: 6,
+    borderRadius: 20,
+    shadowColor: "#0284c7",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
+    elevation: 2
+  },
+  gpsNavPillText: {
+    fontSize: 11,
+    fontWeight: "800",
+    color: "#ffffff"
+  },
   callCircle: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     backgroundColor: colors.success,
     alignItems: "center",
     justifyContent: "center"
@@ -1383,66 +1478,45 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     color: colors.primary
   },
-  stopActions: {
-    flexDirection: "row",
-    gap: 6,
-    marginTop: 4
+  stopActionsStacked: {
+    flexDirection: "column",
+    gap: 8,
+    marginTop: 2
   },
-  wazeBtn: {
-    flex: 2,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 6,
-    backgroundColor: "#33ccff",
-    borderRadius: 12,
-    paddingVertical: 10
-  },
-  wazeBtnText: {
-    fontSize: 12,
-    fontWeight: "800",
-    color: "#ffffff"
-  },
-  arrivedBtn: {
-    flex: 2,
+  arrivedBtnFull: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 4,
+    gap: 6,
     backgroundColor: colors.primarySoft,
-    borderRadius: 12,
-    paddingVertical: 10,
-    borderWidth: 1,
-    borderColor: colors.primary
+    borderWidth: 1.5,
+    borderColor: colors.primary,
+    height: 44,
+    borderRadius: 25
   },
   arrivedBtnText: {
-    fontSize: 12,
+    fontSize: 12.5,
     fontWeight: "800",
     color: colors.primary
   },
-  pinBtn: {
-    flex: 2,
+  pinBtnFull: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 4,
+    gap: 6,
     backgroundColor: colors.success,
-    borderRadius: 12,
-    paddingVertical: 10
+    height: 48,
+    borderRadius: 25,
+    shadowColor: colors.success,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 5,
+    elevation: 2
   },
   pinBtnText: {
-    fontSize: 12,
-    fontWeight: "800",
+    fontSize: 13,
+    fontWeight: "900",
     color: "#ffffff"
-  },
-  issueBtn: {
-    width: 38,
-    borderRadius: 12,
-    backgroundColor: colors.dangerSoft,
-    borderWidth: 1,
-    borderColor: colors.dangerBorder,
-    alignItems: "center",
-    justifyContent: "center"
   },
   offerAlertCard: {
     backgroundColor: "#fffbeb",
