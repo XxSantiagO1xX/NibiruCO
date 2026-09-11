@@ -2,94 +2,768 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>MealOps · Menú</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>MealOps · Menú Semanal</title>
   <link rel="stylesheet" href="../css/styles.css">
   <link rel="stylesheet" href="../css/theme.css" data-mealops-theme="true">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
   <style>
-    .menu-tabs {
-      display: flex;
-      gap: 8px;
-      margin-bottom: 16px;
+    :root {
+      --menu-primary: #FF6B00;
+      --menu-primary-hover: #E05D00;
+      --menu-primary-soft: #FFF2E8;
+      --menu-primary-border: #FFD4BA;
+      --menu-bg: #F8F6F3;
+      --menu-surface: #FFFFFF;
+      --menu-dark: #1E1B18;
+    }
+
+    body {
+      background-color: var(--menu-bg);
+    }
+
+    /* Sticky Clean Top Header */
+    .menu-sticky-header {
+      position: sticky;
+      top: 0;
+      z-index: 40;
+      background: rgba(255, 255, 255, 0.94);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
       border-bottom: 1px solid var(--border);
-      padding-bottom: 8px;
+      padding: 14px 32px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
     }
-    .menu-tab {
-      background: none;
-      border: none;
-      padding: 8px 14px;
-      border-radius: var(--radius-sm);
-      font-size: 13px;
-      font-weight: 600;
+
+    /* Logo Container with STRICT solid white background */
+    .logo-container-white,
+    .brand-mark {
+      background-color: #ffffff !important;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      width: 40px;
+      height: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+      flex-shrink: 0;
+    }
+    .brand-mark svg,
+    .logo-container-white svg {
+      width: 22px;
+      height: 22px;
+      stroke: var(--menu-primary);
+    }
+
+    .sticky-header-brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .sticky-header-brand h1 {
+      margin: 0;
+      font-size: 20px;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      color: var(--text);
+    }
+    .sticky-header-brand p {
+      margin: 2px 0 0;
+      font-size: 12px;
       color: var(--muted);
-      cursor: pointer;
-      transition: all 0.2s;
     }
-    .menu-tab.active {
+
+    .menu-main-content {
+      max-width: 1200px;
+      margin: 0 auto;
+      width: 100%;
+      padding: 24px 32px 120px;
+    }
+
+    /* Day Selector Card */
+    .day-selector-card {
       background: var(--surface);
-      color: var(--primary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+      margin-bottom: 20px;
       box-shadow: var(--shadow-sm);
     }
+
+    .day-selector-info {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .day-icon-circle {
+      width: 42px;
+      height: 42px;
+      border-radius: 12px;
+      background: var(--menu-primary-soft);
+      border: 1px solid var(--menu-primary-border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--menu-primary);
+      flex-shrink: 0;
+    }
+
+    .day-selector-info strong {
+      display: block;
+      font-size: 14px;
+      font-weight: 800;
+      color: var(--text);
+    }
+
+    .day-selector-info span {
+      display: block;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .day-select-wrapper {
+      min-width: 220px;
+    }
+
+    .day-select-wrapper select {
+      font-weight: 700;
+      font-size: 14px;
+      border-radius: var(--radius-sm);
+      border-color: var(--border);
+      background-color: var(--surface);
+      cursor: pointer;
+    }
+
+    /* Navigation: Horizontally Scrollable Pill Tabs */
+    .menu-tabs-wrapper {
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      padding-bottom: 6px;
+      margin-bottom: 20px;
+      scrollbar-width: none;
+    }
+    .menu-tabs-wrapper::-webkit-scrollbar {
+      display: none;
+    }
+
+    .menu-tabs {
+      display: flex;
+      gap: 10px;
+      border-bottom: none;
+      padding-bottom: 0;
+      margin-bottom: 0;
+      white-space: nowrap;
+    }
+
+    .menu-tab {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--surface);
+      color: var(--text);
+      border: 1.5px solid var(--border);
+      padding: 10px 22px;
+      border-radius: 999px;
+      font-size: 13.5px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      box-shadow: var(--shadow-xs);
+      flex-shrink: 0;
+    }
+
+    .menu-tab:hover {
+      background: var(--surface-hover);
+      border-color: var(--menu-primary-border);
+      color: var(--menu-primary);
+    }
+
+    .menu-tab.active {
+      background: #FF6B00 !important;
+      color: #FFFFFF !important;
+      border-color: #FF6B00 !important;
+      box-shadow: 0 4px 14px rgba(255, 107, 0, 0.3) !important;
+    }
+
+    .menu-tab svg {
+      width: 16px;
+      height: 16px;
+    }
+    .menu-tab.active svg {
+      stroke: #FFFFFF;
+    }
+
+    /* Featured Card: Menú Comida Completa */
+    .featured-menu-card {
+      background: linear-gradient(135deg, #FF6B00 0%, #FF8533 100%);
+      color: #FFFFFF;
+      border-radius: var(--radius-lg);
+      padding: 24px 28px;
+      margin-bottom: 24px;
+      box-shadow: 0 8px 24px rgba(255, 107, 0, 0.22);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 24px;
+      position: relative;
+      overflow: hidden;
+    }
+    .featured-menu-card::after {
+      content: '';
+      position: absolute;
+      right: -30px;
+      bottom: -30px;
+      width: 160px;
+      height: 160px;
+      background: radial-gradient(circle, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0) 70%);
+      border-radius: 50%;
+      pointer-events: none;
+    }
+
+    .featured-menu-content {
+      flex: 1;
+      position: relative;
+      z-index: 1;
+    }
+
+    .featured-badge-row {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      margin-bottom: 8px;
+      flex-wrap: wrap;
+    }
+
+    .featured-badge {
+      background: rgba(255, 255, 255, 0.24);
+      backdrop-filter: blur(8px);
+      color: #FFFFFF;
+      font-size: 11px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      padding: 4px 12px;
+      border-radius: 999px;
+      border: 1px solid rgba(255, 255, 255, 0.35);
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .featured-sub-badge {
+      color: rgba(255, 255, 255, 0.92);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .featured-title {
+      margin: 0 0 6px;
+      font-size: 22px;
+      font-weight: 900;
+      letter-spacing: -0.03em;
+      color: #FFFFFF;
+    }
+
+    .featured-desc {
+      margin: 0 0 14px;
+      font-size: 13.5px;
+      line-height: 1.5;
+      color: rgba(255, 255, 255, 0.95);
+      max-width: 650px;
+    }
+
+    .featured-footer-meta {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .featured-tag {
+      background: rgba(0, 0, 0, 0.16);
+      font-size: 11.5px;
+      font-weight: 700;
+      padding: 5px 12px;
+      border-radius: 8px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .featured-visual {
+      position: relative;
+      z-index: 1;
+      flex-shrink: 0;
+    }
+
+    .featured-icon-circle {
+      width: 72px;
+      height: 72px;
+      background: rgba(255, 255, 255, 0.22);
+      border: 2px solid rgba(255, 255, 255, 0.45);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 36px;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+    }
+
+    /* Dish Cards Grid / List */
+    #products.list,
+    .dish-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+      gap: 16px;
+    }
+
+    .dish-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px;
+      display: flex;
+      gap: 16px;
+      align-items: center;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      position: relative;
+      box-shadow: var(--shadow-xs);
+    }
+
+    .dish-card:hover {
+      border-color: var(--menu-primary-border);
+      box-shadow: var(--shadow-md);
+      transform: translateY(-2px);
+    }
+
+    .dish-card.is-active {
+      border-color: #FF6B00;
+      background: #FFFDFB;
+      box-shadow: 0 2px 12px rgba(255, 107, 0, 0.12);
+    }
+
+    .dish-card.is-combo {
+      border-left: 4px solid #9333EA;
+    }
+
+    .dish-media {
+      position: relative;
+      width: 76px;
+      height: 76px;
+      min-width: 76px;
+      border-radius: var(--radius-sm);
+      overflow: hidden;
+      background: #F0EEE9;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+
+    .dish-media img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .dish-placeholder {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(135deg, #F5F4F0, #EAE8E3);
+      font-size: 26px;
+    }
+
+    .dish-media img + .dish-placeholder {
+      display: none;
+    }
+
+    .dish-media img.img-failed + .dish-placeholder {
+      display: flex !important;
+    }
+
+    .dish-body {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .dish-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 4px;
+    }
+
+    .dish-title {
+      font-size: 14.5px;
+      font-weight: 800;
+      color: var(--text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .dish-desc {
+      font-size: 12px;
+      color: var(--muted);
+      margin: 0 0 8px;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+      line-height: 1.4;
+    }
+
+    .dish-meta-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .dish-price {
+      font-size: 15px;
+      font-weight: 800;
+      color: var(--text);
+    }
+
+    .dish-status-tag {
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .dish-status-tag.tag-available {
+      color: var(--success);
+    }
+
+    .dish-status-tag.tag-out {
+      color: var(--danger);
+    }
+
+    .dish-actions {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+
+    .btn-dish-toggle {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 8px 14px;
+      border-radius: 999px;
+      font-size: 12.5px;
+      font-weight: 700;
+      border: 1.5px solid var(--border);
+      background: var(--surface);
+      color: var(--text);
+      cursor: pointer;
+      transition: all 0.15s ease;
+      white-space: nowrap;
+    }
+
+    .btn-dish-toggle:hover {
+      border-color: #FF6B00;
+      color: #FF6B00;
+      background: var(--menu-primary-soft);
+    }
+
+    .btn-dish-toggle.active {
+      background: #FF6B00;
+      color: #FFFFFF;
+      border-color: #FF6B00;
+      box-shadow: 0 2px 8px rgba(255, 107, 0, 0.28);
+    }
+
+    .btn-dish-toggle.active:hover {
+      background: #E05D00;
+      border-color: #E05D00;
+    }
+
+    /* Fixed Bottom Floating Bar */
+    .menu-floating-bar {
+      position: fixed;
+      bottom: 24px;
+      left: calc(var(--sidebar-width) + 32px);
+      right: 32px;
+      background: #1E1B18;
+      color: #FFFFFF;
+      border-radius: 18px;
+      padding: 14px 24px;
+      box-shadow: 0 12px 36px rgba(0, 0, 0, 0.3);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      z-index: 100;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      transition: all 0.2s ease;
+    }
+
+    .floating-bar-info {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .floating-bar-badge {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: rgba(255, 107, 0, 0.2);
+      border: 1.5px solid #FF6B00;
+      color: #FF6B00;
+      font-weight: 900;
+      font-size: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .floating-bar-text strong {
+      display: block;
+      font-size: 14px;
+      font-weight: 800;
+      color: #FFFFFF;
+    }
+
+    .floating-bar-text span {
+      display: block;
+      font-size: 12px;
+      color: #A8A29E;
+    }
+
+    .floating-bar-actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .btn-floating-save {
+      background: #FF6B00;
+      color: #FFFFFF;
+      font-weight: 800;
+      font-size: 13.5px;
+      padding: 10px 22px;
+      border-radius: 999px;
+      border: none;
+      cursor: pointer;
+      box-shadow: 0 4px 14px rgba(255, 107, 0, 0.35);
+      transition: all 0.15s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .btn-floating-save:hover {
+      background: #E05D00;
+      transform: translateY(-1px);
+    }
+
+    .btn-floating-save:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
+    }
+
     .badge-combo {
-      background: #faf5ff;
-      color: #9333ea;
-      border: 1px solid #e9d5ff;
+      background: #FAF5FF;
+      color: #9333EA;
+      border: 1px solid #E9D5FF;
+    }
+
+    @media (max-width: 900px) {
+      .menu-sticky-header {
+        padding: 12px 18px;
+      }
+      .menu-main-content {
+        padding: 16px 18px 120px;
+      }
+      .menu-floating-bar {
+        left: 16px;
+        right: 16px;
+        bottom: 16px;
+        padding: 12px 18px;
+      }
+      .featured-menu-card {
+        flex-direction: column;
+        align-items: flex-start;
+        padding: 20px;
+      }
+      .featured-visual {
+        display: none;
+      }
+      #products.list,
+      .dish-grid {
+        grid-template-columns: 1fr;
+      }
     }
   </style>
 </head>
 <body>
   <div class="app-shell">
     <aside class="sidebar">
-      <div class="brand"><div class="brand-mark">M</div><div class="brand-copy"><strong>MealOps</strong><span>Restaurant operations</span></div></div>
+      <div class="sidebar-header" style="height:auto; padding: 20px 14px 14px; border:none;">
+        <div class="brand">
+          <div class="brand-mark" style="background-color: #ffffff !important; border: 1px solid var(--border);">
+            <svg class="ui-icon" style="width:22px;height:22px;stroke:#FF6B00"><use href="assets/icons.svg#dining"></use></svg>
+          </div>
+          <div class="brand-copy">
+            <strong>MealOps</strong>
+            <span>Cocina económica</span>
+          </div>
+        </div>
+      </div>
       <nav class="nav">
-        <a href="home.html">Panel</a>
-        <a href="index.html">Ventas</a>
-        <a href="kds.html">Cocina KDS</a>
-        <a href="menu.html" class="active">Menú</a>
-        <a href="products.html">Productos</a>
-        <a href="combos.html">Combos</a>
+        <a href="home.html">
+          <svg class="ui-icon nav-icon"><use href="assets/icons.svg#sales"></use></svg>
+          <span>Panel</span>
+        </a>
+        <a href="index.html">
+          <svg class="ui-icon nav-icon"><use href="assets/icons.svg#sales"></use></svg>
+          <span>Ventas</span>
+        </a>
+        <a href="kds.html">
+          <svg class="ui-icon nav-icon"><use href="assets/icons.svg#kitchen"></use></svg>
+          <span>Cocina KDS</span>
+        </a>
+        <a href="menu.html" class="active">
+          <svg class="ui-icon nav-icon"><use href="assets/icons.svg#calendar"></use></svg>
+          <span>Menú</span>
+        </a>
+        <a href="products.html">
+          <svg class="ui-icon nav-icon"><use href="assets/icons.svg#products"></use></svg>
+          <span>Productos</span>
+        </a>
+        <a href="combos.html">
+          <svg class="ui-icon nav-icon"><use href="assets/icons.svg#combo"></use></svg>
+          <span>Combos</span>
+        </a>
       </nav>
-      <div class="sidebar-footer"><button class="btn btn-ghost" onclick="logout()">Cerrar sesión</button></div>
+      <div class="sidebar-footer">
+        <button class="btn btn-ghost" onclick="logout()">Cerrar sesión</button>
+      </div>
     </aside>
 
-    <main class="main">
-      <header class="page-header">
-        <div>
-          <h1>Menú semanal</h1>
-          <p>Selecciona los productos y combos que estarán disponibles cada día.</p>
+    <main class="main" style="padding: 0;">
+      <!-- Sticky Clean Header with Strict Solid White Logo Container -->
+      <header class="menu-sticky-header">
+        <div class="sticky-header-brand">
+          <div class="logo-container-white" style="background-color: #ffffff !important;">
+            <svg class="ui-icon"><use href="assets/icons.svg#calendar"></use></svg>
+          </div>
+          <div>
+            <h1>Menú Semanal</h1>
+            <p>Cocina Económica · Selección de platillos y combos del día</p>
+          </div>
         </div>
         <div class="header-actions">
-          <a href="combos.html" class="btn btn-secondary" style="margin-right: 8px;">Administrar combos</a>
-          <button class="btn btn-primary" id="save-button" onclick="saveMenu()">Guardar día</button>
+          <a href="combos.html" class="btn btn-secondary" style="font-size:12.5px;">
+            <svg class="ui-icon" style="width:16px;height:16px"><use href="assets/icons.svg#combo"></use></svg>
+            Administrar combos
+          </a>
         </div>
       </header>
 
-      <div class="card card-pad">
-        <div class="field" style="max-width:260px">
-          <label for="daySelect">Día de la semana</label>
-          <select id="daySelect" onchange="loadDay()">
-            <option value="monday">Lunes</option>
-            <option value="tuesday">Martes</option>
-            <option value="wednesday">Miércoles</option>
-            <option value="thursday">Jueves</option>
-            <option value="friday">Viernes</option>
-            <option value="saturday">Sábado</option>
-            <option value="sunday">Domingo</option>
-          </select>
+      <div class="menu-main-content">
+        <!-- Day Selector Card -->
+        <div class="day-selector-card">
+          <div class="day-selector-info">
+            <div class="day-icon-circle">
+              <svg class="ui-icon" style="width:22px;height:22px"><use href="assets/icons.svg#calendar"></use></svg>
+            </div>
+            <div>
+              <strong>Día de la semana</strong>
+              <span>Configura la disponibilidad para cada día operativo</span>
+            </div>
+          </div>
+          <div class="day-select-wrapper">
+            <select id="daySelect" onchange="loadDay()">
+              <option value="monday">Lunes</option>
+              <option value="tuesday">Martes</option>
+              <option value="wednesday">Miércoles</option>
+              <option value="thursday">Jueves</option>
+              <option value="friday">Viernes</option>
+              <option value="saturday">Sábado</option>
+              <option value="sunday">Domingo</option>
+            </select>
+          </div>
         </div>
+
+        <!-- Navigation: Horizontally Scrollable Pill Tabs -->
+        <div class="menu-tabs-wrapper">
+          <div class="menu-tabs">
+            <button class="menu-tab active" id="tab-all" onclick="setFilter('all')">
+              <svg class="ui-icon"><use href="assets/icons.svg#dining"></use></svg>
+              Todos los artículos
+            </button>
+            <button class="menu-tab" id="tab-combos" onclick="setFilter('combos')">
+              <svg class="ui-icon"><use href="assets/icons.svg#combo"></use></svg>
+              Combos
+            </button>
+            <button class="menu-tab" id="tab-regular" onclick="setFilter('regular')">
+              <svg class="ui-icon"><use href="assets/icons.svg#products"></use></svg>
+              Platillos individuales
+            </button>
+          </div>
+        </div>
+
+        <!-- Featured Card: Menú Comida Completa -->
+        <div class="featured-menu-card">
+          <div class="featured-menu-content">
+            <div class="featured-badge-row">
+              <span class="featured-badge">⭐ Popular · Recomendado</span>
+              <span class="featured-sub-badge">Comida corrida del día</span>
+            </div>
+            <h2 class="featured-title">Menú Comida Completa</h2>
+            <p class="featured-desc">Incluye: Sopa aguada o arroz + Guisado a elegir + Agua fresca del día + Frijoles y Tortillas recién hechas.</p>
+            <div class="featured-footer-meta">
+              <span class="featured-tag">🔥 El favorito de la fonda</span>
+              <span class="featured-tag">🍱 Configurable desde sección Combos</span>
+            </div>
+          </div>
+          <div class="featured-visual">
+            <div class="featured-icon-circle">🍲</div>
+          </div>
+        </div>
+
+        <!-- Dish List / Cards Container -->
+        <div id="products" class="list"></div>
       </div>
-
-      <div class="spacer-24"></div>
-
-      <div class="menu-tabs">
-        <button class="menu-tab active" id="tab-all" onclick="setFilter('all')">Todos los artículos</button>
-        <button class="menu-tab" id="tab-combos" onclick="setFilter('combos')">Combos</button>
-        <button class="menu-tab" id="tab-regular" onclick="setFilter('regular')">Platillos individuales</button>
-      </div>
-
-      <div id="products" class="list"></div>
     </main>
+  </div>
+
+  <!-- Fixed Bottom Floating Bar -->
+  <div class="menu-floating-bar" id="menu-floating-bar">
+    <div class="floating-bar-info">
+      <div class="floating-bar-badge" id="selected-count">0</div>
+      <div class="floating-bar-text">
+        <strong id="floating-bar-title">Menú del día</strong>
+        <span id="selected-summary">0 platillos seleccionados para este día</span>
+      </div>
+    </div>
+    <div class="floating-bar-actions">
+      <button class="btn-floating-save" id="save-button" onclick="saveMenu()">
+        <svg class="ui-icon" style="width:18px;height:18px;stroke:#FFFFFF"><use href="assets/icons.svg#check"></use></svg>
+        Guardar día
+      </button>
+    </div>
   </div>
 
   <div id="toast-container"></div>
@@ -130,10 +804,29 @@
       renderProducts();
     }
 
+    function updateFloatingBar() {
+      const count = selected.size;
+      const countEl = document.getElementById('selected-count');
+      if (countEl) countEl.textContent = count;
+      const summaryEl = document.getElementById('selected-summary');
+      if (summaryEl) {
+        summaryEl.textContent = count === 1 
+          ? '1 platillo seleccionado para el menú del día'
+          : `${count} platillos seleccionados para el menú del día`;
+      }
+      const titleEl = document.getElementById('floating-bar-title');
+      if (titleEl) {
+        const daySelect = document.getElementById('daySelect');
+        const dayText = daySelect ? daySelect.options[daySelect.selectedIndex]?.text : 'día';
+        titleEl.textContent = `Menú de ${dayText}`;
+      }
+    }
+
     function renderProducts() {
       const container = document.getElementById('products');
       if (!products.length) {
-        container.innerHTML = '<div class="card card-pad muted">No hay productos creados todavía.</div>';
+        container.innerHTML = '<div class="card card-pad muted" style="text-align:center; padding: 48px 24px; grid-column: 1 / -1;">No hay productos creados todavía.</div>';
+        updateFloatingBar();
         return;
       }
 
@@ -145,7 +838,8 @@
       }
 
       if (!filtered.length) {
-        container.innerHTML = '<div class="card card-pad muted">No hay artículos en esta categoría.</div>';
+        container.innerHTML = '<div class="card card-pad muted" style="text-align:center; padding: 48px 24px; grid-column: 1 / -1;">No hay artículos en esta categoría.</div>';
+        updateFloatingBar();
         return;
       }
 
@@ -153,32 +847,44 @@
         const active = selected.has(Number(product.id));
         const isCombo = product.product_kind === 'combo';
         const groupCount = Array.isArray(product.groups) ? product.groups.length : 0;
+        const desc = isCombo 
+          ? `Combo configurable con ${groupCount} grupo(s) de opciones.`
+          : (product.kitchen_required ? 'Platillo preparado al momento en cocina caliente.' : 'Listo para servir · Bebida o entrega directa.');
 
         return `
-          <div class="list-row" style="${isCombo ? 'border-left: 4px solid #9333ea;' : ''}">
-            <div class="product-thumb">
-              ${product.image ? `<img src="${escapeHtml(product.image)}" alt="" loading="lazy" onerror="this.classList.add('img-failed')">` : ''}
-              <div class="thumb-placeholder">${isCombo ? '🍱' : '🍽️'}</div>
+          <div class="dish-card ${active ? 'is-active' : ''} ${isCombo ? 'is-combo' : ''}">
+            <div class="dish-media">
+              ${product.image ? `<img src="${escapeHtml(product.image)}" alt="${escapeHtml(product.name)}" loading="lazy" onerror="this.classList.add('img-failed')">` : ''}
+              <div class="dish-placeholder">${isCombo ? '🍱' : '🍽️'}</div>
             </div>
-            <div class="list-main">
-              <div style="display: flex; align-items: center; gap: 8px;">
-                <strong>${escapeHtml(product.name)}</strong>
-                ${isCombo ? `<span class="badge badge-combo">Combo (${groupCount} grupos)</span>` : ''}
+            <div class="dish-body">
+              <div class="dish-header">
+                <strong class="dish-title">${escapeHtml(product.name)}</strong>
+                ${isCombo ? `<span class="badge badge-combo">${groupCount} opciones</span>` : ''}
               </div>
-              <small>${formatCurrency(product.price)} · ${product.available ? 'Disponible' : 'Agotado'} · ${isCombo ? 'Combo configurable' : (product.kitchen_required ? 'Cocina' : 'Entrega directa')}</small>
+              <p class="dish-desc">${escapeHtml(desc)}</p>
+              <div class="dish-meta-row">
+                <span class="dish-price">${formatCurrency(product.price)}</span>
+                <span class="dish-status-tag ${product.available ? 'tag-available' : 'tag-out'}">
+                  ${product.available ? '● Disponible' : '○ Agotado'}
+                </span>
+              </div>
             </div>
-            <div class="list-actions">
-              <span class="badge ${active ? 'badge-success' : 'badge-neutral'}">${active ? 'En el menú' : 'Fuera del menú'}</span>
-              <button class="btn btn-sm ${active ? 'btn-secondary' : 'btn-primary'}" onclick="toggleProduct(${product.id})">${active ? 'Quitar del día' : 'Agregar al día'}</button>
+            <div class="dish-actions">
+              <button class="btn-dish-toggle ${active ? 'active' : ''}" onclick="toggleProduct(${product.id})" type="button">
+                ${active ? '✓ En el menú' : '+ Agregar al día'}
+              </button>
             </div>
           </div>
         `;
       }).join('');
+
+      updateFloatingBar();
     }
 
     async function saveMenu() {
       const button = document.getElementById('save-button');
-      button.disabled = true;
+      if (button) button.disabled = true;
       try {
         const day = document.getElementById('daySelect').value;
         await apiFetch('/menu/day', {
@@ -189,7 +895,7 @@
       } catch (error) {
         showToast(error.message, 'error');
       } finally {
-        button.disabled = false;
+        if (button) button.disabled = false;
       }
     }
 
