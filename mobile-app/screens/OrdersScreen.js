@@ -26,7 +26,7 @@ export default function OrdersScreen({ navigation }) {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [statusFilter, setStatusFilter] = useState("all"); // 'all' | 'active' | 'completed'
+  const [statusFilter, setStatusFilter] = useState("active"); // 'all' | 'active' | 'completed'
   const [trackModalVisible, setTrackModalVisible] = useState(false);
   const [selectedTrackOrderId, setSelectedTrackOrderId] = useState(null);
 
@@ -205,7 +205,7 @@ export default function OrdersScreen({ navigation }) {
       ) : (
         <FlatList
           data={filteredOrders}
-          keyExtractor={(item) => item.id.toString()}
+          keyExtractor={(item, index) => (item?.id ? `${item.id}-${index}` : index.toString())}
           contentContainerStyle={styles.listContainer}
           showsVerticalScrollIndicator={false}
           refreshControl={

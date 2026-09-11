@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import colors from "../theme/colors";
@@ -56,6 +57,8 @@ const SERVICE_TYPE_MAP = {
 };
 
 export default function OrderCard({ order, onCancel, onTrack }) {
+  const [isExpanded, setIsExpanded] = useState(false);
+
   const statusKey = String(order.status || "pendiente").toLowerCase();
   const statusMeta = STATUS_MAP[statusKey] || STATUS_MAP.pendiente;
   const serviceLabel =
@@ -81,124 +84,148 @@ export default function OrderCard({ order, onCancel, onTrack }) {
     : "";
 
   return (
-    <View style={styles.card}>
-      {/* Top row: Folio + Status */}
-      <View style={styles.header}>
-        <View style={styles.folioRow}>
-          <Text style={styles.folio}>{folioText}</Text>
-          <View style={styles.serviceBadge}>
-            <Text style={styles.serviceBadgeText}>{serviceLabel}</Text>
+    <TouchableOpacity
+      style={styles.card}
+      onPress={() => setIsExpanded((prev) => !prev)}
+      activeOpacity={0.88}
+    >
+      {/* Vista Colapsada Resumida (Siempre Visible) */}
+      <View style={styles.summaryHeader}>
+        <View style={styles.headerLeft}>
+          <View style={styles.folioRow}>
+            <Text style={styles.folio}>{folioText}</Text>
+            <View style={styles.serviceBadge}>
+              <Text style={styles.serviceBadgeText}>{serviceLabel}</Text>
+            </View>
+          </View>
+
+          <View
+            style={[
+              styles.statusBadge,
+              {
+                backgroundColor: statusMeta.bg,
+                borderColor: statusMeta.border
+              }
+            ]}
+          >
+            <Ionicons
+              name={statusMeta.icon}
+              size={12}
+              color={statusMeta.text}
+            />
+            <Text style={[styles.statusText, { color: statusMeta.text }]}>
+              {statusMeta.label}
+            </Text>
           </View>
         </View>
 
-        <View
-          style={[
-            styles.statusBadge,
-            {
-              backgroundColor: statusMeta.bg,
-              borderColor: statusMeta.border
-            }
-          ]}
-        >
-          <Ionicons
-            name={statusMeta.icon}
-            size={13}
-            color={statusMeta.text}
-          />
-          <Text style={[styles.statusText, { color: statusMeta.text }]}>
-            {statusMeta.label}
-          </Text>
+        <View style={styles.headerRight}>
+          <Text style={styles.summaryTotal}>${total.toFixed(2)}</Text>
+          <View style={styles.chevronCircle}>
+            <Ionicons
+              name={isExpanded ? "chevron-up" : "chevron-down"}
+              size={18}
+              color={colors.primary}
+            />
+          </View>
         </View>
       </View>
 
-      {/* Customer / Address info if applicable */}
-      {order.customer_name ? (
-        <Text style={styles.customerName}>
-          Cliente: <Text style={{ color: colors.text, fontWeight: "700" }}>{order.customer_name}</Text>
-        </Text>
-      ) : null}
+      {/* Vista Expandida (Desplegable) */}
+      {isExpanded && (
+        <View style={styles.expandedContent}>
+          {/* Customer / Address info if applicable */}
+          {order.customer_name ? (
+            <Text style={styles.customerName}>
+              Cliente: <Text style={{ color: colors.text, fontWeight: "700" }}>{order.customer_name}</Text>
+            </Text>
+          ) : null}
 
-      {order.address ? (
-        <View style={styles.addressRow}>
-          <Ionicons name="location-outline" size={14} color={colors.primary} />
-          <Text style={styles.addressText} numberOfLines={1}>
-            {order.address} {order.details ? `(${order.details})` : ""}
-          </Text>
-        </View>
-      ) : null}
+          {order.address ? (
+            <View style={styles.addressRow}>
+              <Ionicons name="location-outline" size={14} color={colors.primary} />
+              <Text style={styles.addressText} numberOfLines={2}>
+                {order.address} {order.details ? `(${order.details})` : ""}
+              </Text>
+            </View>
+          ) : null}
 
-      {/* Items list */}
-      <View style={styles.itemsContainer}>
-        {items.map((item, idx) => (
-          <View key={idx} style={styles.itemRow}>
-            <View style={styles.itemMain}>
-              <Text style={styles.itemQty}>{item.quantity}x</Text>
-              <View style={styles.itemDetailCol}>
-                <Text style={styles.itemName}>
-                  {item.name || `Producto #${item.product_id}`}
-                </Text>
+          {/* Items list breakdown */}
+          <View style={styles.itemsContainer}>
+            {items.map((item, idx) => (
+              <View key={idx} style={styles.itemRow}>
+                <View style={styles.itemMain}>
+                  <Text style={styles.itemQty}>{item.quantity}x</Text>
+                  <View style={styles.itemDetailCol}>
+                    <Text style={styles.itemName}>
+                      {item.name || `Producto #${item.product_id}`}
+                    </Text>
 
-                {/* Combo choices */}
-                {Array.isArray(item.choices) && item.choices.length > 0 && (
-                  <View style={styles.choicesList}>
-                    {item.choices.map((choice, cIdx) => (
-                      <Text key={cIdx} style={styles.choiceText}>
-                        • {choice.name || choice.option_name}
-                        {Number(choice.extra_price) > 0
-                          ? ` (+$${Number(choice.extra_price).toFixed(2)})`
-                          : ""}
-                      </Text>
-                    ))}
+                    {/* Combo choices */}
+                    {Array.isArray(item.choices) && item.choices.length > 0 && (
+                      <View style={styles.choicesList}>
+                        {item.choices.map((choice, cIdx) => (
+                          <Text key={cIdx} style={styles.choiceText}>
+                            • {choice.name || choice.option_name}
+                            {Number(choice.extra_price) > 0
+                              ? ` (+$${Number(choice.extra_price).toFixed(2)})`
+                              : ""}
+                          </Text>
+                        ))}
+                      </View>
+                    )}
                   </View>
-                )}
+                </View>
+
+                {item.price ? (
+                  <Text style={styles.itemPrice}>
+                    ${(Number(item.price) * Number(item.quantity)).toFixed(2)}
+                  </Text>
+                ) : null}
               </View>
+            ))}
+          </View>
+
+          {/* Footer: Date, items count & Actions */}
+          <View style={styles.footer}>
+            <View style={styles.metaCol}>
+              <Text style={styles.timeText}>
+                {dateStr ? `Hora: ${dateStr}` : ""}
+                {order.payment_status === "paid" ? " · Pagado" : " · Pago pendiente"}
+              </Text>
+              <Text style={styles.itemsCountText}>
+                {items.length} {items.length === 1 ? "artículo" : "artículos"}
+              </Text>
             </View>
 
-            {item.price ? (
-              <Text style={styles.itemPrice}>
-                ${(Number(item.price) * Number(item.quantity)).toFixed(2)}
-              </Text>
-            ) : null}
+            <View style={styles.actionsRow}>
+              {(order.service_type === "domicilio" || order.type === "domicilio") && onTrack ? (
+                <TouchableOpacity
+                  style={styles.trackButton}
+                  onPress={() => onTrack(order.id)}
+                  activeOpacity={0.85}
+                >
+                  <Ionicons name="location" size={14} color="#ffffff" />
+                  <Text style={styles.trackButtonText}>
+                    {order.delivery_pin ? `PIN: ${order.delivery_pin}` : "Seguimiento"}
+                  </Text>
+                </TouchableOpacity>
+              ) : null}
+
+              {isPending && onCancel ? (
+                <TouchableOpacity
+                  style={styles.cancelButton}
+                  onPress={() => onCancel(order.id)}
+                  activeOpacity={0.75}
+                >
+                  <Text style={styles.cancelButtonText}>Cancelar</Text>
+                </TouchableOpacity>
+              ) : null}
+            </View>
           </View>
-        ))}
-      </View>
-
-      {/* Footer: Total & Actions */}
-      <View style={styles.footer}>
-        <View style={styles.totalCol}>
-          <Text style={styles.timeText}>
-            {dateStr ? `Hora: ${dateStr}` : ""}
-            {order.payment_status === "paid" ? " · Pagado" : " · Pago pendiente"}
-          </Text>
-          <Text style={styles.totalText}>Total: ${total.toFixed(2)}</Text>
         </View>
-
-        <View style={styles.actionsRow}>
-          {(order.service_type === "domicilio" || order.type === "domicilio") && onTrack ? (
-            <TouchableOpacity
-              style={styles.trackButton}
-              onPress={() => onTrack(order.id)}
-              activeOpacity={0.85}
-            >
-              <Ionicons name="location" size={14} color="#ffffff" />
-              <Text style={styles.trackButtonText}>
-                {order.delivery_pin ? `PIN: ${order.delivery_pin}` : "Seguimiento"}
-              </Text>
-            </TouchableOpacity>
-          ) : null}
-
-          {isPending && onCancel ? (
-            <TouchableOpacity
-              style={styles.cancelButton}
-              onPress={() => onCancel(order.id)}
-              activeOpacity={0.75}
-            >
-              <Text style={styles.cancelButtonText}>Cancelar</Text>
-            </TouchableOpacity>
-          ) : null}
-        </View>
-      </View>
-    </View>
+      )}
+    </TouchableOpacity>
   );
 }
 
@@ -207,20 +234,23 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderRadius: 16,
     padding: 16,
-    marginBottom: 14,
+    marginBottom: 12,
     borderWidth: 1,
     borderColor: colors.borderLight,
     shadowColor: "#000000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.04,
-    shadowRadius: 8,
+    shadowRadius: 6,
     elevation: 2
   },
-  header: {
+  summaryHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 10
+    alignItems: "center"
+  },
+  headerLeft: {
+    flex: 1,
+    gap: 6
   },
   folioRow: {
     flexDirection: "row",
@@ -249,9 +279,10 @@ const styles = StyleSheet.create({
   statusBadge: {
     flexDirection: "row",
     alignItems: "center",
+    alignSelf: "flex-start",
     gap: 5,
     paddingHorizontal: 10,
-    paddingVertical: 4,
+    paddingVertical: 3,
     borderRadius: 999,
     borderWidth: 1
   },
@@ -259,6 +290,30 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: "800",
     textTransform: "capitalize"
+  },
+  headerRight: {
+    alignItems: "flex-end",
+    gap: 6
+  },
+  summaryTotal: {
+    fontSize: 18,
+    fontWeight: "900",
+    color: colors.primary,
+    letterSpacing: -0.4
+  },
+  chevronCircle: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: colors.primarySoft,
+    alignItems: "center",
+    justifyContent: "center"
+  },
+  expandedContent: {
+    marginTop: 14,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: colors.borderLight
   },
   customerName: {
     fontSize: 12.5,
@@ -328,7 +383,7 @@ const styles = StyleSheet.create({
     alignItems: "flex-end",
     marginTop: 12
   },
-  totalCol: {
+  metaCol: {
     flex: 1
   },
   timeText: {
@@ -336,12 +391,11 @@ const styles = StyleSheet.create({
     color: colors.muted,
     fontWeight: "600"
   },
-  totalText: {
-    fontSize: 17,
-    fontWeight: "900",
-    color: colors.primary,
-    marginTop: 2,
-    letterSpacing: -0.3
+  itemsCountText: {
+    fontSize: 11,
+    color: colors.muted,
+    fontWeight: "600",
+    marginTop: 1
   },
   actionsRow: {
     flexDirection: "row",
