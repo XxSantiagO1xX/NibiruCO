@@ -627,7 +627,7 @@ export default function DriverTripScreen({ navigation }) {
               </View>
               <View style={styles.offerAddressesList}>
                 {activeOffer.orders?.map((ord, i) => (
-                  <Text key={ord.id || i} style={styles.offerAddressItem} numberOfLines={1}>
+                  <Text key={ord?.id ? `${ord.id}-${i}` : i.toString()} style={styles.offerAddressItem} numberOfLines={1}>
                     📍 F{String(ord.folio || ord.id).padStart(3, "0")} · {ord.address}
                   </Text>
                 ))}
@@ -743,7 +743,7 @@ export default function DriverTripScreen({ navigation }) {
             {/* Stops list */}
             <Text style={styles.sectionHeading}>Paradas en Orden de Ruta</Text>
 
-            {stops.map((stop) => {
+            {stops.map((stop, index) => {
               const isDelivered = stop.status === "delivered";
               const isFailed = stop.status === "failed";
               const isArrived = stop.status === "arrived";
@@ -751,7 +751,7 @@ export default function DriverTripScreen({ navigation }) {
 
               return (
                 <View
-                  key={stop.id}
+                  key={stop?.id ? `${stop.id}-${index}` : index.toString()}
                   style={[
                     styles.stopCard,
                     isDelivered && styles.stopCardDelivered,

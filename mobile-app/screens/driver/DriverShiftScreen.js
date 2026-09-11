@@ -236,11 +236,11 @@ export default function DriverShiftScreen({ navigation }) {
             description="Cuando completes entregas con validación de PIN o autorización, aparecerán en este desglose."
           />
         ) : (
-          orders.map((ord) => {
+          orders.map((ord, index) => {
             const orderTime = ord.delivery_time || ord.delivered_at;
             const orderTotalNum = Number(ord.total ?? ord.order_total ?? 0);
             return (
-              <View key={ord.id} style={styles.orderRowCard}>
+              <View key={ord?.id ? `${ord.id}-${index}` : index.toString()} style={styles.orderRowCard}>
                 <View style={styles.orderLeft}>
                   <View style={styles.folioBadge}>
                     <Text style={styles.folioText}>

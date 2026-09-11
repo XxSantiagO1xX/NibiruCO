@@ -101,7 +101,7 @@ export default function DriverOfferModal({
             {/* Addresses list */}
             <Text style={styles.destinationsHeader}>Destinos de Entrega:</Text>
             {orders.map((ord, idx) => (
-              <View key={ord.id || idx} style={styles.orderItemCard}>
+              <View key={ord?.id ? `${ord.id}-${idx}` : idx.toString()} style={styles.orderItemCard}>
                 <View style={styles.orderSeqCircle}>
                   <Text style={styles.orderSeqText}>{idx + 1}</Text>
                 </View>
