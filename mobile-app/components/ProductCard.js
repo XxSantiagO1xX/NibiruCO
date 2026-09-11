@@ -18,7 +18,7 @@ export default function ProductCard({
       onPress={() => (onPress ? onPress(product) : onAdd(product))}
       activeOpacity={0.88}
     >
-      {/* Product Image */}
+      {/* Top Full-Width Image */}
       <View style={styles.imageContainer}>
         <ProductImage
           imagePath={product.image}
@@ -27,35 +27,37 @@ export default function ProductCard({
         />
         {isCombo && (
           <View style={styles.comboBadge}>
-            <Ionicons name="layers" size={10} color="#ffffff" />
+            <Ionicons name="layers" size={11} color="#ffffff" />
             <Text style={styles.comboBadgeText}>Combo</Text>
           </View>
         )}
       </View>
 
-      {/* Details */}
+      {/* Details Below Image */}
       <View style={styles.content}>
-        <View style={styles.infoCol}>
+        <View style={styles.headerInfo}>
           <Text style={styles.name} numberOfLines={2}>
             {product.name}
           </Text>
 
           {isCombo ? (
-            <Text style={styles.comboDescription} numberOfLines={1}>
+            <Text style={styles.description} numberOfLines={2}>
               {product.groups?.length
-                ? `${product.groups.length} grupos a elegir`
-                : "Personalizable"}
+                ? `Combo configurable con ${product.groups.length} grupos de opciones a elegir.`
+                : "Combo especial personalizable con complementos."}
             </Text>
           ) : (
-            <Text style={styles.comboDescription} numberOfLines={1}>
-              {product.kitchen_required ? "Preparado al momento" : "Entrega directa"}
+            <Text style={styles.description} numberOfLines={2}>
+              {product.kitchen_required
+                ? "Platillo caliente preparado al momento en cocina."
+                : "Listo para servir · Entrega directa."}
             </Text>
           )}
         </View>
 
-        {/* Footer: Price & Add Button */}
+        {/* Footer: Price & Right-Aligned Pill Add Button with Orange Border */}
         <View style={styles.footer}>
-          <View>
+          <View style={styles.priceContainer}>
             <Text style={styles.pricePrefix}>
               {isCombo ? "Desde" : "Precio"}
             </Text>
@@ -64,24 +66,27 @@ export default function ProductCard({
 
           <TouchableOpacity
             style={[
-              styles.addButton,
-              isCombo ? styles.comboAddButton : styles.regularAddButton
+              styles.addPillButton,
+              cartQuantity > 0 && styles.addPillButtonActive
             ]}
             onPress={() => onAdd(product)}
             activeOpacity={0.8}
           >
             {cartQuantity > 0 ? (
-              <View style={styles.inCartRow}>
-                <Ionicons name="checkmark" size={13} color="#ffffff" />
-                <Text style={styles.inCartText}>{cartQuantity}</Text>
+              <View style={styles.pillContent}>
+                <Ionicons name="checkmark" size={14} color="#ffffff" />
+                <Text style={styles.pillTextActive}>En Carrito ({cartQuantity})</Text>
               </View>
             ) : isCombo ? (
-              <View style={styles.btnRow}>
-                <Text style={styles.comboBtnText}>Elegir</Text>
-                <Ionicons name="chevron-forward" size={12} color="#ffffff" />
+              <View style={styles.pillContent}>
+                <Text style={styles.pillText}>Elegir Combo</Text>
+                <Ionicons name="chevron-forward" size={13} color={colors.primary} />
               </View>
             ) : (
-              <Ionicons name="add" size={18} color="#ffffff" />
+              <View style={styles.pillContent}>
+                <Ionicons name="add" size={15} color={colors.primary} />
+                <Text style={styles.pillText}>+ Agregar</Text>
+              </View>
             )}
           </TouchableOpacity>
         </View>
@@ -92,71 +97,85 @@ export default function ProductCard({
 
 const styles = StyleSheet.create({
   card: {
-    flexDirection: "row",
     backgroundColor: colors.surface,
-    borderRadius: 16,
+    borderRadius: 18,
     padding: 14,
-    marginBottom: 12,
+    marginBottom: 16,
     borderWidth: 1,
     borderColor: colors.borderLight,
     shadowColor: "#000000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 6,
-    elevation: 2,
-    gap: 14
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2
   },
   imageContainer: {
-    position: "relative"
+    width: "100%",
+    height: 150,
+    position: "relative",
+    borderRadius: 14,
+    overflow: "hidden",
+    backgroundColor: colors.surfaceMuted,
+    marginBottom: 12
   },
   image: {
-    width: 90,
-    height: 90
+    width: "100%",
+    height: "100%"
   },
   comboBadge: {
     position: "absolute",
-    top: 6,
-    left: 6,
+    top: 10,
+    left: 10,
     flexDirection: "row",
     alignItems: "center",
-    gap: 3,
+    gap: 4,
     backgroundColor: colors.primary,
-    paddingHorizontal: 7,
-    paddingVertical: 3,
-    borderRadius: 8
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    borderRadius: 8,
+    shadowColor: "#000000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3
   },
   comboBadgeText: {
     color: "#ffffff",
-    fontSize: 9,
+    fontSize: 9.5,
     fontWeight: "900",
     textTransform: "uppercase",
-    letterSpacing: 0.4
+    letterSpacing: 0.5
   },
   content: {
-    flex: 1,
-    justifyContent: "space-between"
+    width: "100%"
   },
-  infoCol: {
-    paddingTop: 2
+  headerInfo: {
+    marginBottom: 10
   },
   name: {
-    fontSize: 15.5,
-    fontWeight: "800",
+    fontSize: 17,
+    fontWeight: "900",
     color: colors.text,
-    letterSpacing: -0.3,
-    lineHeight: 20
+    letterSpacing: -0.4,
+    lineHeight: 22
   },
-  comboDescription: {
-    fontSize: 11.5,
+  description: {
+    fontSize: 12.5,
     color: colors.muted,
-    marginTop: 3,
+    marginTop: 4,
+    lineHeight: 17,
     fontWeight: "500"
   },
   footer: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "flex-end",
-    marginTop: 8
+    alignItems: "center",
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: colors.borderLight
+  },
+  priceContainer: {
+    justifyContent: "center"
   },
   pricePrefix: {
     fontSize: 9.5,
@@ -166,50 +185,40 @@ const styles = StyleSheet.create({
     letterSpacing: 0.4
   },
   price: {
-    fontSize: 18,
+    fontSize: 19,
     fontWeight: "900",
     color: colors.primary,
     letterSpacing: -0.5
   },
-  // Pill-shaped button (borderRadius: 25)
-  addButton: {
+  // Pill-shaped button aligned to the right with orange border
+  addPillButton: {
+    flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 9,
     borderRadius: 25,
+    backgroundColor: colors.primarySoft,
+    borderWidth: 1.5,
+    borderColor: colors.primary
+  },
+  addPillButtonActive: {
     backgroundColor: colors.primary,
-    shadowColor: colors.primary,
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.25,
-    shadowRadius: 6,
-    elevation: 3
+    borderColor: colors.primary
   },
-  regularAddButton: {
-    width: 38,
-    height: 38
-  },
-  comboAddButton: {
-    paddingHorizontal: 14,
-    height: 36
-  },
-  btnRow: {
+  pillContent: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 3
+    gap: 4
   },
-  comboBtnText: {
-    color: "#ffffff",
-    fontSize: 12,
+  pillText: {
+    color: colors.primary,
+    fontSize: 13,
     fontWeight: "800"
   },
-  inCartRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 3,
-    paddingHorizontal: 8
-  },
-  inCartText: {
+  pillTextActive: {
     color: "#ffffff",
-    fontSize: 12.5,
+    fontSize: 13,
     fontWeight: "800"
   }
 });

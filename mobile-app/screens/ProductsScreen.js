@@ -246,6 +246,30 @@ export default function ProductsScreen({ navigation }) {
         </View>
       </View>
 
+      {/* Hero Card: Menú Comida Completa */}
+      <View style={styles.heroCard}>
+        <View style={styles.heroBadgeRow}>
+          <View style={styles.heroBadge}>
+            <Text style={styles.heroBadgeText}>⭐ POPULAR · RECOMENDADO</Text>
+          </View>
+          <Text style={styles.heroSubBadge}>Comida corrida del día</Text>
+        </View>
+        <Text style={styles.heroTitle}>Menú Comida Completa</Text>
+        <Text style={styles.heroDescription}>
+          Sopa aguada o arroz + Guisado a elegir + Agua fresca del día + Frijoles y Tortillas recién hechas.
+        </Text>
+        <View style={styles.heroFooter}>
+          <View style={styles.heroTag}>
+            <Ionicons name="flame" size={13} color="#ffffff" />
+            <Text style={styles.heroTagText}>El favorito de la fonda</Text>
+          </View>
+          <View style={styles.heroTag}>
+            <Ionicons name="layers" size={13} color="#ffffff" />
+            <Text style={styles.heroTagText}>Configurable en Combos</Text>
+          </View>
+        </View>
+      </View>
+
       {/* Products List or Loading Skeleton */}
       {loading ? (
         <View style={styles.listContainer}>
@@ -254,7 +278,7 @@ export default function ProductsScreen({ navigation }) {
       ) : (
         <FlatList
           data={filteredProducts}
-          keyExtractor={(item) => item.id.toString()}
+          keyExtractor={(item, index) => (item?.id ? `${item.id}-${index}` : index.toString())}
           contentContainerStyle={styles.listContainer}
           showsVerticalScrollIndicator={false}
           refreshControl={
@@ -424,8 +448,79 @@ const styles = StyleSheet.create({
   filterTextActive: {
     color: "#ffffff"
   },
+  // Hero Card: Menú Comida Completa
+  heroCard: {
+    backgroundColor: colors.primary,
+    marginHorizontal: 16,
+    marginTop: 14,
+    marginBottom: 4,
+    borderRadius: 18,
+    padding: 16,
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 10,
+    elevation: 4
+  },
+  heroBadgeRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 6
+  },
+  heroBadge: {
+    backgroundColor: "rgba(255, 255, 255, 0.25)",
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 999
+  },
+  heroBadgeText: {
+    color: "#ffffff",
+    fontSize: 9.5,
+    fontWeight: "900",
+    letterSpacing: 0.5
+  },
+  heroSubBadge: {
+    color: "rgba(255, 255, 255, 0.9)",
+    fontSize: 11,
+    fontWeight: "600"
+  },
+  heroTitle: {
+    fontSize: 20,
+    fontWeight: "900",
+    color: "#ffffff",
+    letterSpacing: -0.4,
+    marginBottom: 4
+  },
+  heroDescription: {
+    fontSize: 12.5,
+    color: "rgba(255, 255, 255, 0.95)",
+    lineHeight: 17,
+    marginBottom: 10
+  },
+  heroFooter: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    flexWrap: "wrap"
+  },
+  heroTag: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: "rgba(0, 0, 0, 0.15)",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8
+  },
+  heroTagText: {
+    color: "#ffffff",
+    fontSize: 11,
+    fontWeight: "700"
+  },
   listContainer: {
     padding: 16,
+    paddingTop: 10,
     paddingBottom: 100
   }
 });
