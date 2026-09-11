@@ -807,10 +807,6 @@ export default function DriverTripScreen({ navigation }) {
 
                     {/* Right side status badges & alert */}
                     <View style={styles.stopTopRightArea}>
-                      <View style={styles.seqBadgeSmall}>
-                        <Text style={styles.seqTextSmall}>#{stop.sequence}</Text>
-                      </View>
-
                       {isDelivered ? (
                         <View style={styles.deliveredBadge}>
                           <Ionicons name="checkmark-done" size={13} color={colors.success} />
@@ -1344,19 +1340,6 @@ const styles = StyleSheet.create({
     gap: 6,
     paddingRight: 10,
     paddingTop: 6
-  },
-  seqBadgeSmall: {
-    backgroundColor: colors.surfaceMuted,
-    paddingHorizontal: 6,
-    paddingVertical: 3,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: colors.borderLight
-  },
-  seqTextSmall: {
-    fontSize: 11,
-    fontWeight: "800",
-    color: colors.muted
   },
   stopCardBody: {
     paddingHorizontal: 14,
