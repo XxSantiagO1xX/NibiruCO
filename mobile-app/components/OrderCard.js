@@ -80,11 +80,7 @@ export default function OrderCard({ order, onCancel, onTrack }) {
   const total = Number(order.total || 0);
 
   // Dynamic folio and button color
-  const folioBg = isDelivered
-    ? "#28A745"
-    : isCanceled
-    ? "#6B7280"
-    : colors.primary;
+  const folioBg = isFinished ? "#343A40" : colors.primary;
 
   // Format date
   const dateStr = order.created_at
@@ -110,8 +106,7 @@ export default function OrderCard({ order, onCancel, onTrack }) {
           <Text
             style={[
               styles.summaryTotal,
-              isDelivered && { color: "#28A745" },
-              isCanceled && { color: colors.muted }
+              isFinished && { color: "#343A40" }
             ]}
           >
             ${total.toFixed(2)}
@@ -192,8 +187,7 @@ export default function OrderCard({ order, onCancel, onTrack }) {
                     <Text
                       style={[
                         styles.itemQty,
-                        isDelivered && { color: "#28A745" },
-                        isCanceled && { color: colors.muted }
+                        isFinished && { color: "#343A40" }
                       ]}
                     >
                       {item.quantity}x
@@ -249,13 +243,10 @@ export default function OrderCard({ order, onCancel, onTrack }) {
                   <TouchableOpacity
                     style={[
                       styles.trackButton,
-                      isDelivered && {
-                        backgroundColor: "#28A745",
-                        shadowColor: "#28A745"
-                      },
-                      isCanceled && {
-                        backgroundColor: "#6B7280",
-                        shadowColor: "#6B7280"
+                      isFinished && {
+                        backgroundColor: "#343A40",
+                        borderColor: "#343A40",
+                        shadowColor: "#343A40"
                       }
                     ]}
                     onPress={() => onTrack(order.id)}
