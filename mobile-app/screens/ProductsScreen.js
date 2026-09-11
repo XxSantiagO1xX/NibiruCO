@@ -4,6 +4,7 @@ import {
   View,
   Text,
   FlatList,
+  ScrollView,
   TextInput,
   TouchableOpacity,
   StyleSheet,
@@ -21,6 +22,15 @@ import ComboConfigModal from "../components/ComboConfigModal";
 import SkeletonList from "../components/SkeletonLoader";
 import EmptyState from "../components/EmptyState";
 
+// 5 Categorías Exactas Solicitadas
+const CATEGORIES = [
+  { id: "all", label: "Todos", icon: "grid-outline" },
+  { id: "platillos", label: "Platillos", icon: "restaurant-outline" },
+  { id: "combos", label: "Combos", icon: "layers-outline" },
+  { id: "bebidas", label: "Bebidas", icon: "wine-outline" },
+  { id: "postres", label: "Postres", icon: "ice-cream-outline" }
+];
+
 export default function ProductsScreen({ navigation }) {
   const { cart, addToCart, cartCount } = useContext(AppContext);
 
@@ -28,7 +38,7 @@ export default function ProductsScreen({ navigation }) {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedFilter, setSelectedFilter] = useState("all"); // 'all' | 'combos' | 'regular'
+  const [selectedFilter, setSelectedFilter] = useState("all"); // 'all' | 'platillos' | 'combos' | 'bebidas' | 'postres'
   const [feedbackToast, setFeedbackToast] = useState("");
 
   // Combo modal state
@@ -84,14 +94,50 @@ export default function ProductsScreen({ navigation }) {
     showFeedback(`Combo "${combo.name}" agregado (x${quantity})`);
   };
 
-  // Filtered products list
+  // Filtered products list based on category selection
   const filteredProducts = useMemo(() => {
     let result = products;
 
     if (selectedFilter === "combos") {
-      result = result.filter((p) => p.product_kind === "combo");
-    } else if (selectedFilter === "regular") {
-      result = result.filter((p) => p.product_kind !== "combo");
+      result = result.filter(
+        (p) =>
+          p.product_kind === "combo" ||
+          p.category === "Combos" ||
+          p.category?.toLowerCase() === "combos"
+      );
+    } else if (selectedFilter === "platillos") {
+      result = result.filter(
+        (p) =>
+          p.category === "Platillos" ||
+          p.category?.toLowerCase() === "platillos" ||
+          p.category === "Comida" ||
+          p.category?.toLowerCase() === "comida" ||
+          p.category === "Guisados" ||
+          p.category?.toLowerCase() === "guisados" ||
+          (!p.category && p.product_kind !== "combo")
+      );
+    } else if (selectedFilter === "bebidas") {
+      result = result.filter(
+        (p) =>
+          p.category === "Bebidas" ||
+          p.category?.toLowerCase() === "bebidas" ||
+          p.category === "Bebida" ||
+          p.category?.toLowerCase() === "bebida"
+      );
+    } else if (selectedFilter === "postres") {
+      result = result.filter(
+        (p) =>
+          p.category === "Postres" ||
+          p.category?.toLowerCase() === "postres" ||
+          p.category === "Postre" ||
+          p.category?.toLowerCase() === "postre"
+      );
+    } else if (selectedFilter !== "all" && selectedFilter !== "Todos") {
+      result = result.filter(
+        (p) =>
+          p.category === selectedFilter ||
+          p.category?.toLowerCase() === selectedFilter.toLowerCase()
+      );
     }
 
     if (searchQuery.trim()) {
@@ -159,7 +205,7 @@ export default function ProductsScreen({ navigation }) {
         </View>
       ) : null}
 
-      {/* Search Bar & Category Tabs */}
+      {/* Search Bar & Horizontal Category ScrollView */}
       <View style={styles.searchSection}>
         <View style={styles.searchBar}>
           <Ionicons name="search" size={18} color={colors.muted} />
@@ -178,72 +224,42 @@ export default function ProductsScreen({ navigation }) {
           ) : null}
         </View>
 
-        {/* Filter Pills (pill-shaped, borderRadius: 25) */}
-        <View style={styles.filterRow}>
-          <TouchableOpacity
-            style={[
-              styles.filterPill,
-              selectedFilter === "all" && styles.filterPillActive
-            ]}
-            onPress={() => setSelectedFilter("all")}
-            activeOpacity={0.75}
-          >
-            <Text
-              style={[
-                styles.filterText,
-                selectedFilter === "all" && styles.filterTextActive
-              ]}
-            >
-              Todos ({products.length})
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[
-              styles.filterPill,
-              selectedFilter === "combos" && styles.filterPillActive
-            ]}
-            onPress={() => setSelectedFilter("combos")}
-            activeOpacity={0.75}
-          >
-            <Ionicons
-              name="layers-outline"
-              size={14}
-              color={selectedFilter === "combos" ? "#ffffff" : colors.muted}
-            />
-            <Text
-              style={[
-                styles.filterText,
-                selectedFilter === "combos" && styles.filterTextActive
-              ]}
-            >
-              Combos
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[
-              styles.filterPill,
-              selectedFilter === "regular" && styles.filterPillActive
-            ]}
-            onPress={() => setSelectedFilter("regular")}
-            activeOpacity={0.75}
-          >
-            <Ionicons
-              name="restaurant-outline"
-              size={14}
-              color={selectedFilter === "regular" ? "#ffffff" : colors.muted}
-            />
-            <Text
-              style={[
-                styles.filterText,
-                selectedFilter === "regular" && styles.filterTextActive
-              ]}
-            >
-              Platillos & Extras
-            </Text>
-          </TouchableOpacity>
-        </View>
+        {/* Horizontal Category Pill Bar: 'Todos', 'Platillos', 'Combos', 'Bebidas', 'Postres' */}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.filterScroll}
+        >
+          {CATEGORIES.map((cat) => {
+            const isSelected = selectedFilter === cat.id;
+            return (
+              <TouchableOpacity
+                key={cat.id}
+                style={[
+                  styles.filterPill,
+                  isSelected && styles.filterPillActive
+                ]}
+                onPress={() => setSelectedFilter(cat.id)}
+                activeOpacity={0.75}
+              >
+                <Ionicons
+                  name={cat.icon}
+                  size={14}
+                  color={isSelected ? "#ffffff" : colors.muted}
+                />
+                <Text
+                  style={[
+                    styles.filterText,
+                    isSelected && styles.filterTextActive
+                  ]}
+                >
+                  {cat.label}
+                  {cat.id === "all" ? ` (${products.length})` : ""}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
       </View>
 
       {/* Hero Card: Menú Comida Completa */}
@@ -295,12 +311,12 @@ export default function ProductsScreen({ navigation }) {
               title={
                 searchQuery
                   ? "Sin resultados"
-                  : "No hay productos para hoy"
+                  : "No hay productos en esta categoría"
               }
               description={
                 searchQuery
                   ? `No encontramos productos que coincidan con "${searchQuery}".`
-                  : "El menú del día se está actualizando o no hay platillos activos para hoy."
+                  : "No hay platillos o artículos activos para la categoría seleccionada en el menú de hoy."
               }
               actionLabel="Recargar Menú"
               onAction={loadProducts}
@@ -415,16 +431,17 @@ const styles = StyleSheet.create({
     fontSize: 13.5,
     color: colors.text
   },
-  filterRow: {
+  filterScroll: {
     flexDirection: "row",
     gap: 8,
-    marginTop: 10
+    marginTop: 10,
+    paddingRight: 16
   },
   filterPill: {
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
-    paddingHorizontal: 14,
+    paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 25,
     backgroundColor: colors.surfaceMuted,
@@ -441,14 +458,13 @@ const styles = StyleSheet.create({
     elevation: 2
   },
   filterText: {
-    fontSize: 11.5,
+    fontSize: 12,
     fontWeight: "700",
     color: colors.muted
   },
   filterTextActive: {
     color: "#ffffff"
   },
-  // Hero Card: Menú Comida Completa
   heroCard: {
     backgroundColor: colors.primary,
     marginHorizontal: 16,
