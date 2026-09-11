@@ -72,8 +72,19 @@ export default function OrderCard({ order, onCancel, onTrack }) {
     : `Pedido #${order.id}`;
 
   const isPending = statusKey === "pendiente";
+  const isDelivered = statusKey === "entregado";
+  const isCanceled = statusKey === "cancelado";
+  const isFinished = isDelivered || isCanceled;
+
   const items = Array.isArray(order.items) ? order.items : [];
   const total = Number(order.total || 0);
+
+  // Dynamic folio and button color
+  const folioBg = isDelivered
+    ? "#28A745"
+    : isCanceled
+    ? "#6B7280"
+    : colors.primary;
 
   // Format date
   const dateStr = order.created_at
@@ -85,18 +96,46 @@ export default function OrderCard({ order, onCancel, onTrack }) {
 
   return (
     <TouchableOpacity
-      style={styles.card}
+      style={[styles.card, isFinished && styles.cardFinished]}
       onPress={() => setIsExpanded((prev) => !prev)}
       activeOpacity={0.88}
     >
-      {/* Vista Colapsada Resumida (Siempre Visible) */}
-      <View style={styles.summaryHeader}>
-        <View style={styles.headerLeft}>
-          <View style={styles.folioRow}>
-            <Text style={styles.folio}>{folioText}</Text>
-            <View style={styles.serviceBadge}>
-              <Text style={styles.serviceBadgeText}>{serviceLabel}</Text>
-            </View>
+      {/* Barra superior con Folio al ras en la esquina */}
+      <View style={styles.topBar}>
+        <View style={[styles.folioBadge, { backgroundColor: folioBg }]}>
+          <Text style={styles.folioBadgeText}>{folioText}</Text>
+        </View>
+
+        <View style={styles.topBarRight}>
+          <Text
+            style={[
+              styles.summaryTotal,
+              isDelivered && { color: "#28A745" },
+              isCanceled && { color: colors.muted }
+            ]}
+          >
+            ${total.toFixed(2)}
+          </Text>
+          <View
+            style={[
+              styles.chevronCircle,
+              isFinished && { backgroundColor: colors.surfaceMuted }
+            ]}
+          >
+            <Ionicons
+              name={isExpanded ? "chevron-up" : "chevron-down"}
+              size={16}
+              color={isFinished ? colors.muted : colors.primary}
+            />
+          </View>
+        </View>
+      </View>
+
+      {/* Cuerpo de la tarjeta con badges y resumen */}
+      <View style={styles.cardBody}>
+        <View style={styles.badgesRow}>
+          <View style={styles.serviceBadge}>
+            <Text style={styles.serviceBadgeText}>{serviceLabel}</Text>
           </View>
 
           <View
@@ -110,7 +149,7 @@ export default function OrderCard({ order, onCancel, onTrack }) {
           >
             <Ionicons
               name={statusMeta.icon}
-              size={12}
+              size={11}
               color={statusMeta.text}
             />
             <Text style={[styles.statusText, { color: statusMeta.text }]}>
@@ -119,112 +158,132 @@ export default function OrderCard({ order, onCancel, onTrack }) {
           </View>
         </View>
 
-        <View style={styles.headerRight}>
-          <Text style={styles.summaryTotal}>${total.toFixed(2)}</Text>
-          <View style={styles.chevronCircle}>
-            <Ionicons
-              name={isExpanded ? "chevron-up" : "chevron-down"}
-              size={18}
-              color={colors.primary}
-            />
-          </View>
-        </View>
-      </View>
-
-      {/* Vista Expandida (Desplegable) */}
-      {isExpanded && (
-        <View style={styles.expandedContent}>
-          {/* Customer / Address info if applicable */}
-          {order.customer_name ? (
-            <Text style={styles.customerName}>
-              Cliente: <Text style={{ color: colors.text, fontWeight: "700" }}>{order.customer_name}</Text>
-            </Text>
-          ) : null}
-
-          {order.address ? (
-            <View style={styles.addressRow}>
-              <Ionicons name="location-outline" size={14} color={colors.primary} />
-              <Text style={styles.addressText} numberOfLines={2}>
-                {order.address} {order.details ? `(${order.details})` : ""}
+        {/* Vista Expandida (Desplegable) */}
+        {isExpanded && (
+          <View style={styles.expandedContent}>
+            {/* Customer / Address info if applicable */}
+            {order.customer_name ? (
+              <Text style={styles.customerName}>
+                Cliente:{" "}
+                <Text style={{ color: colors.text, fontWeight: "700" }}>
+                  {order.customer_name}
+                </Text>
               </Text>
-            </View>
-          ) : null}
+            ) : null}
 
-          {/* Items list breakdown */}
-          <View style={styles.itemsContainer}>
-            {items.map((item, idx) => (
-              <View key={idx} style={styles.itemRow}>
-                <View style={styles.itemMain}>
-                  <Text style={styles.itemQty}>{item.quantity}x</Text>
-                  <View style={styles.itemDetailCol}>
-                    <Text style={styles.itemName}>
-                      {item.name || `Producto #${item.product_id}`}
+            {order.address ? (
+              <View style={styles.addressRow}>
+                <Ionicons
+                  name="location-outline"
+                  size={14}
+                  color={isFinished ? colors.muted : colors.primary}
+                />
+                <Text style={styles.addressText} numberOfLines={2}>
+                  {order.address} {order.details ? `(${order.details})` : ""}
+                </Text>
+              </View>
+            ) : null}
+
+            {/* Items list breakdown */}
+            <View style={styles.itemsContainer}>
+              {items.map((item, idx) => (
+                <View key={idx} style={styles.itemRow}>
+                  <View style={styles.itemMain}>
+                    <Text
+                      style={[
+                        styles.itemQty,
+                        isDelivered && { color: "#28A745" },
+                        isCanceled && { color: colors.muted }
+                      ]}
+                    >
+                      {item.quantity}x
                     </Text>
+                    <View style={styles.itemDetailCol}>
+                      <Text style={styles.itemName}>
+                        {item.name || `Producto #${item.product_id}`}
+                      </Text>
 
-                    {/* Combo choices */}
-                    {Array.isArray(item.choices) && item.choices.length > 0 && (
-                      <View style={styles.choicesList}>
-                        {item.choices.map((choice, cIdx) => (
-                          <Text key={cIdx} style={styles.choiceText}>
-                            • {choice.name || choice.option_name}
-                            {Number(choice.extra_price) > 0
-                              ? ` (+$${Number(choice.extra_price).toFixed(2)})`
-                              : ""}
-                          </Text>
-                        ))}
-                      </View>
-                    )}
+                      {/* Combo choices */}
+                      {Array.isArray(item.choices) && item.choices.length > 0 && (
+                        <View style={styles.choicesList}>
+                          {item.choices.map((choice, cIdx) => (
+                            <Text key={cIdx} style={styles.choiceText}>
+                              • {choice.name || choice.option_name}
+                              {Number(choice.extra_price) > 0
+                                ? ` (+$${Number(choice.extra_price).toFixed(2)})`
+                                : ""}
+                            </Text>
+                          ))}
+                        </View>
+                      )}
+                    </View>
                   </View>
-                </View>
 
-                {item.price ? (
-                  <Text style={styles.itemPrice}>
-                    ${(Number(item.price) * Number(item.quantity)).toFixed(2)}
-                  </Text>
+                  {item.price ? (
+                    <Text style={styles.itemPrice}>
+                      ${(Number(item.price) * Number(item.quantity)).toFixed(2)}
+                    </Text>
+                  ) : null}
+                </View>
+              ))}
+            </View>
+
+            {/* Footer: Date, items count & Actions */}
+            <View style={styles.footer}>
+              <View style={styles.metaCol}>
+                <Text style={styles.timeText}>
+                  {dateStr ? `Hora: ${dateStr}` : ""}
+                  {order.payment_status === "paid"
+                    ? " · Pagado"
+                    : " · Pago pendiente"}
+                </Text>
+                <Text style={styles.itemsCountText}>
+                  {items.length} {items.length === 1 ? "artículo" : "artículos"}
+                </Text>
+              </View>
+
+              <View style={styles.actionsRow}>
+                {(order.service_type === "domicilio" ||
+                  order.type === "domicilio") &&
+                onTrack ? (
+                  <TouchableOpacity
+                    style={[
+                      styles.trackButton,
+                      isDelivered && {
+                        backgroundColor: "#28A745",
+                        shadowColor: "#28A745"
+                      },
+                      isCanceled && {
+                        backgroundColor: "#6B7280",
+                        shadowColor: "#6B7280"
+                      }
+                    ]}
+                    onPress={() => onTrack(order.id)}
+                    activeOpacity={0.85}
+                  >
+                    <Ionicons name="location" size={14} color="#ffffff" />
+                    <Text style={styles.trackButtonText}>
+                      {order.delivery_pin
+                        ? `PIN: ${order.delivery_pin}`
+                        : "Seguimiento"}
+                    </Text>
+                  </TouchableOpacity>
+                ) : null}
+
+                {isPending && onCancel ? (
+                  <TouchableOpacity
+                    style={styles.cancelButton}
+                    onPress={() => onCancel(order.id)}
+                    activeOpacity={0.75}
+                  >
+                    <Text style={styles.cancelButtonText}>Cancelar</Text>
+                  </TouchableOpacity>
                 ) : null}
               </View>
-            ))}
-          </View>
-
-          {/* Footer: Date, items count & Actions */}
-          <View style={styles.footer}>
-            <View style={styles.metaCol}>
-              <Text style={styles.timeText}>
-                {dateStr ? `Hora: ${dateStr}` : ""}
-                {order.payment_status === "paid" ? " · Pagado" : " · Pago pendiente"}
-              </Text>
-              <Text style={styles.itemsCountText}>
-                {items.length} {items.length === 1 ? "artículo" : "artículos"}
-              </Text>
-            </View>
-
-            <View style={styles.actionsRow}>
-              {(order.service_type === "domicilio" || order.type === "domicilio") && onTrack ? (
-                <TouchableOpacity
-                  style={styles.trackButton}
-                  onPress={() => onTrack(order.id)}
-                  activeOpacity={0.85}
-                >
-                  <Ionicons name="location" size={14} color="#ffffff" />
-                  <Text style={styles.trackButtonText}>
-                    {order.delivery_pin ? `PIN: ${order.delivery_pin}` : "Seguimiento"}
-                  </Text>
-                </TouchableOpacity>
-              ) : null}
-
-              {isPending && onCancel ? (
-                <TouchableOpacity
-                  style={styles.cancelButton}
-                  onPress={() => onCancel(order.id)}
-                  activeOpacity={0.75}
-                >
-                  <Text style={styles.cancelButtonText}>Cancelar</Text>
-                </TouchableOpacity>
-              ) : null}
             </View>
           </View>
-        </View>
-      )}
+        )}
+      </View>
     </TouchableOpacity>
   );
 }
@@ -233,35 +292,68 @@ const styles = StyleSheet.create({
   card: {
     backgroundColor: colors.surface,
     borderRadius: 16,
-    padding: 16,
     marginBottom: 12,
     borderWidth: 1,
     borderColor: colors.borderLight,
+    overflow: "hidden",
     shadowColor: "#000000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.04,
     shadowRadius: 6,
     elevation: 2
   },
-  summaryHeader: {
+  cardFinished: {
+    opacity: 0.7
+  },
+  topBar: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "center"
+    alignItems: "center",
+    paddingRight: 14
   },
-  headerLeft: {
-    flex: 1,
-    gap: 6
+  folioBadge: {
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderTopLeftRadius: 16,
+    borderBottomRightRadius: 12,
+    alignItems: "center",
+    justifyContent: "center"
   },
-  folioRow: {
+  folioBadgeText: {
+    color: "#ffffff",
+    fontSize: 13,
+    fontWeight: "900",
+    letterSpacing: 0.5
+  },
+  topBarRight: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingTop: 4
+  },
+  summaryTotal: {
+    fontSize: 17,
+    fontWeight: "900",
+    color: colors.primary,
+    letterSpacing: -0.4
+  },
+  chevronCircle: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: colors.primarySoft,
+    alignItems: "center",
+    justifyContent: "center"
+  },
+  cardBody: {
+    paddingHorizontal: 14,
+    paddingTop: 8,
+    paddingBottom: 14
+  },
+  badgesRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 8
-  },
-  folio: {
-    fontSize: 18,
-    fontWeight: "900",
-    color: colors.text,
-    letterSpacing: -0.5
   },
   serviceBadge: {
     backgroundColor: colors.surfaceMuted,
@@ -279,9 +371,8 @@ const styles = StyleSheet.create({
   statusBadge: {
     flexDirection: "row",
     alignItems: "center",
-    alignSelf: "flex-start",
     gap: 5,
-    paddingHorizontal: 10,
+    paddingHorizontal: 9,
     paddingVertical: 3,
     borderRadius: 999,
     borderWidth: 1
@@ -291,26 +382,8 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     textTransform: "capitalize"
   },
-  headerRight: {
-    alignItems: "flex-end",
-    gap: 6
-  },
-  summaryTotal: {
-    fontSize: 18,
-    fontWeight: "900",
-    color: colors.primary,
-    letterSpacing: -0.4
-  },
-  chevronCircle: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: colors.primarySoft,
-    alignItems: "center",
-    justifyContent: "center"
-  },
   expandedContent: {
-    marginTop: 14,
+    marginTop: 12,
     paddingTop: 12,
     borderTopWidth: 1,
     borderTopColor: colors.borderLight
