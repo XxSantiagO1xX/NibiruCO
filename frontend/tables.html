@@ -35,7 +35,6 @@
       <header class="page-header">
         <div>
           <h1>Mesas</h1>
-          <p>Crea, organiza por zona y activa o desactiva mesas sin tocar el código.</p>
         </div>
       </header>
 
@@ -46,7 +45,11 @@
         </div>
         <div class="field">
           <label for="table-zone">Zona</label>
-          <input id="table-zone" placeholder="Salón, Terraza, Barra...">
+          <select id="table-zone">
+            <option value="Salón" selected>Salón</option>
+            <option value="Terraza">Terraza</option>
+            <option value="Barra">Barra</option>
+          </select>
         </div>
         <div class="field">
           <label for="table-capacity">Capacidad</label>
@@ -62,7 +65,9 @@
       <div class="spacer-24"></div>
       <div class="table-admin-head">
         <h2 class="section-title">Mesas configuradas</h2>
-        <button class="btn btn-secondary btn-sm" onclick="loadTables()">Actualizar</button>
+        <button class="btn btn-secondary btn-sm" onclick="loadTables()" title="Actualizar mesas" aria-label="Actualizar mesas" style="min-width:34px;padding:0 8px;">
+          <svg class="ui-icon" width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#refresh"></use></svg>
+        </button>
       </div>
       <section id="table-admin-list" class="table-admin-list"></section>
     </main>
@@ -94,25 +99,48 @@
         return;
       }
 
-      container.innerHTML = tables.map((table) => `
+      container.innerHTML = tables.map((table) => {
+        const isAccountRequested = table.session_status === 'account_requested';
+        const isOpen = table.session_status === 'open';
+        const isActive = Boolean(table.active);
+
+        let badgeClass = 'badge-neutral bg-gray-100 text-gray-700';
+        let statusLabel = 'Inactiva';
+
+        if (!isActive) {
+          badgeClass = 'badge-neutral bg-gray-100 text-gray-700';
+          statusLabel = 'Inactiva';
+        } else if (isAccountRequested) {
+          badgeClass = 'badge-warning bg-yellow-100 text-yellow-800';
+          statusLabel = 'Cuenta solicitada';
+        } else if (isOpen) {
+          badgeClass = 'badge-danger bg-red-100 text-red-800';
+          statusLabel = 'Ocupada';
+        } else {
+          badgeClass = 'badge-success bg-green-100 text-green-800';
+          statusLabel = 'Libre';
+        }
+
+        return `
         <article class="card table-admin-row ${table.active ? '' : 'is-inactive'}">
           <div class="table-admin-title">
             <strong>${escapeHtml(table.name)}</strong>
             <small>${escapeHtml(table.zone || 'Sin zona')} · ${table.capacity ? `${table.capacity} personas` : 'Capacidad no definida'}</small>
           </div>
           <div class="table-admin-state">
-            <span class="badge ${table.session_status === 'account_requested' ? 'badge-warning' : table.session_status === 'open' ? 'badge-success' : 'badge-neutral'}">
-              ${table.session_status === 'account_requested' ? 'Cuenta solicitada' : table.session_status === 'open' ? 'Ocupada' : table.active ? 'Libre' : 'Inactiva'}
+            <span class="badge ${badgeClass}">
+              ${statusLabel}
             </span>
           </div>
           <div class="table-admin-actions">
             <button class="btn btn-secondary btn-sm" onclick="editTable(${Number(table.id)})">Editar</button>
-            <button class="btn ${table.active ? 'btn-danger-soft' : 'btn-soft'} btn-sm" onclick="toggleTable(${Number(table.id)})">
+            <button class="btn ${table.active ? 'btn-danger-soft' : 'btn-secondary'} btn-sm" onclick="toggleTable(${Number(table.id)})">
               ${table.active ? 'Desactivar' : 'Activar'}
             </button>
           </div>
         </article>
-      `).join('');
+      `;
+      }).join('');
     }
 
     async function createTable() {
@@ -129,7 +157,7 @@
           body: JSON.stringify({ name, zone, capacity, sort_order })
         });
         document.getElementById('table-name').value = '';
-        document.getElementById('table-zone').value = '';
+        document.getElementById('table-zone').value = 'Salón';
         document.getElementById('table-capacity').value = '';
         document.getElementById('table-order').value = '0';
         await loadTables();
@@ -145,9 +173,9 @@
 
       const name = prompt('Nombre de la mesa', table.name);
       if (name === null) return;
-      const zone = prompt('Zona', table.zone || '');
+      const zone = prompt('Zona (Salón, Terraza, Barra)', table.zone || 'Salón');
       if (zone === null) return;
-      const capacityValue = prompt('Capacidad (vacío = sin definir)', table.capacity || '');
+      const capacityValue = prompt('Capacidad (personas)', table.capacity || '4');
       if (capacityValue === null) return;
       const sortOrder = prompt('Orden', table.sort_order || 0);
       if (sortOrder === null) return;
@@ -157,7 +185,7 @@
           method: 'PATCH',
           body: JSON.stringify({
             name: name.trim(),
-            zone: zone.trim(),
+            zone: zone.trim() || 'Salón',
             capacity: capacityValue,
             sort_order: sortOrder
           })
