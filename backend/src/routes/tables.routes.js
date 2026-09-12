@@ -223,6 +223,70 @@ router.patch("/:id", auth, adminOnly, async (req, res) => {
   }
 });
 
+router.delete("/:id", auth, adminOnly, async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id)) return res.status(400).json({ message: "ID de mesa inválido" });
+
+    await client.query("BEGIN");
+
+    const tableRes = await client.query("SELECT * FROM restaurant_tables WHERE id = $1 FOR UPDATE", [id]);
+    if (!tableRes.rows.length) {
+      await client.query("ROLLBACK");
+      return res.status(404).json({ message: "Mesa no encontrada" });
+    }
+
+    // 1. Validar que no tenga sesiones abiertas o cuenta solicitada
+    const activeSessionRes = await client.query(`
+      SELECT 1 FROM table_sessions
+      WHERE table_id = $1 AND status IN ('open', 'account_requested')
+    `, [id]);
+    if (activeSessionRes.rows.length) {
+      await client.query("ROLLBACK");
+      return res.status(400).json({ message: "No puedes eliminar una mesa que está ocupada o con cuenta pendiente." });
+    }
+
+    // 2. Validar que no tenga órdenes activas vinculadas
+    const activeOrdersRes = await client.query(`
+      SELECT 1 FROM orders o
+      JOIN table_sessions s ON s.id = o.table_session_id
+      WHERE s.table_id = $1 AND o.status NOT IN ('cancelado', 'entregado')
+    `, [id]);
+    if (activeOrdersRes.rows.length) {
+      await client.query("ROLLBACK");
+      return res.status(400).json({ message: "No puedes eliminar una mesa con órdenes activas vinculadas." });
+    }
+
+    // Limpiar asignaciones de mesero si existen
+    await client.query("DELETE FROM waiter_table_assignments WHERE table_id = $1", [id]);
+
+    // Limpiar referencias históricas de sesiones cerradas
+    const sessionsRes = await client.query("SELECT id FROM table_sessions WHERE table_id = $1", [id]);
+    const sessionIds = sessionsRes.rows.map((r) => r.id);
+    if (sessionIds.length) {
+      await client.query("UPDATE orders SET table_session_id = NULL WHERE table_session_id = ANY($1::bigint[])", [sessionIds]);
+      await client.query("DELETE FROM table_payments WHERE table_session_id = ANY($1::bigint[])", [sessionIds]);
+      await client.query("DELETE FROM table_sessions WHERE id = ANY($1::bigint[])", [sessionIds]);
+    }
+
+    await client.query("DELETE FROM restaurant_tables WHERE id = $1", [id]);
+
+    await client.query("COMMIT");
+
+    const io = req.app.get("io");
+    if (io) io.emit("tables-updated");
+
+    res.json({ ok: true, message: "Mesa eliminada correctamente" });
+  } catch (err) {
+    try { await client.query("ROLLBACK"); } catch (_) {}
+    console.error("DELETE TABLE ERROR:", err);
+    res.status(500).json({ message: "Error eliminando mesa" });
+  } finally {
+    client.release();
+  }
+});
+
 router.post("/:id/open", auth, waiterRoles, async (req, res) => {
   const client = await pool.connect();
   try {

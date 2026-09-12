@@ -137,6 +137,7 @@
             <button class="btn ${table.active ? 'btn-danger-soft' : 'btn-secondary'} btn-sm" onclick="toggleTable(${Number(table.id)})">
               ${table.active ? 'Desactivar' : 'Activar'}
             </button>
+            <button class="btn btn-danger-soft btn-sm text-red-600 bg-red-50 hover:bg-red-100 font-medium px-3 py-1 rounded" onclick="deleteTable(${Number(table.id)}, '${escapeHtml(table.name)}', '${isAccountRequested ? 'CUENTA SOLICITADA' : isOpen ? 'OCUPADA' : isActive ? 'LIBRE' : 'INACTIVA'}')">Eliminar</button>
           </div>
         </article>
       `;
@@ -207,6 +208,33 @@
         });
         await loadTables();
         showToast(table.active ? 'Mesa desactivada.' : 'Mesa activada.', 'success');
+      } catch (error) {
+        showToast(error.message, 'error');
+      }
+    }
+
+    async function deleteTable(id, tableName, status) {
+      const normalizedStatus = String(status || '').toUpperCase().trim();
+      const isBusy = normalizedStatus === 'OPEN' || 
+                     normalizedStatus === 'OCUPADA' || 
+                     normalizedStatus === 'ACCOUNT_REQUESTED' || 
+                     normalizedStatus === 'CUENTA SOLICITADA' || 
+                     normalizedStatus === 'CUENTA PENDIENTE';
+
+      if (isBusy || (normalizedStatus !== 'LIBRE' && normalizedStatus !== 'INACTIVA')) {
+        alert('No puedes eliminar una mesa que está ocupada o con cuenta pendiente.');
+        return;
+      }
+
+      const confirmed = confirm('¿Estás seguro de que deseas eliminar permanentemente la ' + tableName + '?');
+      if (!confirmed) return;
+
+      try {
+        await apiFetch(`/tables/${id}`, {
+          method: 'DELETE'
+        });
+        await loadTables();
+        showToast('Mesa eliminada correctamente.', 'success');
       } catch (error) {
         showToast(error.message, 'error');
       }
