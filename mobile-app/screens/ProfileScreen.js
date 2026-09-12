@@ -115,31 +115,64 @@ export default function ProfileScreen({ navigation }) {
             <>
               <TouchableOpacity
                 style={styles.menuRow}
-                onPress={() => navigation.navigate("Ruta")}
+                onPress={() => {
+                  Alert.alert(
+                    "Preferencias de GPS",
+                    "Puedes alternar entre Google Maps y Waze desde la cabecera de Mi Ruta o en tus próximas entregas."
+                  );
+                }}
                 activeOpacity={0.7}
               >
                 <View style={[styles.menuIconCircle, { backgroundColor: colors.primarySoft }]}>
-                  <Ionicons name="bicycle-outline" size={18} color={colors.primary} />
+                  <Ionicons name="navigate-outline" size={18} color={colors.primary} />
                 </View>
                 <View style={styles.menuTextCol}>
-                  <Text style={styles.menuTitle}>Mi Ruta de Reparto</Text>
-                  <Text style={styles.menuSubtitle}>Ver viajes, paradas y ofertas activas</Text>
+                  <Text style={styles.menuTitle}>Preferencias de GPS</Text>
+                  <Text style={styles.menuSubtitle}>Elegir Google Maps o Waze</Text>
                 </View>
                 <Ionicons name="chevron-forward" size={18} color={colors.textSubtle} />
               </TouchableOpacity>
+
               <View style={styles.menuDivider} />
 
               <TouchableOpacity
                 style={styles.menuRow}
-                onPress={() => navigation.navigate("Corte")}
+                onPress={() => {
+                  Alert.alert(
+                    "Historial de Turnos",
+                    "Historial de liquidaciones y cortes anteriores próximamente disponible."
+                  );
+                }}
+                activeOpacity={0.7}
+              >
+                <View style={[styles.menuIconCircle, { backgroundColor: colors.infoSoft }]}>
+                  <Ionicons name="calendar-outline" size={18} color={colors.info} />
+                </View>
+                <View style={styles.menuTextCol}>
+                  <Text style={styles.menuTitle}>Historial de Turnos</Text>
+                  <Text style={styles.menuSubtitle}>Revisar liquidaciones anteriores</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color={colors.textSubtle} />
+              </TouchableOpacity>
+
+              <View style={styles.menuDivider} />
+
+              <TouchableOpacity
+                style={styles.menuRow}
+                onPress={() => {
+                  Alert.alert(
+                    "Soporte Central",
+                    "¿Necesitas asistencia en ruta? Llama a mostrador o contacta al administrador de turno."
+                  );
+                }}
                 activeOpacity={0.7}
               >
                 <View style={[styles.menuIconCircle, { backgroundColor: colors.successSoft }]}>
-                  <Ionicons name="cash-outline" size={18} color={colors.success} />
+                  <Ionicons name="headset-outline" size={18} color={colors.success} />
                 </View>
                 <View style={styles.menuTextCol}>
-                  <Text style={styles.menuTitle}>Corte de Turno</Text>
-                  <Text style={styles.menuSubtitle}>Control de efectivo y liquidaciones</Text>
+                  <Text style={styles.menuTitle}>Soporte Central</Text>
+                  <Text style={styles.menuSubtitle}>Contactar a mostrador/admin</Text>
                 </View>
                 <Ionicons name="chevron-forward" size={18} color={colors.textSubtle} />
               </TouchableOpacity>
