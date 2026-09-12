@@ -117,6 +117,7 @@ router.get("/", async (req, res) => {
 router.post("/", auth, adminOnly, async (req, res) => {
   try {
     const name = String(req.body.name || "").trim();
+    const category = req.body.category ? String(req.body.category).trim() : "Guisados";
     const price = Number(req.body.price);
     const image = req.body.image ? String(req.body.image).trim() : null;
     const kitchenRequired = req.body.kitchen_required !== false;
@@ -127,11 +128,11 @@ router.post("/", auth, adminOnly, async (req, res) => {
 
     const result = await pool.query(
       `
-        INSERT INTO products (name, price, image, kitchen_required, product_kind)
-        VALUES ($1, $2, $3, $4, 'regular')
+        INSERT INTO products (name, category, price, image, kitchen_required, product_kind)
+        VALUES ($1, $2, $3, $4, $5, 'regular')
         RETURNING *
       `,
-      [name, price, image || null, kitchenRequired]
+      [name, category || "Guisados", price, image || null, kitchenRequired]
     );
 
     res.status(201).json(result.rows[0]);
@@ -201,6 +202,7 @@ router.put("/:id", auth, adminOnly, async (req, res) => {
     const current = currentResult.rows[0];
 
     const name = req.body.name !== undefined ? String(req.body.name).trim() : current.name;
+    const category = req.body.category !== undefined ? (String(req.body.category).trim() || "Guisados") : (current.category || "Guisados");
     const price = req.body.price !== undefined ? Number(req.body.price) : Number(current.price);
     const image = req.body.image !== undefined ? (req.body.image ? String(req.body.image).trim() : null) : current.image;
     const kitchenRequired = req.body.kitchen_required !== undefined ? Boolean(req.body.kitchen_required) : current.kitchen_required;
@@ -213,11 +215,11 @@ router.put("/:id", auth, adminOnly, async (req, res) => {
     const result = await pool.query(
       `
         UPDATE products
-        SET name = $1, price = $2, image = $3, kitchen_required = $4, available = $5
-        WHERE id = $6
+        SET name = $1, category = $2, price = $3, image = $4, kitchen_required = $5, available = $6
+        WHERE id = $7
         RETURNING *
       `,
-      [name, price, image, kitchenRequired, available, id]
+      [name, category, price, image, kitchenRequired, available, id]
     );
 
     res.json(result.rows[0]);

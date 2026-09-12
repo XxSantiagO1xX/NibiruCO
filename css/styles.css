@@ -130,8 +130,8 @@ a:hover { text-decoration: none; }
 }
 .btn-primary { background: var(--primary); color: #fff; box-shadow: 0 2px 8px rgba(245,102,36,0.2); }
 .btn-primary:hover { background: var(--primary-hover); transform: translateY(-1px); }
-.btn-secondary, .btn-soft { background: var(--surface); color: var(--text); border-color: var(--border); }
-.btn-secondary:hover, .btn-soft:hover { background: var(--surface-2); border-color: var(--muted); }
+.btn-secondary, .btn-soft, .btn-outline { background: var(--surface); color: var(--text); border-color: var(--border); }
+.btn-secondary:hover, .btn-soft:hover, .btn-outline:hover { background: var(--surface-2); border-color: var(--muted); }
 .btn-success { background: var(--success); color: #fff; }
 .btn-danger { background: var(--danger); color: #fff; }
 .btn-danger-soft { background: var(--danger-soft); color: var(--danger); border-color: var(--danger); }
