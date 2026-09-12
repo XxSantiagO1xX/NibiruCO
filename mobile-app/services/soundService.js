@@ -1,4 +1,3 @@
-import { Audio } from "expo-av";
 import { Vibration } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
@@ -17,13 +16,47 @@ const VIBRATION_PATTERNS = {
   dispatch_alert: [0, 500, 200, 500],
 };
 
+let AudioModule = null;
+let isAudioChecked = false;
+let isAudioAvailable = false;
 let isAudioConfigured = false;
+
+/**
+ * Safely obtain the expo-av Audio module without crashing if native module is missing
+ */
+function getAudioModule() {
+  if (isAudioChecked) {
+    return isAudioAvailable ? AudioModule : null;
+  }
+  isAudioChecked = true;
+  try {
+    // Dynamic require so module evaluation does not fail if native module is unlinked
+    const expoAv = require("expo-av");
+    if (expoAv && expoAv.Audio) {
+      AudioModule = expoAv.Audio;
+      isAudioAvailable = true;
+      return AudioModule;
+    }
+  } catch (err) {
+    isAudioAvailable = false;
+    console.warn(
+      "[SoundService] expo-av native module not available. Audio playback disabled in this environment:",
+      err?.message || err
+    );
+  }
+  isAudioAvailable = false;
+  return null;
+}
 
 /**
  * Configure audio mode to ensure sounds play properly across platforms
  */
 export async function configureAudio() {
   if (isAudioConfigured) return;
+  const Audio = getAudioModule();
+  if (!Audio || typeof Audio.setAudioModeAsync !== "function") {
+    return;
+  }
   try {
     await Audio.setAudioModeAsync({
       playsInSilentModeIOS: true,
@@ -32,7 +65,9 @@ export async function configureAudio() {
     });
     isAudioConfigured = true;
   } catch (err) {
-    console.warn("[SoundService] configureAudio error:", err?.message);
+    // If native module fails (e.g. ExponentAV not found), disable audio gracefully
+    isAudioAvailable = false;
+    console.warn("[SoundService] configureAudio error (audio playback disabled):", err?.message || err);
   }
 }
 
@@ -64,14 +99,18 @@ export async function playSound(soundType, options = {}) {
     try {
       Vibration.vibrate(pattern);
     } catch (e) {
-      console.warn("[SoundService] Vibration error:", e?.message);
+      console.warn("[SoundService] Vibration error:", e?.message || e);
     }
   }
 
   // 2. Determine mute status
   let muted = isMuted;
   if (muted === undefined) {
-    muted = await isAlertMutedAsync();
+    try {
+      muted = await isAlertMutedAsync();
+    } catch (_) {
+      muted = false;
+    }
   }
 
   if (muted) {
@@ -85,22 +124,37 @@ export async function playSound(soundType, options = {}) {
     return;
   }
 
+  const Audio = getAudioModule();
+  if (!Audio || !isAudioAvailable) {
+    return;
+  }
+
   try {
     await configureAudio();
+    if (!isAudioAvailable) return;
+
+    if (!Audio.Sound || typeof Audio.Sound.createAsync !== "function") {
+      return;
+    }
+
     const { sound } = await Audio.Sound.createAsync(
       asset,
       { shouldPlay: true, volume: 1.0 }
     );
 
-    sound.setOnPlaybackStatusUpdate(async (status) => {
-      if (status.didJustFinish || status.error) {
-        try {
-          await sound.unloadAsync();
-        } catch (_) {}
-      }
-    });
+    if (sound && typeof sound.setOnPlaybackStatusUpdate === "function") {
+      sound.setOnPlaybackStatusUpdate(async (status) => {
+        if (status && (status.didJustFinish || status.error)) {
+          try {
+            await sound.unloadAsync();
+          } catch (_) {}
+        }
+      });
+    }
   } catch (err) {
-    console.warn(`[SoundService] Error playing sound "${soundType}":`, err?.message);
+    // If native module fails (e.g. ExponentAV not found), disable future audio attempts gracefully
+    isAudioAvailable = false;
+    console.warn(`[SoundService] Error playing sound "${soundType}":`, err?.message || err);
   }
 }
 

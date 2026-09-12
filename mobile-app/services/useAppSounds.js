@@ -12,24 +12,46 @@ export function useAppSounds() {
   const alertsMuted = context?.alertsMuted ?? false;
 
   const play = useCallback(
-    (soundType, options = {}) => {
-      return playSound(soundType, { isMuted: alertsMuted, ...options });
+    async (soundType, options = {}) => {
+      try {
+        return await playSound(soundType, { isMuted: alertsMuted, ...options });
+      } catch (err) {
+        console.warn("[useAppSounds] play error:", err?.message || err);
+      }
     },
     [alertsMuted]
   );
 
   const playNewOrder = useCallback(
-    (options = {}) => playNewOrderAlert({ isMuted: alertsMuted, ...options }),
+    async (options = {}) => {
+      try {
+        return await playNewOrderAlert({ isMuted: alertsMuted, ...options });
+      } catch (err) {
+        console.warn("[useAppSounds] playNewOrder error:", err?.message || err);
+      }
+    },
     [alertsMuted]
   );
 
   const playReadyPing = useCallback(
-    (options = {}) => playReadyPingAlert({ isMuted: alertsMuted, ...options }),
+    async (options = {}) => {
+      try {
+        return await playReadyPingAlert({ isMuted: alertsMuted, ...options });
+      } catch (err) {
+        console.warn("[useAppSounds] playReadyPing error:", err?.message || err);
+      }
+    },
     [alertsMuted]
   );
 
   const playDispatch = useCallback(
-    (options = {}) => playDispatchAlert({ isMuted: alertsMuted, ...options }),
+    async (options = {}) => {
+      try {
+        return await playDispatchAlert({ isMuted: alertsMuted, ...options });
+      } catch (err) {
+        console.warn("[useAppSounds] playDispatch error:", err?.message || err);
+      }
+    },
     [alertsMuted]
   );
 
