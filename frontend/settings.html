@@ -183,17 +183,18 @@
       background: #ffffff;
     }
     .rbac-table th, .rbac-table td {
-      padding: 14px 18px;
+      padding: 8px 14px;
       border-bottom: 1px solid var(--border);
       text-align: left;
     }
     .rbac-table th {
       background: #f8fafc;
-      font-size: 12px;
+      font-size: 11.5px;
       font-weight: 800;
       text-transform: uppercase;
       letter-spacing: 0.5px;
       color: #64748b;
+      padding: 10px 14px;
     }
     .rbac-table tr:last-child td {
       border-bottom: none;
@@ -201,15 +202,18 @@
     .rbac-category-row {
       background: #f1f5f9;
       font-weight: 800;
-      font-size: 13px;
+      font-size: 12px;
       color: #334155;
+    }
+    .rbac-category-row td {
+      padding: 6px 14px;
     }
     .rbac-check {
       text-align: center;
     }
     .rbac-check input {
-      width: 18px;
-      height: 18px;
+      width: 16px;
+      height: 16px;
       cursor: pointer;
     }
 
@@ -217,22 +221,22 @@
     .shift-card {
       background: #ffffff;
       border: 1.5px solid var(--border);
-      border-radius: 20px;
-      padding: 20px;
-      margin-bottom: 16px;
+      border-radius: 16px;
+      padding: 14px 16px;
+      margin-bottom: 12px;
       box-shadow: var(--shadow-sm);
     }
     .financial-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-      gap: 10px;
-      margin: 14px 0;
-      padding: 14px;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 8px;
+      margin: 10px 0;
+      padding: 8px 12px;
       background: #f8fafc;
-      border-radius: 14px;
+      border-radius: 12px;
     }
-    .financial-item small { display: block; font-size: 10.5px; color: var(--muted); font-weight: 700; text-transform: uppercase; }
-    .financial-item strong { display: block; font-size: 16px; font-weight: 900; margin-top: 2px; }
+    .financial-item small { display: block; font-size: 10px; color: var(--muted); font-weight: 700; text-transform: uppercase; }
+    .financial-item strong { display: block; font-size: 14.5px; font-weight: 900; margin-top: 1px; }
 
     /* Modals */
     .modal-backdrop {
@@ -284,7 +288,6 @@
       <header class="page-header">
         <div>
           <h1>Configuración del Sistema</h1>
-          <p>Personal, matriz de permisos RBAC, liquidaciones de caja y parámetros operativos.</p>
         </div>
         <div class="header-actions">
           <button class="btn btn-secondary" onclick="window.location.href='home.html'">Panel Principal</button>
@@ -306,7 +309,6 @@
           <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
             <div>
               <h2 class="section-title" style="margin:0">Directorio de Colaboradores</h2>
-              <p class="muted" style="margin:4px 0 0;font-size:12.5px">Selecciona un colaborador para ver detalles, cambiar foto, permisos o editar accesos.</p>
             </div>
             <button class="btn btn-primary" onclick="openStaffModal()">+ Nuevo Colaborador</button>
           </div>
@@ -357,7 +359,6 @@
           <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
             <div>
               <h2 class="section-title" style="margin:0">Matriz de Permisos por Rol</h2>
-              <p class="muted" style="margin:4px 0 0;font-size:12px">Define qué funciones tiene permitidas cada rol por defecto en MealOps.</p>
             </div>
             <button class="btn btn-primary" onclick="saveRbacMatrix()">Guardar Matriz de Permisos</button>
           </div>
@@ -387,7 +388,6 @@
           <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
             <div>
               <h2 class="section-title" style="margin:0">Cortes de Turno y Control de Efectivo</h2>
-              <p class="muted" style="margin:4px 0 0;font-size:12.5px">Audita el efectivo cobrado por los repartidores, el cambio entregado y concilia los viajes.</p>
             </div>
             <button class="btn btn-secondary" onclick="reconcileStaleTripsAdmin()"><svg class="ui-icon" style="width:13px;height:13px;vertical-align:-2px;margin-right:4px;"><use href="assets/icons.svg#refresh"/></svg>Reconciliar Viajes Incompletos</button>
           </div>
@@ -401,8 +401,7 @@
       <!-- TAB 4: OPERACIÓN & DESPACHO -->
       <section id="tab-operation" class="tab-content">
         <div class="card card-pad">
-          <h2 class="section-title">Flujo Operativo y Despacho Automático</h2>
-          <p class="muted" style="font-size:12.5px;margin-bottom:20px">Reglas de salida para Mostrador, KDS y reparto a domicilio.</p>
+          <h2 class="section-title" style="margin-bottom:16px">Flujo Operativo y Despacho Automático</h2>
 
           <div class="form-grid">
             <div class="field">
@@ -447,8 +446,7 @@
       <!-- TAB 5: RESTAURANTE & HORARIOS -->
       <section id="tab-restaurant" class="tab-content">
         <div class="card card-pad">
-          <h2 class="section-title">Datos del Restaurante y Horarios</h2>
-          <p class="muted" style="font-size:12.5px;margin-bottom:20px">Información general de la sucursal y huso horario operativo.</p>
+          <h2 class="section-title" style="margin-bottom:16px">Datos del Restaurante y Horarios</h2>
 
           <div class="form-grid">
             <div class="field">
@@ -681,14 +679,14 @@
         const permsInCat = permissionsCatalog.filter(p => p.category === cat);
         for (const perm of permsInCat) {
           html += '<tr>' +
-            '<td>' +
-              '<strong>' + escapeHtml(perm.name) + '</strong>' +
-              '<div class="muted" style="font-size:11px">' + escapeHtml(perm.description || '') + '</div>' +
+            '<td style="padding:6px 14px;">' +
+              '<strong style="font-size:13px;display:block;line-height:1.2;">' + escapeHtml(perm.name) + '</strong>' +
+              '<div class="text-xs text-gray-400 leading-tight" style="font-size:11px;color:#94a3b8;line-height:1.2;margin-top:2px;">' + escapeHtml(perm.description || '') + '</div>' +
             '</td>' +
             rolesList.map(r => {
               const isChecked = (rolePermissionsMap[r] || []).includes(perm.code);
               const isAdmin = r === 'admin';
-              return '<td class="rbac-check">' +
+              return '<td class="rbac-check" style="padding:6px 14px;">' +
                 '<input type="checkbox" data-role="' + r + '" data-code="' + perm.code + '" ' + (isChecked ? 'checked' : '') + ' ' + (isAdmin ? 'disabled' : '') + '>' +
               '</td>';
             }).join('') +
@@ -992,7 +990,7 @@
                 '<button class="btn btn-sm btn-primary" onclick="openSettleModal(' + s.shift_id + ', ' + s.pending_settlement + ')"><svg class="ui-icon" style="width:13px;height:13px;vertical-align:-2px;margin-right:4px;"><use href="assets/icons.svg#dollar"/></svg>Registrar Liquidación</button>'
               ) : '') +
             '</div>' +
-            '<div class="financial-grid">' +
+            '<div class="financial-grid gap-2 py-2">' +
               '<div class="financial-item"><small>Entregas</small><strong>' + (s.delivered_count || 0) + '</strong></div>' +
               '<div class="financial-item"><small>Cobrado Bruto</small><strong>$' + (s.gross_cash_received || 0).toFixed(2) + '</strong></div>' +
               '<div class="financial-item"><small>Cambio Dado</small><strong style="color:#d97706">-$' + (s.total_cash_change_given || 0).toFixed(2) + '</strong></div>' +
