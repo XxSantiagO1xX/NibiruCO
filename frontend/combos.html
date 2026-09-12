@@ -227,7 +227,7 @@
         await loadData();
         showToast('Combo eliminado con éxito.', 'success');
       } catch (error) {
-        showToast(error.message, 'error');
+        alert(error.message || 'Error eliminando combo');
       }
     }
 

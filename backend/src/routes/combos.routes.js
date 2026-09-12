@@ -242,7 +242,7 @@ router.delete("/:productId", auth, adminOnly, async (req, res) => {
   try {
     const productId = Number(req.params.productId);
     if (!Number.isInteger(productId)) {
-      return res.status(400).json({ message: "ID de combo inválido" });
+      return res.status(400).json({ error: "ID de combo inválido", message: "ID de combo inválido" });
     }
 
     await client.query("BEGIN");
@@ -253,7 +253,7 @@ router.delete("/:productId", auth, adminOnly, async (req, res) => {
     );
     if (!comboRes.rows.length) {
       await client.query("ROLLBACK");
-      return res.status(404).json({ message: "Combo no encontrado" });
+      return res.status(404).json({ error: "Combo no encontrado", message: "Combo no encontrado" });
     }
 
     // 1. Quitar del menú semanal
@@ -271,12 +271,30 @@ router.delete("/:productId", auth, adminOnly, async (req, res) => {
     // 4. Eliminar los grupos del combo
     await client.query("DELETE FROM combo_groups WHERE combo_product_id = $1", [productId]);
 
-    // 5. Manejo seguro de registros vinculados en órdenes históricas
-    const orderItemsRes = await client.query("SELECT 1 FROM order_items WHERE product_id = $1 LIMIT 1", [productId]);
-    if (orderItemsRes.rows.length) {
-      await client.query("UPDATE products SET available = false, product_kind = 'archived_combo' WHERE id = $1", [productId]);
-    } else {
-      await client.query("DELETE FROM products WHERE id = $1 AND product_kind = 'combo'", [productId]);
+    // 5. Intentar eliminar el producto principal de la tabla products
+    try {
+      const deleteRes = await client.query(
+        "DELETE FROM products WHERE id = $1 AND product_kind = 'combo' RETURNING id",
+        [productId]
+      );
+      if (!deleteRes.rows.length) {
+        await client.query("ROLLBACK");
+        return res.status(404).json({ error: "Combo no encontrado", message: "Combo no encontrado" });
+      }
+    } catch (deleteErr) {
+      if (
+        deleteErr.code === "23001" ||
+        deleteErr.code === "23503" ||
+        String(deleteErr.message || "").toLowerCase().includes("foreign key") ||
+        String(deleteErr.message || "").includes("order_items")
+      ) {
+        await client.query("ROLLBACK");
+        return res.status(400).json({
+          error: "No se puede eliminar este combo porque ya tiene ventas registradas en el historial. Por favor, utiliza la opción de Desactivar.",
+          message: "No se puede eliminar este combo porque ya tiene ventas registradas en el historial. Por favor, utiliza la opción de Desactivar."
+        });
+      }
+      throw deleteErr;
     }
 
     await client.query("COMMIT");
@@ -287,8 +305,19 @@ router.delete("/:productId", auth, adminOnly, async (req, res) => {
     res.json({ ok: true, message: "Combo eliminado correctamente" });
   } catch (err) {
     try { await client.query("ROLLBACK"); } catch (_) {}
+    if (
+      err.code === "23001" ||
+      err.code === "23503" ||
+      String(err.message || "").toLowerCase().includes("foreign key") ||
+      String(err.message || "").includes("order_items")
+    ) {
+      return res.status(400).json({
+        error: "No se puede eliminar este combo porque ya tiene ventas registradas en el historial. Por favor, utiliza la opción de Desactivar.",
+        message: "No se puede eliminar este combo porque ya tiene ventas registradas en el historial. Por favor, utiliza la opción de Desactivar."
+      });
+    }
     console.error("DELETE COMBO ERROR:", err);
-    res.status(500).json({ message: "Error eliminando combo" });
+    res.status(500).json({ error: "Error eliminando combo", message: "Error eliminando combo" });
   } finally {
     client.release();
   }

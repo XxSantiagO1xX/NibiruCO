@@ -195,7 +195,7 @@ async function apiFetch(path, options = {}) {
   }
 
   if (!response.ok) {
-    const message = typeof data === "object" && data?.message ? data.message : "Error en la solicitud";
+    const message = typeof data === "object" && (data?.error || data?.message) ? (data.error || data.message) : "Error en la solicitud";
     throw new Error(message);
   }
 
