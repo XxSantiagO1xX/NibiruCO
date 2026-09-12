@@ -412,6 +412,92 @@
       transform: none;
     }
 
+    /* Mis Pedidos Recientes Section & Grid */
+    .recent-orders-section {
+      margin-top: 32px;
+      padding-top: 24px;
+      border-top: 2px solid var(--border-light);
+      display: flex;
+      flex-direction: column;
+    }
+    .recent-orders-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+    .recent-orders-title {
+      font-size: 13.5px;
+      font-weight: 800;
+      color: #6B7280;
+      letter-spacing: -0.01em;
+      text-transform: uppercase;
+      margin: 0;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .recent-orders-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+      gap: 14px;
+    }
+    .recent-order-card {
+      background: #FFFFFF;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 12px 14px;
+      box-shadow: var(--shadow-xs);
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      transition: all 0.15s ease;
+    }
+    .recent-order-card:hover {
+      border-color: var(--primary-border);
+      box-shadow: var(--shadow-sm);
+      transform: translateY(-1px);
+    }
+    .recent-order-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+    }
+    .recent-order-folio {
+      font-size: 14px;
+      font-weight: 900;
+      color: var(--text);
+      letter-spacing: -0.02em;
+    }
+    .recent-order-customer {
+      font-size: 12.5px;
+      font-weight: 600;
+      color: var(--text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .recent-order-bottom {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      padding-top: 6px;
+      border-top: 1px dashed var(--border-light);
+      margin-top: auto;
+    }
+    .recent-order-total {
+      font-size: 14px;
+      font-weight: 800;
+      color: var(--text);
+    }
+    .recent-order-type {
+      font-size: 11px;
+      color: var(--muted);
+      font-weight: 600;
+      text-transform: capitalize;
+    }
+
     /* Modal Combo */
     .combo-dialog-modal {
       position: fixed;
@@ -500,10 +586,16 @@
             <!-- Products Grid -->
             <div id="products" class="products-grid"></div>
 
-            <!-- Mis Pedidos Recientes Contextual Table -->
-            <div class="spacer-24"></div>
-            <h2 class="section-title" style="font-size:16px;font-weight:800">Mis pedidos recientes</h2>
-            <div id="orders" class="list"></div>
+            <!-- Mis Pedidos Recientes (Sección Aislada con Grid) -->
+            <section class="recent-orders-section mt-8 pt-6 border-t-2 border-gray-100">
+              <div class="recent-orders-header mb-4">
+                <h2 class="recent-orders-title text-gray-500">
+                  <svg class="ui-icon" width="15" height="15"><use href="assets/icons.svg#clock"></use></svg>
+                  <span>Mis pedidos recientes</span>
+                </h2>
+              </div>
+              <div id="orders" class="recent-orders-grid grid grid-cols-repeat(auto-fill, minmax(240px, 1fr)) gap-4"></div>
+            </section>
           </section>
 
           <!-- Right: Persistent Cart / Pedido Panel (Fixed 100% Height Flex Container) -->
@@ -1253,19 +1345,33 @@
         const data = await apiFetch('/orders');
         const container = document.getElementById('orders');
         if (!data.length) {
-          container.innerHTML = '<div class="card card-pad muted" style="text-align:center">Todavía no tienes pedidos registrados.</div>';
+          container.innerHTML = '<div class="card card-pad muted" style="grid-column:1/-1;text-align:center">Todavía no tienes pedidos registrados.</div>';
           return;
         }
 
-        container.innerHTML = data.slice(0, 10).map((order) => `
-          <div class="list-row">
-            <div class="list-main">
-              <strong>${order.folio ? `F${String(order.folio).padStart(3, '0')}` : `Pedido #${order.id}`}${order.customer_name ? ` · ${escapeHtml(order.customer_name)}` : ''}</strong>
-              <small>${escapeHtml(order.service_type || order.type || 'local')} · ${formatCurrency(order.total)} · ${order.payment_status === 'paid' ? 'Pagado' : 'Pago pendiente'}</small>
-            </div>
-            <span class="badge ${order.status === 'cancelado' ? 'badge-danger' : order.status === 'entregado' ? 'badge-success' : 'badge-warning'}">${escapeHtml(order.status)}</span>
-          </div>
-        `).join('');
+        container.innerHTML = data.slice(0, 12).map((order) => {
+          const folio = order.folio ? `F${String(order.folio).padStart(3, '0')}` : `#${order.id}`;
+          const customerOrTable = order.customer_name || order.table_name || (order.table_session_id ? `Mesa #${order.table_session_id}` : 'Salón / Mostrador');
+          const serviceLabel = order.service_type || order.type || 'Local';
+          const statusClass = order.status === 'cancelado' ? 'badge-danger' : order.status === 'entregado' ? 'badge-success' : 'badge-warning';
+          const statusText = order.status ? (order.status.charAt(0).toUpperCase() + order.status.slice(1).replace('_', ' ')) : 'Activo';
+
+          return `
+            <article class="recent-order-card">
+              <div class="recent-order-top">
+                <strong class="recent-order-folio">${escapeHtml(folio)}</strong>
+                <span class="badge ${statusClass}">${escapeHtml(statusText)}</span>
+              </div>
+              <div class="recent-order-customer" title="${escapeHtml(customerOrTable)}">
+                ${escapeHtml(customerOrTable)}
+              </div>
+              <div class="recent-order-bottom">
+                <span class="recent-order-type">${escapeHtml(serviceLabel)}</span>
+                <strong class="recent-order-total">${formatCurrency(order.total)}</strong>
+              </div>
+            </article>
+          `;
+        }).join('');
       } catch (error) {
         showToast(error.message, 'error');
       }
