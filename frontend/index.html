@@ -424,7 +424,7 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 16px;
+      margin-bottom: 14px;
     }
     .recent-orders-title {
       font-size: 13.5px;
@@ -437,20 +437,39 @@
       align-items: center;
       gap: 6px;
     }
+    .btn-link-subtle {
+      background: transparent;
+      border: none;
+      color: var(--primary);
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 4px 8px;
+      border-radius: var(--radius-xs);
+      transition: all 0.15s ease;
+      text-decoration: none;
+    }
+    .btn-link-subtle:hover {
+      background: rgba(245, 102, 36, 0.08);
+      color: var(--primary-hover);
+    }
     .recent-orders-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-      gap: 14px;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 12px;
     }
     .recent-order-card {
       background: #FFFFFF;
       border: 1px solid var(--border);
       border-radius: var(--radius-sm);
-      padding: 12px 14px;
+      padding: 10px 12px;
       box-shadow: var(--shadow-xs);
       display: flex;
       flex-direction: column;
-      gap: 8px;
+      gap: 6px;
       transition: all 0.15s ease;
     }
     .recent-order-card:hover {
@@ -465,13 +484,13 @@
       gap: 8px;
     }
     .recent-order-folio {
-      font-size: 14px;
+      font-size: 13.5px;
       font-weight: 900;
       color: var(--text);
       letter-spacing: -0.02em;
     }
     .recent-order-customer {
-      font-size: 12.5px;
+      font-size: 12px;
       font-weight: 600;
       color: var(--text);
       white-space: nowrap;
@@ -482,14 +501,14 @@
       display: flex;
       justify-content: space-between;
       align-items: baseline;
-      padding-top: 6px;
+      padding-top: 4px;
       border-top: 1px dashed var(--border-light);
       margin-top: auto;
     }
     .recent-order-total {
-      font-size: 14px;
+      font-size: 13.5px;
       font-weight: 800;
-      color: var(--text);
+      color: var(--primary);
     }
     .recent-order-type {
       font-size: 11px;
@@ -586,15 +605,19 @@
             <!-- Products Grid -->
             <div id="products" class="products-grid"></div>
 
-            <!-- Mis Pedidos Recientes (Sección Aislada con Grid) -->
+            <!-- Mis Pedidos Recientes (Sección Aislada con Grid Híbrido Top 8) -->
             <section class="recent-orders-section mt-8 pt-6 border-t-2 border-gray-100">
               <div class="recent-orders-header mb-4">
                 <h2 class="recent-orders-title text-gray-500">
                   <svg class="ui-icon" width="15" height="15"><use href="assets/icons.svg#clock"></use></svg>
                   <span>Mis pedidos recientes</span>
                 </h2>
+                <button class="btn-link-subtle" onclick="openHistoryModal()" title="Ver historial completo">
+                  <span>Ver historial completo</span>
+                  <svg class="ui-icon" width="13" height="13"><use href="assets/icons.svg#chevron-right"></use></svg>
+                </button>
               </div>
-              <div id="orders" class="recent-orders-grid grid grid-cols-repeat(auto-fill, minmax(240px, 1fr)) gap-4"></div>
+              <div id="orders" class="recent-orders-grid grid grid-cols-repeat(auto-fill, minmax(200px, 1fr)) gap-3"></div>
             </section>
           </section>
 
@@ -1340,16 +1363,28 @@
       }
     }
 
+    function openHistoryModal() {
+      // Hook preparado para abrir modal de historial completo o navegar a la torre de control
+      const modal = document.getElementById('history-modal');
+      if (modal) {
+        modal.classList.remove('hidden');
+      } else {
+        showToast('Historial completo disponible en Torre de Control.', 'info');
+      }
+    }
+
     async function loadOrders() {
       try {
         const data = await apiFetch('/orders');
         const container = document.getElementById('orders');
-        if (!data.length) {
+        if (!data || !data.length) {
           container.innerHTML = '<div class="card card-pad muted" style="grid-column:1/-1;text-align:center">Todavía no tienes pedidos registrados.</div>';
           return;
         }
 
-        container.innerHTML = data.slice(0, 12).map((order) => {
+        // Límite estricto de los últimos 8 pedidos (Top 8)
+        const topOrders = data.slice(0, 8);
+        container.innerHTML = topOrders.map((order) => {
           const folio = order.folio ? `F${String(order.folio).padStart(3, '0')}` : `#${order.id}`;
           const customerOrTable = order.customer_name || order.table_name || (order.table_session_id ? `Mesa #${order.table_session_id}` : 'Salón / Mostrador');
           const serviceLabel = order.service_type || order.type || 'Local';
