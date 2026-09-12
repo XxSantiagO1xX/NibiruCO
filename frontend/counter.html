@@ -935,28 +935,28 @@
     }
 
     function serviceBadgeSvg(order) {
-      const type = (order.service_type || order.type || 'local').toLowerCase();
+      const type = (order.service_type || order.serviceType || order.type || 'local').toLowerCase();
       if (type === 'mesa') {
         return '<span class="dest-pill dest-mesa"><svg class="ui-icon" width="13" height="13"><use href="assets/icons.svg#dining"></use></svg>' + escapeHtml(order.table_name || order.type || 'Mesa') + '</span>';
       }
-      if (type === 'local') {
-        if (!order.table_session_id) {
+      if (type === 'local' || type === 'salon' || type === 'dine_in' || type === 'comer_aqui') {
+        if (!order.table_session_id && !order.table_id && !order.table_name) {
           return '<span class="dest-pill dest-local"><svg class="ui-icon" width="13" height="13"><use href="assets/icons.svg#counter"></use></svg> Comer aquí</span>';
         }
         return '<span class="dest-pill dest-mesa"><svg class="ui-icon" width="13" height="13"><use href="assets/icons.svg#dining"></use></svg>' + escapeHtml(order.table_name || 'Salón') + '</span>';
       }
-      if (type === 'llevar') return '<span class="dest-pill dest-llevar"><svg class="ui-icon" width="13" height="13"><use href="assets/icons.svg#bag"></use></svg> Para Llevar</span>';
-      if (type === 'recoger') return '<span class="dest-pill dest-llevar"><svg class="ui-icon" width="13" height="13"><use href="assets/icons.svg#box"></use></svg> Recoger</span>';
-      if (type === 'domicilio') return '<span class="dest-pill dest-domicilio"><svg class="ui-icon" width="13" height="13"><use href="assets/icons.svg#bike"></use></svg> A Domicilio</span>';
+      if (type === 'llevar' || type === 'takeout' || type === 'para_llevar') return '<span class="dest-pill dest-llevar"><svg class="ui-icon" width="13" height="13"><use href="assets/icons.svg#bag"></use></svg> Para Llevar</span>';
+      if (type === 'recoger' || type === 'pickup') return '<span class="dest-pill dest-llevar"><svg class="ui-icon" width="13" height="13"><use href="assets/icons.svg#box"></use></svg> Recoger</span>';
+      if (type === 'domicilio' || type === 'delivery' || type === 'a_domicilio') return '<span class="dest-pill dest-domicilio"><svg class="ui-icon" width="13" height="13"><use href="assets/icons.svg#bike"></use></svg> A Domicilio</span>';
       return '<span class="dest-pill dest-local">' + escapeHtml(type) + '</span>';
     }
 
     function matchesDestFilter(order) {
       if (currentDestFilter === 'all') return true;
-      const type = (order.service_type || order.type || 'local').toLowerCase();
-      if (currentDestFilter === 'salon') return type === 'mesa' || type === 'local' || order.table_session_id;
-      if (currentDestFilter === 'llevar') return type === 'llevar' || type === 'recoger';
-      if (currentDestFilter === 'domicilio') return type === 'domicilio';
+      const type = (order.service_type || order.serviceType || order.type || 'local').toLowerCase();
+      if (currentDestFilter === 'salon') return type === 'mesa' || type === 'local' || type === 'salon' || type === 'dine_in' || type === 'comer_aqui' || order.table_session_id || order.table_id || order.table_name;
+      if (currentDestFilter === 'llevar') return type === 'llevar' || type === 'recoger' || type === 'takeout' || type === 'pickup' || type === 'para_llevar';
+      if (currentDestFilter === 'domicilio') return type === 'domicilio' || type === 'delivery' || type === 'a_domicilio';
       return true;
     }
 
@@ -966,7 +966,7 @@
       const summary = order.summary || {};
       const stage = summary.counter_stage || 'esperando_cocina';
       const isDelayed = summary.is_delayed;
-      const rawType = (order.service_type || order.type || '').toLowerCase();
+      const serviceType = String(order.service_type || order.serviceType || order.type || 'local').toLowerCase();
       const hasTable = Boolean(order.table_session_id || order.table_id || order.table_name);
 
       // Dynamic Ribbon class based on service type:
@@ -974,11 +974,11 @@
       // - Para Llevar / Recoger: #F56624 (ribbon-llevar)
       // - Domicilio / Delivery: #7C3AED (ribbon-domicilio)
       let ribbonClass = 'ribbon-salon';
-      if (rawType === 'domicilio' || rawType === 'delivery' || rawType === 'a_domicilio') {
+      if (serviceType === 'domicilio' || serviceType === 'delivery' || serviceType === 'a_domicilio') {
         ribbonClass = 'ribbon-domicilio';
-      } else if (rawType === 'llevar' || rawType === 'recoger' || rawType === 'takeout' || rawType === 'pickup' || rawType === 'para_llevar' || rawType === 'para-llevar') {
+      } else if (serviceType === 'llevar' || serviceType === 'recoger' || serviceType === 'takeout' || serviceType === 'pickup' || serviceType === 'para_llevar' || serviceType === 'para-llevar') {
         ribbonClass = 'ribbon-llevar';
-      } else if (rawType === 'mesa' || rawType === 'salon' || rawType === 'dine_in' || rawType === 'local' || rawType === 'comer_aqui' || rawType === 'dine-in' || hasTable) {
+      } else if (serviceType === 'mesa' || serviceType === 'salon' || serviceType === 'dine_in' || serviceType === 'local' || serviceType === 'comer_aqui' || serviceType === 'dine-in' || hasTable) {
         ribbonClass = 'ribbon-salon';
       }
 
@@ -1224,12 +1224,14 @@
 
       // 2. EN MOSTRADOR (listos en mostrador para salón, llevar, recoger o esperando recolección de domicilio)
       const salidaOrders = activeOrders.filter(o => {
-        return o.status === 'listo' && o.service_type !== 'domicilio';
+        const sType = String(o.service_type || o.serviceType || o.type || 'local').toLowerCase();
+        return o.status === 'listo' && sType !== 'domicilio' && sType !== 'delivery' && sType !== 'a_domicilio';
       }).filter(matchesDestFilter).filter(matchesSearch);
 
       // 3. SALIDA / DOMICILIO (domicilios listos/en ruta, o salón en camino a mesa)
       const dispatchOrders = activeOrders.filter(o => {
-        return o.service_type === 'domicilio' && o.status !== 'entregado';
+        const sType = String(o.service_type || o.serviceType || o.type || 'local').toLowerCase();
+        return (sType === 'domicilio' || sType === 'delivery' || sType === 'a_domicilio') && o.status !== 'entregado';
       }).filter(matchesDestFilter).filter(matchesSearch);
 
       // Open incidents
