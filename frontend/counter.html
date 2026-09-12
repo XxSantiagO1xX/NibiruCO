@@ -37,13 +37,21 @@
     .counter-header-actions { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
 
     /* Search in Topbar */
+    /* Search & Service Filter Tabs in Topbar */
+    .counter-topbar-center {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin: 0 16px;
+      max-width: 800px;
+    }
     .counter-topbar-search {
       flex: 1;
-      max-width: 420px;
+      min-width: 220px;
       position: relative;
       display: flex;
       align-items: center;
-      margin: 0 16px;
     }
     .counter-topbar-search .search-icon {
       position: absolute;
@@ -71,7 +79,34 @@
       box-shadow: 0 0 0 3px var(--primary-soft);
     }
 
-    /* KPI Bar */
+    .dest-filter-tabs {
+      display: flex;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+    .dest-filter-btn {
+      padding: 6px 13px;
+      border-radius: 999px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--muted);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      transition: all .15s ease;
+      white-space: nowrap;
+    }
+    .dest-filter-btn:hover { border-color: var(--muted); color: var(--text); }
+    .dest-filter-btn.active {
+      background: var(--dark);
+      color: #fff;
+      border-color: var(--dark);
+    }
+
+    /* KPI Bar (Informational Metrics Only) */
     .counter-metrics-bar {
       display: grid;
       grid-template-columns: repeat(5, 1fr);
@@ -81,10 +116,13 @@
     @media (max-width: 1200px) {
       .counter-metrics-bar { grid-template-columns: repeat(3, 1fr); }
     }
+    @media (max-width: 1100px) {
+      .counter-topbar-center { flex-wrap: wrap; max-width: 100%; margin: 10px 0; }
+      .counter-topbar-search { min-width: 100%; }
+    }
     @media (max-width: 768px) {
       .counter-metrics-bar { grid-template-columns: repeat(2, 1fr); }
       .counter-header { flex-direction: column; align-items: stretch; }
-      .counter-topbar-search { max-width: 100%; margin: 10px 0; }
     }
     .metric-card {
       background: var(--surface);
@@ -95,85 +133,18 @@
       align-items: center;
       justify-content: space-between;
       box-shadow: var(--shadow-sm);
+      cursor: default;
+      transition: border-color .15s ease, box-shadow .15s ease;
+    }
+    .metric-card.interactive {
       cursor: pointer;
-      transition: transform .15s ease, border-color .15s ease, box-shadow .15s ease;
     }
-    .metric-card:hover {
-      border-color: var(--primary-border);
-      transform: translateY(-2px);
+    .metric-card.interactive:hover {
+      border-color: var(--danger-border);
       box-shadow: var(--shadow-md);
-    }
-    .metric-card.active {
-      border-color: var(--primary);
-      background: var(--primary-soft);
-      box-shadow: 0 0 0 2px var(--primary-border);
     }
     .metric-val { font-size: 26px; font-weight: 900; letter-spacing: -.03em; line-height: 1.1; }
     .metric-label { font-size: 11px; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; margin-bottom: 3px; }
-
-    /* Control Tower Bar & Filter Controls */
-    .tower-controls {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 12px;
-      margin-bottom: 20px;
-      flex-wrap: wrap;
-    }
-    .view-mode-tabs {
-      display: flex;
-      gap: 6px;
-      background: var(--surface-2);
-      padding: 4px;
-      border-radius: 12px;
-      border: 1px solid var(--border);
-    }
-    .view-tab {
-      padding: 8px 16px;
-      border-radius: 9px;
-      background: transparent;
-      border: none;
-      font-size: 12.5px;
-      font-weight: 700;
-      color: var(--muted);
-      cursor: pointer;
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      transition: all .15s ease;
-    }
-    .view-tab:hover { color: var(--text); }
-    .view-tab.active {
-      background: var(--surface);
-      color: var(--primary);
-      box-shadow: var(--shadow-xs);
-      border: 1px solid var(--border);
-    }
-
-    .dest-filter-tabs {
-      display: flex;
-      gap: 6px;
-    }
-    .dest-filter-btn {
-      padding: 7px 14px;
-      border-radius: 999px;
-      background: var(--surface);
-      border: 1px solid var(--border);
-      font-size: 12px;
-      font-weight: 700;
-      color: var(--muted);
-      cursor: pointer;
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      transition: all .15s ease;
-    }
-    .dest-filter-btn:hover { border-color: var(--muted); color: var(--text); }
-    .dest-filter-btn.active {
-      background: var(--dark);
-      color: #fff;
-      border-color: var(--dark);
-    }
 
     /* 3 ZONES TOWER GRID (Desktop) */
     .tower-3zones-layout {
@@ -656,7 +627,7 @@
 <body>
   <main class="counter-page">
     <div class="counter-shell">
-      <!-- Minimalist Clean Topbar Header -->
+      <!-- Minimalist Clean Topbar Header with Integrated Search & Service Filters -->
       <header class="counter-header">
         <div class="counter-title">
           <div class="counter-title-icon">
@@ -668,9 +639,24 @@
           </div>
         </div>
 
-        <div class="counter-topbar-search">
-          <svg class="search-icon ui-icon"><use href="assets/icons.svg#search"></use></svg>
-          <input type="text" id="counter-search-input" placeholder="Buscar folio, cliente, mesa o producto..." oninput="handleCounterSearch(this.value)">
+        <div class="counter-topbar-center">
+          <div class="counter-topbar-search">
+            <svg class="search-icon ui-icon"><use href="assets/icons.svg#search"></use></svg>
+            <input type="text" id="counter-search-input" placeholder="Buscar folio, cliente, mesa o producto..." oninput="handleCounterSearch(this.value)">
+          </div>
+
+          <div class="dest-filter-tabs">
+            <button class="dest-filter-btn active" data-dest="all" onclick="setDestFilter('all')">Todos</button>
+            <button class="dest-filter-btn" data-dest="salon" onclick="setDestFilter('salon')">
+              <svg class="ui-icon" width="13" height="13"><use href="assets/icons.svg#dining"></use></svg> Salón
+            </button>
+            <button class="dest-filter-btn" data-dest="llevar" onclick="setDestFilter('llevar')">
+              <svg class="ui-icon" width="13" height="13"><use href="assets/icons.svg#bag"></use></svg> Llevar
+            </button>
+            <button class="dest-filter-btn" data-dest="domicilio" onclick="setDestFilter('domicilio')">
+              <svg class="ui-icon" width="13" height="13"><use href="assets/icons.svg#bike"></use></svg> Domicilio
+            </button>
+          </div>
         </div>
 
         <div class="counter-header-actions">
@@ -687,37 +673,37 @@
         </div>
       </header>
 
-      <!-- Operational KPIs -->
+      <!-- Operational KPIs (Indicadores Visuales No Navegables) -->
       <section class="counter-metrics-bar">
-        <div class="metric-card" onclick="setViewMode('prep')" id="card-kpi-prep">
+        <div class="metric-card" id="card-kpi-prep">
           <div>
             <div class="metric-label">En Cocina</div>
             <div class="metric-val" id="count-prep" style="color:var(--role-cocina)">0</div>
           </div>
           <svg class="ui-icon" style="color:var(--role-cocina)"><use href="assets/icons.svg#flame"></use></svg>
         </div>
-        <div class="metric-card" onclick="setViewMode('salida')" id="card-kpi-salida">
+        <div class="metric-card" id="card-kpi-salida">
           <div>
             <div class="metric-label">En Mostrador</div>
             <div class="metric-val" id="count-salida" style="color:var(--role-mesero)">0</div>
           </div>
           <svg class="ui-icon" style="color:var(--role-mesero)"><use href="assets/icons.svg#check"></use></svg>
         </div>
-        <div class="metric-card" onclick="setViewMode('domicilio')" id="card-kpi-domicilio">
+        <div class="metric-card" id="card-kpi-domicilio">
           <div>
             <div class="metric-label">Reparto / Domicilio</div>
             <div class="metric-val" id="count-domicilio" style="color:var(--role-repartidor)">0</div>
           </div>
           <svg class="ui-icon" style="color:var(--role-repartidor)"><use href="assets/icons.svg#bike"></use></svg>
         </div>
-        <div class="metric-card" onclick="toggleIncidentsDrawer()" id="card-kpi-incidencias">
+        <div class="metric-card interactive" onclick="toggleIncidentsDrawer()" id="card-kpi-incidencias" title="Abrir bandeja de incidencias">
           <div>
             <div class="metric-label">Incidencias</div>
             <div class="metric-val" id="count-incidencias" style="color:var(--danger)">0</div>
           </div>
           <svg class="ui-icon" style="color:var(--danger)"><use href="assets/icons.svg#alert"></use></svg>
         </div>
-        <div class="metric-card" onclick="setViewMode('historial')" id="card-kpi-historial">
+        <div class="metric-card" id="card-kpi-historial">
           <div>
             <div class="metric-label">Entregados Hoy</div>
             <div class="metric-val" id="count-historial" style="color:var(--muted)">0</div>
@@ -726,46 +712,7 @@
         </div>
       </section>
 
-      <!-- View Controls Bar -->
-      <section class="tower-controls">
-        <div class="view-mode-tabs">
-          <button class="view-tab active" data-mode="3zones" onclick="setViewMode('3zones')">
-            <svg class="ui-icon" width="15" height="15"><use href="assets/icons.svg#counter"></use></svg>
-            Torre de Control (3 Zonas)
-          </button>
-          <button class="view-tab" data-mode="prep" onclick="setViewMode('prep')">
-            <svg class="ui-icon" width="15" height="15"><use href="assets/icons.svg#flame"></use></svg>
-            1. Preparación (<span id="tab-count-prep">0</span>)
-          </button>
-          <button class="view-tab" data-mode="salida" onclick="setViewMode('salida')">
-            <svg class="ui-icon" width="15" height="15"><use href="assets/icons.svg#check"></use></svg>
-            2. Mostrador (<span id="tab-count-salida">0</span>)
-          </button>
-          <button class="view-tab" data-mode="domicilio" onclick="setViewMode('domicilio')">
-            <svg class="ui-icon" width="15" height="15"><use href="assets/icons.svg#bike"></use></svg>
-            3. Domicilio (<span id="tab-count-domicilio">0</span>)
-          </button>
-          <button class="view-tab" data-mode="historial" onclick="setViewMode('historial')">
-            <svg class="ui-icon" width="15" height="15"><use href="assets/icons.svg#box"></use></svg>
-            Historial Hoy (<span id="tab-count-historial">0</span>)
-          </button>
-        </div>
-
-        <div class="dest-filter-tabs">
-          <button class="dest-filter-btn active" data-dest="all" onclick="setDestFilter('all')">Todos</button>
-          <button class="dest-filter-btn" data-dest="salon" onclick="setDestFilter('salon')">
-            <svg class="ui-icon" width="13" height="13"><use href="assets/icons.svg#dining"></use></svg> Salón
-          </button>
-          <button class="dest-filter-btn" data-dest="llevar" onclick="setDestFilter('llevar')">
-            <svg class="ui-icon" width="13" height="13"><use href="assets/icons.svg#bag"></use></svg> Llevar / Recoger
-          </button>
-          <button class="dest-filter-btn" data-dest="domicilio" onclick="setDestFilter('domicilio')">
-            <svg class="ui-icon" width="13" height="13"><use href="assets/icons.svg#bike"></use></svg> Domicilio
-          </button>
-        </div>
-      </section>
-
-      <!-- Main Display Layout (Dynamic 3 Zones or Single Lane) -->
+      <!-- Main Display Layout (Kanban 3 Columnas) -->
       <section id="tower-main-area"></section>
     </div>
   </main>
@@ -831,7 +778,6 @@
 
     let orders = [];
     let incidents = [];
-    let currentViewMode = '3zones'; // '3zones' | 'prep' | 'salida' | 'domicilio' | 'historial'
     let currentDestFilter = 'all'; // 'all' | 'salon' | 'llevar' | 'domicilio'
     let searchFilter = '';
     let refreshTimer;
@@ -896,19 +842,6 @@
     function scheduleRefresh(playSound = false) {
       clearTimeout(refreshTimer);
       refreshTimer = setTimeout(() => loadAllData(playSound), 150);
-    }
-
-    function setViewMode(mode) {
-      currentViewMode = mode;
-      document.querySelectorAll('.view-tab').forEach(el => {
-        el.classList.toggle('active', el.getAttribute('data-mode') === mode);
-      });
-      document.querySelectorAll('.metric-card').forEach(el => el.classList.remove('active'));
-      if (mode === 'prep') document.getElementById('card-kpi-prep')?.classList.add('active');
-      if (mode === 'salida') document.getElementById('card-kpi-salida')?.classList.add('active');
-      if (mode === 'domicilio') document.getElementById('card-kpi-domicilio')?.classList.add('active');
-      if (mode === 'historial') document.getElementById('card-kpi-historial')?.classList.add('active');
-      render();
     }
 
     function setDestFilter(dest) {
@@ -1198,7 +1131,6 @@
 
     function focusOrderFromIncident(orderId) {
       toggleIncidentsDrawer(false);
-      setViewMode('3zones');
       setTimeout(() => {
         const el = document.getElementById('hub-order-' + orderId);
         if (el) {
@@ -1244,11 +1176,6 @@
       document.getElementById('count-incidencias').textContent = openIncidents.length;
       document.getElementById('count-historial').textContent = deliveredToday.length;
 
-      document.getElementById('tab-count-prep').textContent = prepOrders.length;
-      document.getElementById('tab-count-salida').textContent = salidaOrders.length;
-      document.getElementById('tab-count-domicilio').textContent = dispatchOrders.length;
-      document.getElementById('tab-count-historial').textContent = deliveredToday.length;
-
       const headerBadge = document.getElementById('header-incidents-badge');
       if (openIncidents.length > 0) {
         headerBadge.style.display = 'inline-flex';
@@ -1259,71 +1186,52 @@
 
       const mainArea = document.getElementById('tower-main-area');
 
-      // Render based on selected View Mode
-      if (currentViewMode === '3zones') {
-        mainArea.innerHTML = `
-          <div class="tower-3zones-layout">
-            <!-- Zona 1: PREPARACIÓN -->
-            <div class="zone-column">
-              <div class="zone-header prep">
-                <div class="zone-title">
-                  <svg class="ui-icon" width="16" height="16"><use href="assets/icons.svg#flame"></use></svg>
-                  1. Preparación / Cocina
-                </div>
-                <span class="zone-count">${prepOrders.length}</span>
+      // Render 3-column Kanban layout directly
+      mainArea.innerHTML = `
+        <div class="tower-3zones-layout">
+          <!-- Zona 1: PREPARACIÓN -->
+          <div class="zone-column">
+            <div class="zone-header prep">
+              <div class="zone-title">
+                <svg class="ui-icon" width="16" height="16"><use href="assets/icons.svg#flame"></use></svg>
+                1. Preparación / Cocina
               </div>
-              <div class="zone-orders-list">
-                ${prepOrders.length ? prepOrders.map(renderOrderCard).join('') : '<div class="empty-hub"><p>Sin comandas pendientes en cocina</p></div>'}
-              </div>
+              <span class="zone-count">${prepOrders.length}</span>
             </div>
-
-            <!-- Zona 2: EN MOSTRADOR -->
-            <div class="zone-column">
-              <div class="zone-header counter">
-                <div class="zone-title">
-                  <svg class="ui-icon" width="16" height="16"><use href="assets/icons.svg#check"></use></svg>
-                  2. En Mostrador / Listo
-                </div>
-                <span class="zone-count">${salidaOrders.length}</span>
-              </div>
-              <div class="zone-orders-list">
-                ${salidaOrders.length ? salidaOrders.map(renderOrderCard).join('') : '<div class="empty-hub"><p>Sin pedidos esperando en mostrador</p></div>'}
-              </div>
-            </div>
-
-            <!-- Zona 3: SALIDA & REPARTO -->
-            <div class="zone-column">
-              <div class="zone-header dispatch">
-                <div class="zone-title">
-                  <svg class="ui-icon" width="16" height="16"><use href="assets/icons.svg#bike"></use></svg>
-                  3. Salida & Domicilio
-                </div>
-                <span class="zone-count">${dispatchOrders.length}</span>
-              </div>
-              <div class="zone-orders-list">
-                ${dispatchOrders.length ? dispatchOrders.map(renderOrderCard).join('') : '<div class="empty-hub"><p>Sin entregas en curso o por despachar</p></div>'}
-              </div>
+            <div class="zone-orders-list">
+              ${prepOrders.length ? prepOrders.map(renderOrderCard).join('') : '<div class="empty-hub"><p>Sin comandas pendientes en cocina</p></div>'}
             </div>
           </div>
-        `;
-      } else if (currentViewMode === 'prep') {
-        mainArea.innerHTML = '<div class="single-lane-grid">' +
-          (prepOrders.length ? prepOrders.map(renderOrderCard).join('') : '<div class="empty-hub" style="grid-column:1/-1"><h3>Sin órdenes en cocina</h3><p>Todo está listo para entrega.</p></div>') +
-        '</div>';
-      } else if (currentViewMode === 'salida') {
-        mainArea.innerHTML = '<div class="single-lane-grid">' +
-          (salidaOrders.length ? salidaOrders.map(renderOrderCard).join('') : '<div class="empty-hub" style="grid-column:1/-1"><h3>Sin pedidos en mostrador</h3><p>Los pedidos listos han sido entregados.</p></div>') +
-        '</div>';
-      } else if (currentViewMode === 'domicilio') {
-        mainArea.innerHTML = '<div class="single-lane-grid">' +
-          (dispatchOrders.length ? dispatchOrders.map(renderOrderCard).join('') : '<div class="empty-hub" style="grid-column:1/-1"><h3>Sin pedidos de domicilio activos</h3><p>No hay órdenes en reparto en este momento.</p></div>') +
-        '</div>';
-      } else if (currentViewMode === 'historial') {
-        const filteredDelivered = deliveredToday.filter(matchesDestFilter).filter(matchesSearch);
-        mainArea.innerHTML = '<div class="single-lane-grid">' +
-          (filteredDelivered.length ? filteredDelivered.map(renderOrderCard).join('') : '<div class="empty-hub" style="grid-column:1/-1"><h3>Sin historial de entregas</h3><p>Las órdenes concluidas hoy aparecerán aquí.</p></div>') +
-        '</div>';
-      }
+
+          <!-- Zona 2: EN MOSTRADOR -->
+          <div class="zone-column">
+            <div class="zone-header counter">
+              <div class="zone-title">
+                <svg class="ui-icon" width="16" height="16"><use href="assets/icons.svg#check"></use></svg>
+                2. En Mostrador / Listo
+              </div>
+              <span class="zone-count">${salidaOrders.length}</span>
+            </div>
+            <div class="zone-orders-list">
+              ${salidaOrders.length ? salidaOrders.map(renderOrderCard).join('') : '<div class="empty-hub"><p>Sin pedidos esperando en mostrador</p></div>'}
+            </div>
+          </div>
+
+          <!-- Zona 3: SALIDA & REPARTO -->
+          <div class="zone-column">
+            <div class="zone-header dispatch">
+              <div class="zone-title">
+                <svg class="ui-icon" width="16" height="16"><use href="assets/icons.svg#bike"></use></svg>
+                3. Salida & Domicilio
+              </div>
+              <span class="zone-count">${dispatchOrders.length}</span>
+            </div>
+            <div class="zone-orders-list">
+              ${dispatchOrders.length ? dispatchOrders.map(renderOrderCard).join('') : '<div class="empty-hub"><p>Sin entregas en curso o por despachar</p></div>'}
+            </div>
+          </div>
+        </div>
+      `;
     }
 
     async function loadAllData(playSoundIfNewReady = false) {
