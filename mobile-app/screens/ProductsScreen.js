@@ -9,7 +9,8 @@ import {
   TouchableOpacity,
   StyleSheet,
   RefreshControl,
-  StatusBar
+  StatusBar,
+  useWindowDimensions
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import axios from "axios";
@@ -32,6 +33,10 @@ const CATEGORIES = [
 ];
 
 export default function ProductsScreen({ navigation }) {
+  const { width } = useWindowDimensions();
+  const isTablet = width > 768;
+  const numColumns = isTablet ? 2 : 1;
+
   const { cart, addToCart, cartCount } = useContext(AppContext);
 
   const [products, setProducts] = useState([]);
@@ -293,8 +298,11 @@ export default function ProductsScreen({ navigation }) {
         </View>
       ) : (
         <FlatList
+          key={numColumns}
           data={filteredProducts}
           keyExtractor={(item, index) => (item?.id ? `${item.id}-${index}` : index.toString())}
+          numColumns={numColumns}
+          columnWrapperStyle={numColumns > 1 ? { gap: 12, marginBottom: 12 } : undefined}
           contentContainerStyle={styles.listContainer}
           showsVerticalScrollIndicator={false}
           refreshControl={

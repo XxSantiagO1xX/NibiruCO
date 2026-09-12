@@ -180,20 +180,49 @@ export default function ProfileScreen({ navigation }) {
           )}
 
           {user.role === "mesero" && (
-            <TouchableOpacity
-              style={styles.menuRow}
-              onPress={() => navigation.navigate("Mesas")}
-              activeOpacity={0.7}
-            >
-              <View style={[styles.menuIconCircle, { backgroundColor: colors.roleWaiterSoft || colors.primarySoft }]}>
-                <Ionicons name="restaurant-outline" size={18} color={colors.roleWaiter || colors.primary} />
-              </View>
-              <View style={styles.menuTextCol}>
-                <Text style={styles.menuTitle}>Salón y Mesas</Text>
-                <Text style={styles.menuSubtitle}>Comandas y atención a comensales</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={18} color={colors.textSubtle} />
-            </TouchableOpacity>
+            <>
+              <TouchableOpacity
+                style={styles.menuRow}
+                onPress={() => {
+                  Alert.alert(
+                    "Mi Resumen de Ventas",
+                    "Estadísticas y resumen de comandas del turno próximamente disponible."
+                  );
+                }}
+                activeOpacity={0.7}
+              >
+                <View style={[styles.menuIconCircle, { backgroundColor: colors.roleWaiterSoft || "#DCFCE7" }]}>
+                  <Ionicons name="stats-chart-outline" size={18} color={colors.roleWaiter || "#16A34A"} />
+                </View>
+                <View style={styles.menuTextCol}>
+                  <Text style={styles.menuTitle}>Mi Resumen de Ventas</Text>
+                  <Text style={styles.menuSubtitle}>Estadísticas y comandas del turno</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color={colors.textSubtle} />
+              </TouchableOpacity>
+
+              <View style={styles.menuDivider} />
+
+              <TouchableOpacity
+                style={styles.menuRow}
+                onPress={() => {
+                  Alert.alert(
+                    "Historial de Comandas",
+                    "Historial y registro de comandas cerradas anteriormente."
+                  );
+                }}
+                activeOpacity={0.7}
+              >
+                <View style={[styles.menuIconCircle, { backgroundColor: colors.infoSoft || "#EFF6FF" }]}>
+                  <Ionicons name="receipt-outline" size={18} color={colors.info || "#2563EB"} />
+                </View>
+                <View style={styles.menuTextCol}>
+                  <Text style={styles.menuTitle}>Historial de Comandas</Text>
+                  <Text style={styles.menuSubtitle}>Consultar cuentas cobradas y tiempos</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color={colors.textSubtle} />
+              </TouchableOpacity>
+            </>
           )}
 
           {user.role === "admin" && (

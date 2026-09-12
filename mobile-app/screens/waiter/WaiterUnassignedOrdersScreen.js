@@ -10,7 +10,8 @@ import {
   RefreshControl,
   ActivityIndicator,
   Modal,
-  Alert
+  Alert,
+  useWindowDimensions
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import axios from "axios";
@@ -21,6 +22,10 @@ import Header from "../../components/Header";
 import EmptyState from "../../components/EmptyState";
 
 export default function WaiterUnassignedOrdersScreen({ navigation }) {
+  const { width } = useWindowDimensions();
+  const isTablet = width > 768;
+  const numColumns = isTablet ? (width > 1024 ? 3 : 2) : 1;
+
   const { token, orderUpdateSignal, tablesUpdateSignal } = useContext(AppContext);
 
   const [orders, setOrders] = useState([]);
@@ -130,45 +135,51 @@ export default function WaiterUnassignedOrdersScreen({ navigation }) {
     const clientName = item.customer_name || item.user_name || "Cliente en local";
 
     return (
-      <View style={styles.orderCard}>
-        <View style={styles.cardHeader}>
-          <View style={styles.folioBadge}>
-            <Text style={styles.folioText}>{folioStr}</Text>
+      <View style={styles.orderRibbonCard}>
+        {/* Ribbon Header Row */}
+        <View style={styles.cardTopRow}>
+          <View style={styles.orderRibbonTag}>
+            <Text style={styles.orderRibbonTagText}>{folioStr}</Text>
           </View>
-          <Text style={styles.statusWait}>Esperando Llegada</Text>
+          <View style={styles.statusWaitBadge}>
+            <Text style={styles.statusWaitText}>Esperando Mesa</Text>
+          </View>
         </View>
 
+        {/* Card Body */}
         <View style={styles.cardBody}>
           <View style={styles.clientRow}>
             <Ionicons name="person-circle-outline" size={18} color={colors.primary} />
-            <Text style={styles.clientName}>{clientName}</Text>
+            <Text style={styles.clientName} numberOfLines={1}>{clientName}</Text>
             {item.user_phone ? (
               <Text style={styles.clientPhone}>· {item.user_phone}</Text>
             ) : null}
           </View>
 
-          <View style={styles.itemsSummary}>
-            {items.map((it, idx) => (
-              <Text key={idx} style={styles.itemLine}>
-                {it.quantity}x {it.name}
-              </Text>
-            ))}
-          </View>
+          {items.length > 0 ? (
+            <View style={styles.itemsSummary}>
+              {items.map((it, idx) => (
+                <Text key={idx} style={styles.itemLine} numberOfLines={1}>
+                  {it.quantity}x {it.name}
+                </Text>
+              ))}
+            </View>
+          ) : null}
 
           <View style={styles.priceRow}>
             <Text style={styles.totalLabel}>Total del Pedido:</Text>
-            <Text style={styles.totalAmount}>${Number(item.total).toFixed(2)}</Text>
+            <Text style={styles.totalAmount}>${Number(item.total || 0).toFixed(2)}</Text>
           </View>
-        </View>
 
-        <TouchableOpacity
-          style={styles.assignBtn}
-          onPress={() => handleOpenAssignModal(item)}
-          activeOpacity={0.8}
-        >
-          <Ionicons name="restaurant" size={16} color="#ffffff" />
-          <Text style={styles.assignBtnText}>Asignar a Mesa Física</Text>
-        </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.assignBtn}
+            onPress={() => handleOpenAssignModal(item)}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="restaurant" size={16} color="#ffffff" />
+            <Text style={styles.assignBtnText}>Asignar a Mesa Física</Text>
+          </TouchableOpacity>
+        </View>
       </View>
     );
   };
@@ -219,8 +230,11 @@ export default function WaiterUnassignedOrdersScreen({ navigation }) {
         </View>
       ) : (
         <FlatList
+          key={numColumns}
           data={orders}
           keyExtractor={(item) => item.id.toString()}
+          numColumns={numColumns}
+          columnWrapperStyle={numColumns > 1 ? styles.columnWrapper : undefined}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
           refreshControl={
@@ -371,51 +385,61 @@ const styles = StyleSheet.create({
     padding: 16,
     paddingBottom: 40
   },
-  orderCard: {
+  columnWrapper: {
+    gap: 12,
+    marginBottom: 12
+  },
+  orderRibbonCard: {
+    flex: 1,
     backgroundColor: colors.surface,
-    borderRadius: 20,
-    padding: 16,
+    borderRadius: 18,
     marginBottom: 14,
     borderWidth: 1,
     borderColor: colors.borderLight,
-    shadowColor: "#1d1814",
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
     shadowRadius: 8,
-    elevation: 2
+    elevation: 2,
+    overflow: "hidden"
   },
-  cardHeader: {
+  cardTopRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 12
+    alignItems: "center"
   },
-  folioBadge: {
-    backgroundColor: colors.primarySoft,
+  orderRibbonTag: {
+    backgroundColor: colors.primary,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderBottomRightRadius: 12,
+    alignSelf: "flex-start"
+  },
+  orderRibbonTagText: {
+    fontSize: 13,
+    fontWeight: "900",
+    color: "#ffffff",
+    letterSpacing: 0.5
+  },
+  statusWaitBadge: {
     paddingHorizontal: 10,
     paddingVertical: 4,
-    borderRadius: 8
-  },
-  folioText: {
-    fontSize: 16,
-    fontWeight: "900",
-    color: colors.primary
-  },
-  statusWait: {
-    fontSize: 11,
-    fontWeight: "800",
-    color: "#ea580c",
-    backgroundColor: "#fff7ed",
-    paddingHorizontal: 8,
-    paddingVertical: 3,
     borderRadius: 999,
+    backgroundColor: "#fff7ed",
     borderWidth: 1,
-    borderColor: "#fed7aa"
+    borderColor: "#fed7aa",
+    marginRight: 12,
+    marginTop: 4
+  },
+  statusWaitText: {
+    fontSize: 10.5,
+    fontWeight: "800",
+    color: "#ea580c"
   },
   cardBody: {
-    paddingBottom: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.borderLight,
+    paddingHorizontal: 14,
+    paddingTop: 8,
+    paddingBottom: 14,
     gap: 8
   },
   clientRow: {
@@ -447,15 +471,15 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginTop: 4
+    marginTop: 2
   },
   totalLabel: {
-    fontSize: 13,
+    fontSize: 12.5,
     color: colors.muted,
     fontWeight: "600"
   },
   totalAmount: {
-    fontSize: 17,
+    fontSize: 16.5,
     fontWeight: "900",
     color: colors.primary
   },
@@ -464,10 +488,15 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: colors.primary,
-    paddingVertical: 12,
-    borderRadius: 14,
-    marginTop: 12,
-    gap: 6
+    height: 44,
+    borderRadius: 22,
+    marginTop: 4,
+    gap: 6,
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 2
   },
   assignBtnText: {
     fontSize: 13,

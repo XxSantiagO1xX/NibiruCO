@@ -97,6 +97,7 @@ export default function ProductCard({
 
 const styles = StyleSheet.create({
   card: {
+    flex: 1,
     backgroundColor: colors.surface,
     borderRadius: 18,
     padding: 14,

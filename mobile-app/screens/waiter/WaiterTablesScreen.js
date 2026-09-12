@@ -8,7 +8,8 @@ import {
   StyleSheet,
   RefreshControl,
   ActivityIndicator,
-  Alert
+  Alert,
+  useWindowDimensions
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import axios from "axios";
@@ -19,6 +20,9 @@ import Header from "../../components/Header";
 import EmptyState from "../../components/EmptyState";
 
 export default function WaiterTablesScreen({ navigation }) {
+  const { width } = useWindowDimensions();
+  const isTablet = width > 768;
+
   const { token, user, tablesUpdateSignal, orderUpdateSignal } = useContext(AppContext);
 
   const [tables, setTables] = useState([]);
@@ -198,7 +202,13 @@ export default function WaiterTablesScreen({ navigation }) {
 
         {isOccupied ? (
           <View style={styles.occupiedInfoBox}>
-            <Text style={styles.totalRunning}>
+            <Text style={styles.totalRunningLabel}>Total comanda:</Text>
+            <Text
+              style={[
+                styles.totalRunningHero,
+                { color: isAccountReq ? colors.warning : colors.primary }
+              ]}
+            >
               ${Number(item.running_total || 0).toFixed(2)}
             </Text>
             <Text style={styles.sessionMeta}>
@@ -234,7 +244,7 @@ export default function WaiterTablesScreen({ navigation }) {
       {/* Waiting arrival banner link */}
       <TouchableOpacity
         style={styles.unassignedBanner}
-        onPress={() => navigation.navigate("WaiterUnassignedOrders")}
+        onPress={() => navigation.navigate("Esperando")}
         activeOpacity={0.85}
       >
         <View style={styles.unassignedBannerLeft}>
@@ -289,9 +299,10 @@ export default function WaiterTablesScreen({ navigation }) {
         </View>
       ) : (
         <FlatList
+          key={isTablet ? 4 : 2}
           data={filteredTables}
           keyExtractor={(item) => item.id.toString()}
-          numColumns={2}
+          numColumns={isTablet ? 4 : 2}
           columnWrapperStyle={styles.columnWrapper}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
@@ -421,28 +432,43 @@ const styles = StyleSheet.create({
     paddingBottom: 100
   },
   columnWrapper: {
-    justifyContent: "space-between",
+    gap: 10,
     marginBottom: 12
   },
   tableCard: {
-    width: "48%",
-    backgroundColor: colors.surface,
+    flex: 1,
     borderRadius: 18,
     padding: 14,
-    borderWidth: 1.5,
-    minHeight: 140,
+    minHeight: 145,
     justifyContent: "space-between"
   },
   cardFree: {
-    borderColor: colors.borderLight
+    backgroundColor: "rgba(255, 255, 255, 0.45)",
+    borderColor: colors.border,
+    borderWidth: 1.5,
+    borderStyle: "dashed"
   },
   cardOccupied: {
+    backgroundColor: "#ffffff",
     borderColor: colors.primary,
-    backgroundColor: "#fffbf7"
+    borderWidth: 1.5,
+    borderStyle: "solid",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+    elevation: 2
   },
   cardAccountReq: {
+    backgroundColor: "#ffffff",
     borderColor: colors.warning,
-    backgroundColor: colors.warningSoft
+    borderWidth: 1.5,
+    borderStyle: "solid",
+    shadowColor: colors.warning,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.12,
+    shadowRadius: 6,
+    elevation: 2
   },
   cardTopRow: {
     flexDirection: "row",
@@ -488,15 +514,21 @@ const styles = StyleSheet.create({
     fontWeight: "800"
   },
   occupiedInfoBox: {
-    marginTop: 10,
+    marginTop: 8,
     paddingTop: 8,
     borderTopWidth: 1,
     borderTopColor: colors.borderLight
   },
-  totalRunning: {
-    fontSize: 16,
+  totalRunningLabel: {
+    fontSize: 10,
+    fontWeight: "700",
+    color: colors.muted
+  },
+  totalRunningHero: {
+    fontSize: 21,
     fontWeight: "900",
-    color: colors.primary
+    letterSpacing: -0.5,
+    marginTop: 2
   },
   sessionMeta: {
     fontSize: 10,
