@@ -75,6 +75,7 @@ export default function DeliveryTrackingScreen({ route, navigation }) {
   const locationSubscription = useRef(null);
 
   const [loading, setLoading] = useState(true);
+  const [loadingGps, setLoadingGps] = useState(true);
   const [trackingData, setTrackingData] = useState(null);
   const [driverCoords, setDriverCoords] = useState(null);
   const [driverHeading, setDriverHeading] = useState(0);
@@ -82,6 +83,7 @@ export default function DeliveryTrackingScreen({ route, navigation }) {
   const [destinationCoords, setDestinationCoords] = useState(null);
   const [isAutoCenter, setIsAutoCenter] = useState(true);
   const [hasGpsPermission, setHasGpsPermission] = useState(null);
+  const [initialRegion, setInitialRegion] = useState(DEFAULT_CENTER);
 
   // Región animada para el marcador del repartidor
   const animatedDriverCoord = useRef(
@@ -209,28 +211,45 @@ export default function DeliveryTrackingScreen({ route, navigation }) {
    */
   const setupLocationSubscription = useCallback(async () => {
     try {
+      // 1. Solicitar explícitamente permisos de ubicación en primer plano al montar
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== "granted") {
         setHasGpsPermission(false);
+        setLoadingGps(false);
         return;
       }
 
       setHasGpsPermission(true);
 
-      // Obtener posición inicial
-      const currentPos = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.High
-      });
+      // 2. Obtener posición GPS inicial del dispositivo para evitar mapa en blanco
+      try {
+        const currentPos = await Promise.race([
+          Location.getCurrentPositionAsync({
+            accuracy: Location.Accuracy.Balanced || Location.Accuracy.High
+          }),
+          new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout GPS")), 4000))
+        ]);
 
-      if (currentPos?.coords) {
-        const { latitude, longitude, heading: h, speed: s } = currentPos.coords;
-        const coords = { latitude, longitude };
-        setDriverCoords(coords);
-        if (h !== null && h !== undefined) setDriverHeading(h);
-        if (s && s > 0) setDriverSpeedKmh(Math.round(s * 3.6));
+        if (currentPos?.coords) {
+          const { latitude, longitude, heading: h, speed: s } = currentPos.coords;
+          const coords = { latitude, longitude };
+          setDriverCoords(coords);
+          if (h !== null && h !== undefined) setDriverHeading(h);
+          if (s && s > 0) setDriverSpeedKmh(Math.round(s * 3.6));
 
-        animatedDriverCoord.setValue(coords);
-        centerOnDriver(coords, 500);
+          animatedDriverCoord.setValue(coords);
+          setInitialRegion({
+            latitude,
+            longitude,
+            latitudeDelta: DEFAULT_DELTA,
+            longitudeDelta: DEFAULT_DELTA
+          });
+          centerOnDriver(coords, 500);
+        }
+      } catch (gpsErr) {
+        // En caso de que la señal tarde o falle, usar Santiago de Querétaro como respaldo
+        console.warn("Señal GPS tardó en responder, usando Querétaro como respaldo:", gpsErr.message);
+        setInitialRegion(DEFAULT_CENTER);
       }
 
       // Limpiar suscripción previa
@@ -239,7 +258,7 @@ export default function DeliveryTrackingScreen({ route, navigation }) {
         locationSubscription.current = null;
       }
 
-      // Suscripción con watchPositionAsync en tiempo real
+      // 3. Suscripción en tiempo real con watchPositionAsync
       locationSubscription.current = await Location.watchPositionAsync(
         {
           accuracy: Location.Accuracy.BestForNavigation || Location.Accuracy.High,
@@ -286,6 +305,8 @@ export default function DeliveryTrackingScreen({ route, navigation }) {
       );
     } catch (err) {
       console.warn("GPS tracking error:", err.message);
+    } finally {
+      setLoadingGps(false);
     }
   }, [animateDriverMarker, centerOnDriver, isAutoCenter, token, user?.role, animatedDriverCoord]);
 
@@ -378,6 +399,24 @@ export default function DeliveryTrackingScreen({ route, navigation }) {
 
   const statusBadge = getStatusBadge();
 
+  // Estado de carga inicial de GPS y tracking para evitar pantalla en blanco
+  if (loadingGps && !driverCoords && !destinationCoords) {
+    return (
+      <View style={styles.loadingContainer}>
+        <StatusBar barStyle="dark-content" backgroundColor={colors.surface} />
+        <SafeAreaView style={styles.loadingInner}>
+          <View style={styles.loadingIconBox}>
+            <ActivityIndicator size="large" color={colors.primary} />
+          </View>
+          <Text style={styles.loadingTitle}>Obteniendo Ubicación en Vivo</Text>
+          <Text style={styles.loadingSubtitle}>
+            Conectando con GPS y mapa de entrega...
+          </Text>
+        </SafeAreaView>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent={true} />
@@ -387,12 +426,7 @@ export default function DeliveryTrackingScreen({ route, navigation }) {
         ref={mapRef}
         provider={PROVIDER_DEFAULT}
         style={styles.map}
-        initialRegion={{
-          latitude: driverCoords?.latitude || DEFAULT_CENTER.latitude,
-          longitude: driverCoords?.longitude || DEFAULT_CENTER.longitude,
-          latitudeDelta: DEFAULT_DELTA,
-          longitudeDelta: DEFAULT_DELTA
-        }}
+        initialRegion={initialRegion}
         showsUserLocation={false}
         showsCompass={false}
         showsMyLocationButton={false}
@@ -614,6 +648,40 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background
+  },
+  loadingContainer: {
+    flex: 1,
+    backgroundColor: colors.surface,
+    alignItems: "center",
+    justifyContent: "center"
+  },
+  loadingInner: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 24
+  },
+  loadingIconBox: {
+    width: 64,
+    height: 64,
+    borderRadius: 20,
+    backgroundColor: colors.primarySoft,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 16
+  },
+  loadingTitle: {
+    fontSize: 16,
+    fontWeight: "800",
+    color: colors.text,
+    textAlign: "center",
+    letterSpacing: -0.2
+  },
+  loadingSubtitle: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: colors.muted,
+    textAlign: "center",
+    marginTop: 6
   },
   map: {
     ...StyleSheet.absoluteFillObject
