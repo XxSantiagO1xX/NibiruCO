@@ -9,14 +9,355 @@
   <link rel="stylesheet" href="../css/waiter.css">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
+    html, body {
+      height: 100vh;
+      max-height: 100vh;
+      overflow: hidden;
+      overscroll-behavior: none;
+    }
+    .waiter-shell {
+      height: 100vh;
+      max-height: 100vh;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      background: var(--bg);
+    }
+    .waiter-topbar {
+      flex-shrink: 0;
+      min-height: 56px;
+      height: 56px;
+      padding: 0 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      z-index: 30;
+    }
+    .waiter-main {
+      flex: 1 1 0%;
+      min-height: 0;
+      height: calc(100vh - 56px);
+      overflow: hidden;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 400px;
+      gap: 18px;
+      padding: 14px 20px;
+      max-width: 1750px;
+      width: 100%;
+      margin: 0 auto;
+      box-sizing: border-box;
+      align-items: stretch;
+    }
+
+    /* Left Column: Stage with Tables + Catalog (Isolated Scroll) */
+    .waiter-stage {
+      height: 100%;
+      min-height: 0;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+      padding-right: 6px;
+    }
+
+    /* Fixed Right Panel Comanda (100% Height) */
+    .waiter-order {
+      height: 100%;
+      max-height: 100%;
+      min-height: 0;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      padding: 16px 18px;
+      background: var(--surface);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius-md);
+      box-shadow: var(--shadow-sm);
+      box-sizing: border-box;
+      flex-shrink: 0;
+      top: 0;
+    }
+    .waiter-order .cart-list {
+      flex: 1 1 0%;
+      min-height: 0;
+      overflow-y: auto;
+      margin-top: 10px;
+      padding-right: 2px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    /* Global Scrollbars Visually Hidden */
+    html, body, *, *::before, *::after {
+      scrollbar-width: none !important;
+      -ms-overflow-style: none !important;
+    }
+    ::-webkit-scrollbar {
+      display: none !important;
+      width: 0 !important;
+      height: 0 !important;
+    }
+
+    /* Mesas Grid & Badges de Alto Contraste */
+    .table-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+      gap: 10px;
+    }
+    .table-tile {
+      min-height: 96px;
+      padding: 12px 10px;
+      border: 1.5px solid var(--border);
+      border-radius: 14px;
+      background: var(--surface);
+      color: var(--text);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      box-shadow: var(--shadow-xs);
+      transition: all .15s ease;
+      cursor: pointer;
+      user-select: none;
+    }
+    .table-tile:hover {
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-md);
+      border-color: var(--primary-border);
+    }
+    .table-tile.active {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(245, 102, 36, 0.22);
+    }
+    .table-number {
+      font-size: 16px;
+      font-weight: 900;
+      letter-spacing: -0.02em;
+      color: var(--text);
+    }
+    .table-zone-label {
+      font-size: 11px;
+      color: var(--muted);
+      font-weight: 600;
+    }
+    .table-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 3px 8px;
+      border-radius: 9999px;
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.02em;
+      text-transform: uppercase;
+      white-space: nowrap;
+      margin-top: 2px;
+    }
+    .table-badge.badge-free {
+      background: #DCFCE7;
+      color: #15803D;
+      border: 1px solid #86EFAC;
+    }
+    .table-badge.badge-occupied {
+      background: #FEE2E2;
+      color: #B91C1C;
+      border: 1px solid #FCA5A5;
+    }
+    .table-badge.badge-account {
+      background: #FEF3C7;
+      color: #B45309;
+      border: 1px solid #FCD34D;
+    }
+
+    /* Category Filter Pills (Ventas Style) */
+    .waiter-menu-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 12px;
+      flex-wrap: wrap;
+    }
+    .category-pills-bar {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      overflow-x: auto;
+      white-space: nowrap;
+      padding: 2px 0;
+    }
+    .category-pill {
+      padding: 6px 14px;
+      border-radius: 9999px;
+      background: #F3F4F6;
+      border: 1px solid transparent;
+      font-size: 12.5px;
+      font-weight: 700;
+      color: #374151;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all .15s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      user-select: none;
+    }
+    .category-pill:hover {
+      background: #E5E7EB;
+      color: #111827;
+    }
+    .category-pill.active {
+      background: var(--primary);
+      color: #FFFFFF;
+      border-color: var(--primary);
+      box-shadow: 0 2px 6px rgba(245, 102, 36, 0.25);
+    }
+    .waiter-search-box {
+      position: relative;
+      display: flex;
+      align-items: center;
+      min-width: 180px;
+      max-width: 260px;
+      flex: 1 1 180px;
+    }
+    .waiter-search-icon {
+      position: absolute;
+      left: 10px;
+      color: var(--muted);
+      pointer-events: none;
+    }
+    .waiter-search-input {
+      width: 100%;
+      height: 34px;
+      padding: 0 10px 0 30px;
+      border-radius: 8px;
+      border: 1.5px solid var(--border);
+      background: var(--surface);
+      color: var(--text);
+      font-size: 12.5px;
+      font-family: inherit;
+      transition: all .15s ease;
+      box-sizing: border-box;
+    }
+    .waiter-search-input:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(245, 102, 36, 0.15);
+    }
+
+    /* 100% Interactive Tactile Product Cards */
+    .waiter-products {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 12px;
+    }
+    .waiter-product-card {
+      background: var(--surface);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 14px;
+      box-shadow: var(--shadow-xs);
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease;
+      cursor: pointer;
+      user-select: none;
+      position: relative;
+    }
+    .waiter-product-card:hover {
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-md);
+      border-color: var(--primary-border);
+    }
+    .waiter-product-card:active {
+      transform: scale(0.98);
+    }
+    .waiter-product-card.disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+      pointer-events: none;
+    }
+    .waiter-product-media {
+      height: 70px;
+      border-radius: var(--radius-xs);
+      background: var(--surface-2);
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .waiter-product-media img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      transition: transform .15s ease;
+    }
+    .waiter-product-card:hover .waiter-product-media img {
+      transform: scale(1.04);
+    }
+    .waiter-product-name {
+      margin: 2px 0 0;
+      font-size: 17px;
+      font-weight: 700;
+      letter-spacing: -0.015em;
+      color: var(--text);
+      line-height: 1.25;
+    }
+    .waiter-product-tag {
+      font-size: 11px;
+      color: var(--muted);
+      font-weight: 500;
+    }
+    .waiter-product-bottom {
+      margin-top: auto;
+      padding-top: 6px;
+      border-top: 1px dashed var(--border-light);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .waiter-product-price {
+      font-size: 15px;
+      font-weight: 900;
+      color: var(--primary);
+      letter-spacing: -0.02em;
+    }
+
+    @media (max-width: 1024px) {
+      html, body, .waiter-shell, .waiter-main {
+        height: auto;
+        max-height: none;
+        overflow: visible;
+      }
+      .waiter-main {
+        grid-template-columns: 1fr;
+        padding: 12px;
+        display: flex;
+        flex-direction: column;
+      }
+      .waiter-order {
+        height: auto !important;
+        max-height: none !important;
+      }
+    }
+
     .combo-modal{position:fixed;inset:0;z-index:100;background:rgba(15,23,42,.58);display:grid;place-items:center;padding:16px}.combo-modal.hidden{display:none}.combo-dialog{width:min(600px,100%);max-height:88vh;overflow:auto;background:var(--surface);border-radius:22px;padding:20px;box-shadow:var(--shadow-lg)}.combo-group{padding:14px 0;border-top:1px solid var(--border)}.combo-option{display:flex;gap:10px;align-items:center;padding:8px 0}.combo-option input{width:auto}
   </style>
 </head>
-<body>
-  <div class="waiter-shell">
+<body class="h-screen overflow-hidden overscroll-none">
+  <div class="waiter-shell h-screen overflow-hidden">
     <header class="waiter-topbar">
       <div class="home-brand">
-        <div class="brand-mark">M</div>
+        <div class="brand-mark"><svg class="ui-icon" width="20" height="20"><use href="assets/icons.svg#logo"></use></svg></div>
         <div>
           <strong>MealOps Mesero</strong>
           <span class="waiter-topbar-subtitle">Mesas, comandas y cuenta</span>
@@ -24,40 +365,42 @@
       </div>
       <div class="header-actions">
         <span id="waiter-name" class="muted"></span>
-        <button class="btn btn-secondary" onclick="window.location.href='home.html'">Panel</button>
-        <button class="btn btn-secondary" onclick="logout()">Salir</button>
+        <button class="btn btn-secondary btn-sm" onclick="window.location.href='home.html'">Panel</button>
+        <button class="btn btn-secondary btn-sm" onclick="logout()">Salir</button>
       </div>
     </header>
 
     <main class="waiter-main">
       <section class="waiter-stage">
-        <div class="waiter-heading">
-          <div>
-            <div class="eyebrow">Servicio en mesa</div>
-            <h1>Selecciona una mesa y levanta la comanda.</h1>
-            <p>Las mesas se cargan desde MealOps. Cada comanda se acumula en la cuenta de la mesa hasta que se registre el pago.</p>
-          </div>
-          <div class="waiter-status" id="selected-table-label">Sin mesa seleccionada</div>
-        </div>
-
+        <!-- Tables Section -->
         <section aria-labelledby="tables-title">
-          <div class="waiter-section-head">
-            <div>
-              <h2 id="tables-title">Mesas</h2>
-              <p>Libre, ocupada o con cuenta solicitada.</p>
+          <div class="waiter-section-head" style="margin-bottom:10px;display:flex;justify-content:space-between;align-items:center">
+            <div style="display:flex;align-items:center;gap:10px">
+              <h2 id="tables-title" style="margin:0;font-size:18px;font-weight:800">Mesas</h2>
+              <span class="waiter-status" id="selected-table-label" style="font-size:11.5px;padding:4px 10px">Sin mesa seleccionada</span>
             </div>
             <div id="zone-filters" class="zone-filters"></div>
           </div>
           <div id="tables" class="table-grid"></div>
         </section>
 
+        <!-- Menu & Category Pills Section -->
         <section class="waiter-menu" aria-labelledby="menu-title">
-          <div class="waiter-section-head">
-            <div>
-              <h2 id="menu-title">Menú de hoy</h2>
-              <p>Incluye platillos, combos y artículos de entrega inmediata.</p>
+          <div class="waiter-menu-header">
+            <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+              <h2 id="menu-title" style="margin:0;font-size:18px;font-weight:800">Menú de hoy</h2>
+              <!-- Dynamic Category Pills Bar -->
+              <div class="category-pills-bar" id="category-pills-bar">
+                <button class="category-pill active" data-cat="all" onclick="filterCategory('all')">Todos</button>
+                <button class="category-pill" data-cat="guisados" onclick="filterCategory('guisados')">Guisados</button>
+                <button class="category-pill" data-cat="bebidas" onclick="filterCategory('bebidas')">Bebidas</button>
+                <button class="category-pill" data-cat="extras" onclick="filterCategory('extras')">Extras</button>
+              </div>
             </div>
-            <input id="waiter-search" class="waiter-search" placeholder="Buscar producto..." oninput="renderProducts()">
+            <div class="waiter-search-box">
+              <svg class="ui-icon waiter-search-icon" width="14" height="14"><use href="assets/icons.svg#search"></use></svg>
+              <input id="waiter-search" class="waiter-search-input" placeholder="Buscar platillo..." oninput="renderProducts()">
+            </div>
           </div>
           <div id="waiter-products" class="waiter-products"></div>
         </section>
@@ -67,7 +410,7 @@
         <div class="waiter-order-head">
           <div>
             <div class="eyebrow">Mesa actual</div>
-            <h2 id="order-table">Selecciona una mesa</h2>
+            <h2 id="order-table" style="margin:4px 0 2px;font-size:18px;font-weight:800">Selecciona una mesa</h2>
             <small id="session-state" class="waiter-session-state">Sin cuenta abierta</small>
           </div>
           <button class="btn btn-ghost btn-sm" onclick="clearCart()">Limpiar</button>
@@ -76,14 +419,17 @@
         <div id="waiter-cart" class="cart-list"></div>
 
         <div class="waiter-summary">
-          <div class="total-row"><span>Comanda</span><strong id="waiter-total">$0.00</strong></div>
-          <button class="btn btn-primary waiter-send" id="send-order" onclick="sendOrder()" disabled>Registrar comanda</button>
+          <div class="total-row" style="display:flex;justify-content:space-between;align-items:baseline;padding:8px 0;border-top:1px dashed var(--border);margin-bottom:8px">
+            <span style="font-weight:700">Comanda</span>
+            <strong id="waiter-total" style="font-size:18px;color:var(--primary)">$0.00</strong>
+          </div>
+          <button class="btn btn-primary waiter-send" id="send-order" onclick="sendOrder()" disabled style="font-weight:800;font-size:14px">Registrar comanda</button>
           <div class="waiter-account-actions">
             <button class="btn btn-secondary" id="view-account" onclick="loadAccount(true)" disabled>Ver cuenta</button>
             <button class="btn btn-secondary" id="request-account" onclick="requestAccount()" disabled>Solicitar cuenta</button>
           </div>
           <button class="btn btn-soft hidden" id="reopen-account" onclick="reopenAccount()">Reabrir mesa</button>
-          <div class="waiter-hint">Lo que requiere preparación llega al KDS. Bebidas o artículos de entrega inmediata se suman a la cuenta sin crear una tarea de cocina.</div>
+          <div class="waiter-hint" style="margin-top:8px;font-size:10px;color:var(--muted);text-align:center">Lo que requiere preparación llega al KDS. Bebidas o artículos inmediatos se suman a la cuenta directamente.</div>
         </div>
       </aside>
     </main>
@@ -144,6 +490,7 @@
     let tables = [];
     let selectedTable = null;
     let selectedZone = 'Todas';
+    let selectedCategory = 'all';
     let activeSessionId = null;
     let activeSessionStatus = null;
     let currentAccount = null;
@@ -171,6 +518,110 @@
 
     if (currentUser) {
       document.getElementById('waiter-name').textContent = currentUser.name || currentUser.phone || currentUser.role || 'Mesero';
+    }
+
+    function getProductCategory(product) {
+      if (!product) return 'guisados';
+      if (product.category && typeof product.category === 'string' && product.category.trim()) {
+        return product.category.trim().toLowerCase();
+      }
+      if (product.product_kind === 'combo') {
+        return 'combos';
+      }
+      const name = (product.name || '').toLowerCase().trim();
+      if (
+        name.includes('agua') ||
+        name.includes('refresco') ||
+        name.includes('coca') ||
+        name.includes('pepsi') ||
+        name.includes('jugo') ||
+        name.includes('bebida') ||
+        name.includes('cerveza') ||
+        name.includes('café') ||
+        name.includes('cafe') ||
+        name.includes('té') ||
+        name.includes('te ') ||
+        name.includes('soda') ||
+        name.includes('jarrito') ||
+        name.includes('boing')
+      ) {
+        return 'bebidas';
+      }
+      if (
+        name.includes('extra') ||
+        name.includes('adicional') ||
+        name.includes('guarnicion') ||
+        name.includes('guarnición') ||
+        name.includes('porción') ||
+        name.includes('porcion') ||
+        name.includes('salsa') ||
+        name.includes('tortilla') ||
+        name.includes('postre') ||
+        name.includes('pan') ||
+        name.includes('frijol') ||
+        name.includes('arroz extra')
+      ) {
+        return 'extras';
+      }
+      return 'guisados';
+    }
+
+    function buildDynamicCategories() {
+      const container = document.getElementById('category-pills-bar');
+      if (!container) return;
+
+      const defaultCategories = [
+        { key: 'all', label: 'Todos' },
+        { key: 'guisados', label: 'Guisados' },
+        { key: 'bebidas', label: 'Bebidas' },
+        { key: 'extras', label: 'Extras' }
+      ];
+
+      const dynamicCats = new Set();
+      let hasCombos = false;
+
+      (products || []).forEach(p => {
+        if (p.product_kind === 'combo') {
+          hasCombos = true;
+        } else if (p.category && typeof p.category === 'string' && p.category.trim()) {
+          const rawCat = p.category.trim().toLowerCase();
+          if (!defaultCategories.some(d => d.key === rawCat)) {
+            dynamicCats.add(p.category.trim());
+          }
+        }
+      });
+
+      const currentSelected = String(selectedCategory || 'all').trim().toLowerCase();
+
+      let html = defaultCategories.map(cat => {
+        const isActive = currentSelected === cat.key;
+        return `<button class="category-pill ${isActive ? 'active' : ''}" data-cat="${escapeHtml(cat.key)}" onclick="filterCategory('${escapeHtml(cat.key)}')">${escapeHtml(cat.label)}</button>`;
+      }).join('');
+
+      dynamicCats.forEach(catName => {
+        const catKey = catName.trim().toLowerCase();
+        const isActive = currentSelected === catKey;
+        html += `<button class="category-pill ${isActive ? 'active' : ''}" data-cat="${escapeHtml(catKey)}" onclick="filterCategory('${escapeHtml(catKey)}')">${escapeHtml(catName)}</button>`;
+      });
+
+      if (hasCombos) {
+        const isComboActive = currentSelected === 'combos';
+        html += `<button class="category-pill ${isComboActive ? 'active' : ''}" data-cat="combos" onclick="filterCategory('combos')"><svg class="ui-icon" width="13" height="13"><use href="assets/icons.svg#combo"></use></svg> Combos</button>`;
+      }
+
+      container.innerHTML = html;
+    }
+
+    function filterCategory(cat) {
+      selectedCategory = String(cat || 'all').trim().toLowerCase();
+      document.querySelectorAll('.category-pill').forEach(btn => {
+        const btnCat = (btn.getAttribute('data-cat') || btn.textContent || '').trim().toLowerCase();
+        const isMatch = (selectedCategory === 'all' && (btnCat === 'all' || btnCat === 'todos')) ||
+                        (btnCat === selectedCategory);
+        btn.classList.toggle('active', isMatch);
+      });
+      buildDynamicCategories();
+      renderProducts();
     }
 
     async function loadTables() {
@@ -222,12 +673,16 @@
       container.innerHTML = filtered.map((table) => {
         const selected = selectedTable && Number(table.id) === Number(selectedTable.id);
         const state = table.session_status === 'account_requested' ? 'Cuenta' : table.session_status === 'open' ? 'Ocupada' : 'Libre';
-        const stateClass = table.session_status === 'account_requested' ? 'account' : table.session_status === 'open' ? 'occupied' : 'free';
-        return `<button class="table-tile ${selected ? 'active' : ''} ${stateClass}" onclick="selectTable(${Number(table.id)})">
-          <span class="table-number">${escapeHtml(table.name)}</span>
-          <span>${escapeHtml(table.zone || 'Sin zona')}</span>
-          <span class="table-state">${state}${Number(table.running_total) > 0 ? ` · ${formatCurrency(table.running_total)}` : ''}</span>
-        </button>`;
+        const badgeClass = table.session_status === 'account_requested' ? 'badge-account' : table.session_status === 'open' ? 'badge-occupied' : 'badge-free';
+        const totalExtra = Number(table.running_total) > 0 ? ` · ${formatCurrency(table.running_total)}` : '';
+
+        return `
+          <button class="table-tile ${selected ? 'active' : ''} ${table.session_status || 'free'}" onclick="selectTable(${Number(table.id)})">
+            <span class="table-number">${escapeHtml(table.name)}</span>
+            <span class="table-zone-label">${escapeHtml(table.zone || 'Sin zona')}</span>
+            <span class="table-badge ${badgeClass}">${state}${totalExtra}</span>
+          </button>
+        `;
       }).join('');
     }
 
@@ -276,6 +731,7 @@
     async function loadProducts() {
       try {
         [products, combos] = await Promise.all([apiFetch('/products'), apiFetch('/combos')]);
+        buildDynamicCategories();
         renderProducts();
       } catch (error) {
         showToast(error.message, 'error');
@@ -283,28 +739,45 @@
     }
 
     function renderProducts() {
-      const query = document.getElementById('waiter-search').value.trim().toLowerCase();
-      const filtered = products.filter((product) => product.name.toLowerCase().includes(query));
+      const searchInput = document.getElementById('waiter-search');
+      const query = (searchInput ? searchInput.value : '').trim().toLowerCase();
+      const activeCategory = String(selectedCategory || 'all').trim().toLowerCase();
+
+      const filtered = (products || []).filter((product) => {
+        const matchesQuery = !query || (product.name || '').toLowerCase().includes(query);
+        if (!matchesQuery) return false;
+
+        if (activeCategory === 'all') return true;
+        const prodCat = getProductCategory(product);
+        if (activeCategory === 'combos') {
+          return prodCat === 'combos' || product.product_kind === 'combo';
+        }
+        return prodCat === activeCategory;
+      });
+
       const container = document.getElementById('waiter-products');
       if (!filtered.length) {
-        container.innerHTML = '<div class="card card-pad muted">No hay productos disponibles para hoy.</div>';
+        container.innerHTML = '<div class="card card-pad muted" style="grid-column:1/-1;text-align:center">No hay productos disponibles en esta categoría.</div>';
         return;
       }
+
+      const isBlocked = activeSessionStatus === 'account_requested';
       container.innerHTML = filtered.map((product) => {
         const isCombo = product.product_kind === 'combo';
         return `
-          <button class="waiter-product card" onclick="addToCart(${Number(product.id)})" ${activeSessionStatus === 'account_requested' ? 'disabled' : ''}>
-            <div class="product-thumb">
+          <article class="waiter-product-card ${isBlocked ? 'disabled' : ''}" onclick="addToCart(${Number(product.id)})">
+            <div class="waiter-product-media">
               ${product.image ? `<img src="${escapeHtml(product.image)}" alt="" loading="lazy" onerror="this.classList.add('img-failed')">` : ''}
-              <div class="thumb-placeholder">${isCombo ? '<svg class="icon" style="width:16px;height:16px"><use href="assets/icons.svg#combo"/></svg>' : '<svg class="icon" style="width:16px;height:16px"><use href="assets/icons.svg#dining"/></svg>'}</div>
+              <div class="thumb-placeholder">${isCombo ? '<svg class="ui-icon" width="22" height="22"><use href="assets/icons.svg#combo"></use></svg>' : '<svg class="ui-icon" width="22" height="22"><use href="assets/icons.svg#dining"></use></svg>'}</div>
             </div>
-            <span class="waiter-product-copy">
-              <strong>${escapeHtml(product.name)}</strong>
-              <small>${isCombo ? 'Elegir opciones' : (product.kitchen_required ? 'Cocina' : 'Entrega inmediata')}</small>
-            </span>
-            <span class="waiter-product-price">${formatCurrency(product.price)}</span>
-            <span class="waiter-add">+</span>
-          </button>
+            <div>
+              <h3 class="waiter-product-name">${escapeHtml(product.name)}</h3>
+              <span class="waiter-product-tag">${isCombo ? 'Combo configurable' : (product.kitchen_required ? 'Requiere cocina' : 'Entrega inmediata')}</span>
+            </div>
+            <div class="waiter-product-bottom">
+              <span class="waiter-product-price">${formatCurrency(product.price)}</span>
+            </div>
+          </article>
         `;
       }).join('');
     }
