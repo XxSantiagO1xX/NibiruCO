@@ -1,0 +1,910 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>MealOps · Estadísticas y Reportes</title>
+  <link rel="stylesheet" href="../css/styles.css">
+  <link rel="stylesheet" href="../css/theme.css" data-mealops-theme="true">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    .analytics-filter-bar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      background: #ffffff;
+      border: 1.5px solid var(--border);
+      border-radius: 20px;
+      padding: 12px 18px;
+      margin-bottom: 20px;
+      box-shadow: var(--shadow-sm);
+    }
+    .filter-presets {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+    .preset-btn {
+      padding: 7px 14px;
+      border-radius: 12px;
+      background: #f8fafc;
+      border: 1px solid var(--border);
+      font-size: 12.5px;
+      font-weight: 800;
+      color: var(--muted);
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .preset-btn:hover {
+      background: #f1f5f9;
+      color: var(--text);
+    }
+    .preset-btn.active {
+      background: var(--primary);
+      color: #ffffff;
+      border-color: var(--primary);
+      box-shadow: 0 2px 6px rgba(255, 107, 0, 0.25);
+    }
+    .custom-date-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .date-input-wrap {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: #f8fafc;
+      border: 1px solid var(--border);
+      padding: 5px 10px;
+      border-radius: 10px;
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--muted);
+    }
+    .date-input-wrap input[type="date"] {
+      border: none;
+      background: transparent;
+      font-family: inherit;
+      font-size: 12.5px;
+      font-weight: 800;
+      color: var(--text);
+      outline: none;
+      cursor: pointer;
+    }
+
+    /* KPI Grid */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 14px;
+      margin-bottom: 20px;
+    }
+    @media (max-width: 1300px) {
+      .kpi-grid {
+        grid-template-columns: repeat(3, 1fr);
+      }
+    }
+    @media (max-width: 800px) {
+      .kpi-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+    @media (max-width: 520px) {
+      .kpi-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .kpi-card {
+      background: #ffffff;
+      border: 1.5px solid var(--border);
+      border-radius: 18px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      box-shadow: var(--shadow-sm);
+      position: relative;
+      overflow: hidden;
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+    .kpi-card:hover {
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-md);
+    }
+    .kpi-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+    .kpi-label {
+      font-size: 11px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--muted);
+    }
+    .kpi-icon-box {
+      width: 32px;
+      height: 32px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(255, 107, 0, 0.1);
+      color: var(--primary);
+    }
+    .kpi-value {
+      font-size: 24px;
+      font-weight: 900;
+      color: var(--text);
+      letter-spacing: -0.02em;
+      line-height: 1.1;
+      margin-bottom: 6px;
+    }
+    .kpi-subtext {
+      font-size: 11.5px;
+      font-weight: 700;
+      color: var(--muted);
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .kpi-badge {
+      font-size: 10px;
+      font-weight: 800;
+      padding: 2px 6px;
+      border-radius: 6px;
+      display: inline-block;
+    }
+    .kpi-badge.success { background: #dcfce7; color: #15803d; }
+    .kpi-badge.info { background: #e0f2fe; color: #0369a1; }
+    .kpi-badge.warning { background: #fef3c7; color: #b45309; }
+
+    /* Charts Section */
+    .charts-grid {
+      display: grid;
+      grid-template-columns: 2fr 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+    @media (max-width: 1200px) {
+      .charts-grid {
+        grid-template-columns: 1fr 1fr;
+      }
+      .charts-grid .chart-card-main {
+        grid-column: span 2;
+      }
+    }
+    @media (max-width: 768px) {
+      .charts-grid {
+        grid-template-columns: 1fr;
+      }
+      .charts-grid .chart-card-main {
+        grid-column: span 1;
+      }
+    }
+
+    .chart-card {
+      background: #ffffff;
+      border: 1.5px solid var(--border);
+      border-radius: 20px;
+      padding: 18px;
+      box-shadow: var(--shadow-sm);
+      display: flex;
+      flex-direction: column;
+    }
+    .chart-card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 14px;
+    }
+    .chart-card-title {
+      font-size: 14px;
+      font-weight: 800;
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .chart-card-body {
+      position: relative;
+      flex: 1;
+      min-height: 220px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* Top Products Table */
+    .analytics-table-card {
+      background: #ffffff;
+      border: 1.5px solid var(--border);
+      border-radius: 20px;
+      padding: 20px;
+      box-shadow: var(--shadow-sm);
+      margin-bottom: 30px;
+    }
+    .top-products-table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+      margin-top: 10px;
+    }
+    .top-products-table th {
+      background: #f8fafc;
+      padding: 10px 14px;
+      font-size: 11px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #64748b;
+      border-bottom: 1px solid var(--border);
+      text-align: left;
+    }
+    .top-products-table td {
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--border);
+      font-size: 13px;
+      color: var(--text);
+      vertical-align: middle;
+    }
+    .top-products-table tr:last-child td {
+      border-bottom: none;
+    }
+    .rank-badge {
+      width: 26px;
+      height: 26px;
+      border-radius: 8px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11.5px;
+      font-weight: 900;
+      background: #f1f5f9;
+      color: #475569;
+    }
+    .rank-1 { background: #fef08a; color: #854d0e; }
+    .rank-2 { background: #e2e8f0; color: #334155; }
+    .rank-3 { background: #ffedd5; color: #9a3412; }
+
+    .product-cell {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .product-kind-tag {
+      font-size: 10px;
+      font-weight: 800;
+      padding: 2px 7px;
+      border-radius: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+    .tag-combo { background: #fdf4ff; color: #9333ea; border: 1px solid #f0abfc; }
+    .tag-individual { background: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0; }
+
+    .progress-bar-wrap {
+      width: 100%;
+      height: 7px;
+      background: #f1f5f9;
+      border-radius: 4px;
+      overflow: hidden;
+      margin-top: 4px;
+    }
+    .progress-bar-fill {
+      height: 100%;
+      background: var(--primary);
+      border-radius: 4px;
+    }
+
+    .empty-analytics {
+      text-align: center;
+      padding: 40px 20px;
+      color: var(--muted);
+      font-size: 13.5px;
+      font-weight: 600;
+    }
+    .loading-overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(255, 255, 255, 0.8);
+      backdrop-filter: blur(2px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 10;
+      border-radius: 18px;
+      font-weight: 800;
+      font-size: 13px;
+      color: var(--primary);
+    }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-mark"><svg class="ui-icon" width="24" height="24" viewBox="0 0 32 32"><use href="assets/icons.svg#logo"></use></svg></div>
+        <div class="brand-copy"><strong>MealOps</strong><span>Restaurante</span></div>
+      </div>
+      <nav class="nav">
+        <!-- Dinámico por app.js -->
+      </nav>
+      <div class="sidebar-footer">
+        <!-- Usuario logueado -->
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="page-header">
+        <div>
+          <h1>Estadísticas & Business Intelligence</h1>
+          <p class="text-sm text-gray-500 font-medium">Métricas financieras, rendimiento operativo y tendencias de venta</p>
+        </div>
+        <div class="header-actions">
+          <button class="btn btn-secondary" onclick="exportCsvReport()" id="exportBtn">
+            <svg class="ui-icon" width="16" height="16" viewBox="0 0 24 24"><use href="assets/icons.svg#sales"></use></svg>
+            <span>Exportar Reporte a CSV</span>
+          </button>
+        </div>
+      </header>
+
+      <!-- BARRA DE FILTRO TEMPORAL -->
+      <div class="analytics-filter-bar">
+        <div class="filter-presets">
+          <button class="preset-btn" onclick="selectPreset('today')" id="btnToday">Hoy</button>
+          <button class="preset-btn active" onclick="selectPreset('7days')" id="btn7Days">Últimos 7 días</button>
+          <button class="preset-btn" onclick="selectPreset('30days')" id="btn30Days">Últimos 30 días</button>
+          <button class="preset-btn" onclick="selectPreset('thisMonth')" id="btnThisMonth">Este Mes</button>
+        </div>
+
+        <div class="custom-date-group">
+          <div class="date-input-wrap">
+            <span>Desde:</span>
+            <input type="date" id="startDateInput" onchange="onCustomDateChange()">
+          </div>
+          <div class="date-input-wrap">
+            <span>Hasta:</span>
+            <input type="date" id="endDateInput" onchange="onCustomDateChange()">
+          </div>
+          <button class="btn btn-primary btn-sm" onclick="fetchAnalytics()" style="padding: 7px 14px;">
+            <svg class="ui-icon" width="14" height="14" viewBox="0 0 24 24"><use href="assets/icons.svg#refresh"></use></svg>
+            <span>Actualizar</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- TARJETAS DE KPIS PRINCIPALES -->
+      <div class="kpi-grid" id="kpiContainer">
+        <!-- 1. Ingresos Totales -->
+        <div class="kpi-card">
+          <div class="kpi-header">
+            <span class="kpi-label">Ventas Totales</span>
+            <div class="kpi-icon-box">
+              <svg class="ui-icon" width="18" height="18" viewBox="0 0 24 24"><use href="assets/icons.svg#dollar"></use></svg>
+            </div>
+          </div>
+          <div class="kpi-value" id="kpiRevenue">$0.00</div>
+          <div class="kpi-subtext">
+            <span>Envíos cobrados:</span>
+            <strong id="kpiDeliveryFees">$0.00</strong>
+          </div>
+        </div>
+
+        <!-- 2. Volumen de Pedidos -->
+        <div class="kpi-card">
+          <div class="kpi-header">
+            <span class="kpi-label">Total Pedidos</span>
+            <div class="kpi-icon-box" style="background: rgba(2, 132, 199, 0.1); color: #0284c7;">
+              <svg class="ui-icon" width="18" height="18" viewBox="0 0 24 24"><use href="assets/icons.svg#sales"></use></svg>
+            </div>
+          </div>
+          <div class="kpi-value" id="kpiOrders">0</div>
+          <div class="kpi-subtext">
+            <span class="kpi-badge success" id="kpiDeliveredRate">0% Entregados</span>
+            <span id="kpiCanceledOrders" style="color:#ef4444;">0 canc.</span>
+          </div>
+        </div>
+
+        <!-- 3. Ticket Promedio -->
+        <div class="kpi-card">
+          <div class="kpi-header">
+            <span class="kpi-label">Ticket Promedio</span>
+            <div class="kpi-icon-box" style="background: rgba(147, 51, 234, 0.1); color: #9333ea;">
+              <svg class="ui-icon" width="18" height="18" viewBox="0 0 24 24"><use href="assets/icons.svg#dining"></use></svg>
+            </div>
+          </div>
+          <div class="kpi-value" id="kpiAvgTicket">$0.00</div>
+          <div class="kpi-subtext">
+            <span>Por orden completada</span>
+          </div>
+        </div>
+
+        <!-- 4. Tiempo Cocina -->
+        <div class="kpi-card">
+          <div class="kpi-header">
+            <span class="kpi-label">T. Promedio Cocina</span>
+            <div class="kpi-icon-box" style="background: rgba(234, 88, 12, 0.1); color: #ea580c;">
+              <svg class="ui-icon" width="18" height="18" viewBox="0 0 24 24"><use href="assets/icons.svg#kitchen"></use></svg>
+            </div>
+          </div>
+          <div class="kpi-value" id="kpiKitchenTime">0 <span style="font-size: 14px; font-weight:700;">min</span></div>
+          <div class="kpi-subtext">
+            <span>Tiempo de preparación KDS</span>
+          </div>
+        </div>
+
+        <!-- 5. Tiempo Reparto -->
+        <div class="kpi-card">
+          <div class="kpi-header">
+            <span class="kpi-label">T. Promedio Entrega</span>
+            <div class="kpi-icon-box" style="background: rgba(22, 163, 74, 0.1); color: #16a34a;">
+              <svg class="ui-icon" width="18" height="18" viewBox="0 0 24 24"><use href="assets/icons.svg#bike"></use></svg>
+            </div>
+          </div>
+          <div class="kpi-value" id="kpiDeliveryTime">0 <span style="font-size: 14px; font-weight:700;">min</span></div>
+          <div class="kpi-subtext">
+            <span>En ruta de domicilio</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- SECCIÓN DE GRÁFICAS -->
+      <div class="charts-grid">
+        <!-- Gráfica 1: Tendencia Diaria de Ventas y Pedidos -->
+        <div class="chart-card chart-card-main">
+          <div class="chart-card-header">
+            <div class="chart-card-title">
+              <svg class="ui-icon" width="18" height="18" viewBox="0 0 24 24"><use href="assets/icons.svg#analytics"></use></svg>
+              <span>Tendencia de Ventas y Pedidos Diarios</span>
+            </div>
+          </div>
+          <div class="chart-card-body">
+            <canvas id="timelineChart"></canvas>
+          </div>
+        </div>
+
+        <!-- Gráfica 2: Ventas por Canal -->
+        <div class="chart-card">
+          <div class="chart-card-header">
+            <div class="chart-card-title">
+              <svg class="ui-icon" width="16" height="16" viewBox="0 0 24 24"><use href="assets/icons.svg#dining"></use></svg>
+              <span>Ventas por Canal</span>
+            </div>
+          </div>
+          <div class="chart-card-body">
+            <canvas id="channelsChart"></canvas>
+          </div>
+        </div>
+
+        <!-- Gráfica 3: Métodos de Pago -->
+        <div class="chart-card">
+          <div class="chart-card-header">
+            <div class="chart-card-title">
+              <svg class="ui-icon" width="16" height="16" viewBox="0 0 24 24"><use href="assets/icons.svg#dollar"></use></svg>
+              <span>Formas de Pago</span>
+            </div>
+          </div>
+          <div class="chart-card-body">
+            <canvas id="paymentsChart"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- TABLA INTERACTIVA DE TOP PRODUCTOS -->
+      <div class="analytics-table-card">
+        <div class="chart-card-header">
+          <div class="chart-card-title">
+            <svg class="ui-icon" width="18" height="18" viewBox="0 0 24 24"><use href="assets/icons.svg#products"></use></svg>
+            <span>Top 10 Platillos y Combos Más Vendidos</span>
+          </div>
+          <span class="text-xs text-gray-400 font-semibold" id="tablePeriodLabel"></span>
+        </div>
+
+        <div style="overflow-x: auto;">
+          <table class="top-products-table">
+            <thead>
+              <tr>
+                <th style="width: 50px;">#</th>
+                <th>Producto</th>
+                <th>Tipo</th>
+                <th>Categoría</th>
+                <th style="text-align: right;">Unidades</th>
+                <th style="text-align: right;">Ingresos Totales</th>
+                <th style="width: 140px;">% del Total</th>
+              </tr>
+            </thead>
+            <tbody id="topProductsTableBody">
+              <tr>
+                <td colspan="7" class="empty-analytics">Cargando métricas de productos...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script src="app.js"></script>
+  <script>
+    // Variables globales
+    let currentStartDate = "";
+    let currentEndDate = "";
+    let timelineChartInstance = null;
+    let channelsChartInstance = null;
+    let paymentsChartInstance = null;
+
+    document.addEventListener("DOMContentLoaded", () => {
+      const user = requireAuth(["admin", "mesero"]);
+      if (!user) return;
+
+      selectPreset("7days");
+    });
+
+    /**
+     * Selección de filtros rápidos
+     */
+    function selectPreset(preset) {
+      document.querySelectorAll(".preset-btn").forEach(btn => btn.classList.remove("active"));
+
+      const today = new Date();
+      const formatYMD = (d) => d.toISOString().slice(0, 10);
+
+      let start = new Date();
+      let end = new Date();
+
+      if (preset === "today") {
+        document.getElementById("btnToday")?.classList.add("active");
+        start = today;
+        end = today;
+      } else if (preset === "7days") {
+        document.getElementById("btn7Days")?.classList.add("active");
+        start.setDate(today.getDate() - 6);
+        end = today;
+      } else if (preset === "30days") {
+        document.getElementById("btn30Days")?.classList.add("active");
+        start.setDate(today.getDate() - 29);
+        end = today;
+      } else if (preset === "thisMonth") {
+        document.getElementById("btnThisMonth")?.classList.add("active");
+        start = new Date(today.getFullYear(), today.getMonth(), 1);
+        end = today;
+      }
+
+      currentStartDate = formatYMD(start);
+      currentEndDate = formatYMD(end);
+
+      document.getElementById("startDateInput").value = currentStartDate;
+      document.getElementById("endDateInput").value = currentEndDate;
+
+      fetchAnalytics();
+    }
+
+    function onCustomDateChange() {
+      document.querySelectorAll(".preset-btn").forEach(btn => btn.classList.remove("active"));
+      currentStartDate = document.getElementById("startDateInput").value;
+      currentEndDate = document.getElementById("endDateInput").value;
+      if (currentStartDate && currentEndDate) {
+        fetchAnalytics();
+      }
+    }
+
+    /**
+     * Consulta el backend y renderiza los datos en pantalla
+     */
+    async function fetchAnalytics() {
+      const token = getToken();
+      if (!token) return;
+
+      try {
+        const url = `${API}/analytics/summary?startDate=${currentStartDate}&endDate=${currentEndDate}`;
+        const res = await fetch(url, {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        });
+
+        if (!res.ok) {
+          throw new Error("No se pudo obtener la información de analítica");
+        }
+
+        const data = await res.json();
+        renderKPIs(data.kpis);
+        renderCharts(data);
+        renderTopProducts(data.top_products, data.kpis.total_revenue);
+
+        const periodLabel = document.getElementById("tablePeriodLabel");
+        if (periodLabel) {
+          periodLabel.textContent = `Periodo: ${data.period.startDate} al ${data.period.endDate}`;
+        }
+      } catch (err) {
+        console.error("Error cargando analítica:", err);
+        showToast(err.message, "error");
+      }
+    }
+
+    /**
+     * Renderiza las 5 tarjetas superiores de KPIs
+     */
+    function renderKPIs(kpis) {
+      if (!kpis) return;
+
+      document.getElementById("kpiRevenue").textContent = `$${Number(kpis.total_revenue || 0).toLocaleString("es-MX", { minimumFractionDigits: 2 })}`;
+      document.getElementById("kpiDeliveryFees").textContent = `$${Number(kpis.total_delivery_fees || 0).toLocaleString("es-MX", { minimumFractionDigits: 2 })}`;
+      document.getElementById("kpiOrders").textContent = kpis.total_orders || 0;
+      document.getElementById("kpiDeliveredRate").textContent = `${kpis.completion_rate_percent || 0}% Entregados`;
+      document.getElementById("kpiCanceledOrders").textContent = `${kpis.canceled_orders || 0} cancelados`;
+      document.getElementById("kpiAvgTicket").textContent = `$${Number(kpis.average_ticket || 0).toLocaleString("es-MX", { minimumFractionDigits: 2 })}`;
+      document.getElementById("kpiKitchenTime").innerHTML = `${kpis.avg_kitchen_prep_minutes || 0} <span style="font-size: 13px; font-weight:700;">min</span>`;
+      document.getElementById("kpiDeliveryTime").innerHTML = `${kpis.avg_delivery_minutes || 0} <span style="font-size: 13px; font-weight:700;">min</span>`;
+    }
+
+    /**
+     * Renderiza las gráficas con Chart.js
+     */
+    function renderCharts(data) {
+      const timelineData = data.timeline || [];
+      const channelsData = data.sales_by_channel || [];
+      const paymentsData = data.sales_by_payment_method || [];
+
+      // 1. Gráfica de Tendencia Diaria
+      const timelineLabels = timelineData.map(d => d.date);
+      const timelineRevenues = timelineData.map(d => d.revenue);
+      const timelineOrders = timelineData.map(d => d.orders_count);
+
+      if (timelineChartInstance) timelineChartInstance.destroy();
+      const ctxTimeline = document.getElementById("timelineChart")?.getContext("2d");
+      if (ctxTimeline) {
+        timelineChartInstance = new Chart(ctxTimeline, {
+          type: "line",
+          data: {
+            labels: timelineLabels.length ? timelineLabels : ["Sin datos"],
+            datasets: [
+              {
+                label: "Ingresos ($)",
+                data: timelineRevenues.length ? timelineRevenues : [0],
+                borderColor: "#ff6b00",
+                backgroundColor: "rgba(255, 107, 0, 0.12)",
+                fill: true,
+                tension: 0.35,
+                borderWidth: 2.5,
+                yAxisID: "y"
+              },
+              {
+                label: "Pedidos",
+                data: timelineOrders.length ? timelineOrders : [0],
+                borderColor: "#0284c7",
+                backgroundColor: "rgba(2, 132, 199, 0.1)",
+                borderDash: [5, 5],
+                fill: false,
+                tension: 0.2,
+                borderWidth: 2,
+                yAxisID: "y1"
+              }
+            ]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: {
+              mode: "index",
+              intersect: false
+            },
+            plugins: {
+              legend: {
+                position: "top",
+                labels: {
+                  boxWidth: 12,
+                  font: { family: "Inter", weight: "700", size: 11 }
+                }
+              }
+            },
+            scales: {
+              y: {
+                type: "linear",
+                display: true,
+                position: "left",
+                grid: { color: "rgba(0,0,0,0.05)" },
+                ticks: {
+                  font: { family: "Inter", size: 10 },
+                  callback: (val) => `$${val}`
+                }
+              },
+              y1: {
+                type: "linear",
+                display: true,
+                position: "right",
+                grid: { drawOnChartArea: false },
+                ticks: {
+                  font: { family: "Inter", size: 10 },
+                  stepSize: 1
+                }
+              },
+              x: {
+                grid: { display: false },
+                ticks: { font: { family: "Inter", size: 10 } }
+              }
+            }
+          }
+        });
+      }
+
+      // 2. Gráfica de Canales
+      const channelLabelsMap = {
+        domicilio: "A Domicilio",
+        local: "Comer Aquí",
+        mesa: "Mesa / Salón",
+        llevar: "Para Llevar"
+      };
+      const channelLabels = channelsData.map(c => channelLabelsMap[c.channel] || c.channel);
+      const channelValues = channelsData.map(c => c.revenue);
+
+      if (channelsChartInstance) channelsChartInstance.destroy();
+      const ctxChannels = document.getElementById("channelsChart")?.getContext("2d");
+      if (ctxChannels) {
+        channelsChartInstance = new Chart(ctxChannels, {
+          type: "doughnut",
+          data: {
+            labels: channelLabels.length ? channelLabels : ["Sin ventas"],
+            datasets: [{
+              data: channelValues.length ? channelValues : [1],
+              backgroundColor: ["#ff6b00", "#16a34a", "#0284c7", "#9333ea"],
+              borderWidth: 2
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: {
+                position: "bottom",
+                labels: {
+                  boxWidth: 10,
+                  font: { family: "Inter", weight: "700", size: 10.5 }
+                }
+              }
+            },
+            cutout: "68%"
+          }
+        });
+      }
+
+      // 3. Gráfica de Métodos de Pago
+      const paymentLabelsMap = {
+        efectivo: "Efectivo",
+        tarjeta: "Tarjeta",
+        transferencia: "Transferencia",
+        pago_en_app: "App",
+        no_especificado: "Otros"
+      };
+      const paymentLabels = paymentsData.map(p => paymentLabelsMap[p.payment_method] || p.payment_method);
+      const paymentValues = paymentsData.map(p => p.revenue);
+
+      if (paymentsChartInstance) paymentsChartInstance.destroy();
+      const ctxPayments = document.getElementById("paymentsChart")?.getContext("2d");
+      if (ctxPayments) {
+        paymentsChartInstance = new Chart(ctxPayments, {
+          type: "doughnut",
+          data: {
+            labels: paymentLabels.length ? paymentLabels : ["Sin registros"],
+            datasets: [{
+              data: paymentValues.length ? paymentValues : [1],
+              backgroundColor: ["#16a34a", "#2563eb", "#ea580c", "#8b5cf6", "#64748b"],
+              borderWidth: 2
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: {
+                position: "bottom",
+                labels: {
+                  boxWidth: 10,
+                  font: { family: "Inter", weight: "700", size: 10.5 }
+                }
+              }
+            },
+            cutout: "68%"
+          }
+        });
+      }
+    }
+
+    /**
+     * Renderiza la tabla de Top 10 Productos
+     */
+    function renderTopProducts(products, totalRevenue) {
+      const tbody = document.getElementById("topProductsTableBody");
+      if (!tbody) return;
+
+      if (!Array.isArray(products) || products.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="7" class="empty-analytics">No hay ventas registradas en el periodo seleccionado.</td></tr>`;
+        return;
+      }
+
+      const totalRev = Number(totalRevenue || 0);
+
+      tbody.innerHTML = products.map((p, idx) => {
+        const rank = idx + 1;
+        const rankClass = rank === 1 ? "rank-1" : rank === 2 ? "rank-2" : rank === 3 ? "rank-3" : "";
+        const isCombo = p.product_kind === "combo";
+        const kindTag = isCombo ? `<span class="product-kind-tag tag-combo">Combo</span>` : `<span class="product-kind-tag tag-individual">Platillo</span>`;
+        const percentage = totalRev > 0 ? ((p.total_sales / totalRev) * 100).toFixed(1) : 0;
+
+        return `
+          <tr>
+            <td><span class="rank-badge ${rankClass}">#${rank}</span></td>
+            <td>
+              <div class="product-cell">
+                <strong>${escapeHtml(p.name)}</strong>
+              </div>
+            </td>
+            <td>${kindTag}</td>
+            <td><span class="text-xs text-gray-500 font-medium">${escapeHtml(p.category || "General")}</span></td>
+            <td style="text-align: right; font-weight: 800;">${p.units_sold} uds</td>
+            <td style="text-align: right; font-weight: 900; color: var(--text);">$${Number(p.total_sales).toFixed(2)}</td>
+            <td>
+              <div style="display: flex; align-items: center; justify-content: space-between; font-size: 11px; font-weight: 800; color: var(--muted);">
+                <span>${percentage}%</span>
+              </div>
+              <div class="progress-bar-wrap">
+                <div class="progress-bar-fill" style="width: ${Math.min(percentage, 100)}%;"></div>
+              </div>
+            </td>
+          </tr>
+        `;
+      }).join("");
+    }
+
+    /**
+     * Descarga el reporte CSV
+     */
+    async function exportCsvReport() {
+      const token = getToken();
+      if (!token) return;
+
+      const exportBtn = document.getElementById("exportBtn");
+      if (exportBtn) exportBtn.disabled = true;
+
+      try {
+        const url = `${API}/analytics/export?startDate=${currentStartDate}&endDate=${currentEndDate}`;
+        const res = await fetch(url, {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        });
+
+        if (!res.ok) {
+          throw new Error("No se pudo generar el reporte CSV");
+        }
+
+        const blob = await res.blob();
+        const downloadUrl = window.URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = downloadUrl;
+        a.download = `reporte_mealops_${currentStartDate}_${currentEndDate}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        window.URL.revokeObjectURL(downloadUrl);
+
+        showToast("Reporte CSV descargado con éxito", "success");
+      } catch (err) {
+        console.error("Error descargando reporte:", err);
+        showToast(err.message, "error");
+      } finally {
+        if (exportBtn) exportBtn.disabled = false;
+      }
+    }
+  </script>
+</body>
+</html>

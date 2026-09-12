@@ -37,7 +37,8 @@
     'products.html': ['admin'],
     'tables.html': ['admin'],
     'combos.html': ['admin'],
-    'settings.html': ['admin']
+    'settings.html': ['admin'],
+    'analytics.html': ['admin', 'mesero']
   };
 
   if (role && routeRoles[current] && !routeRoles[current].includes(role)) {
@@ -78,6 +79,7 @@
       { href: 'products.html', label: 'Productos', icon: 'products', roles: ['admin'] },
       { href: 'tables.html', label: 'Mesas', icon: 'tables', roles: ['admin'] },
       { href: 'combos.html', label: 'Combos', icon: 'combo', roles: ['admin'] },
+      { href: 'analytics.html', label: 'Reportes', icon: 'analytics', roles: ['admin', 'mesero'] },
       { href: 'settings.html', label: 'Configuración', icon: 'settings', roles: ['admin'] }
     ];
     nav.innerHTML = definitions
