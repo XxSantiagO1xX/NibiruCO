@@ -146,19 +146,20 @@
     /* Cart / Pedido Panel Fixed & Ergonomic Layout */
     .cart-panel-sticky {
       position: sticky;
-      top: 24px;
+      top: 16px;
+      height: calc(100vh - 32px);
+      max-height: calc(100vh - 32px);
       background: var(--surface);
       border: 1.5px solid var(--border);
       border-radius: var(--radius-md);
-      padding: 20px;
+      padding: 18px 20px;
       box-shadow: var(--shadow-sm);
       display: flex;
       flex-direction: column;
-      gap: 12px;
-      height: calc(100vh - 48px);
-      max-height: calc(100vh - 48px);
+      gap: 10px;
       box-sizing: border-box;
       overflow: hidden;
+      z-index: 30;
     }
     @media (max-width: 1200px) {
       .cart-panel-sticky {
@@ -220,26 +221,28 @@
       box-shadow: 0 2px 6px rgba(124, 58, 237, 0.25);
     }
 
-    /* Scrollable items section */
+    /* Scrollable items section with pure flex-1 auto scroll */
     .cart-items-section {
       display: flex;
       flex-direction: column;
-      flex: 1 1 auto;
+      flex: 1 1 0%;
       min-height: 0;
+      overflow: hidden;
       gap: 6px;
     }
     .cart-items-section label {
       font-size: 12px;
       font-weight: 700;
       color: var(--text);
+      flex-shrink: 0;
     }
     .cart-items-box {
-      flex: 1 1 auto;
+      flex: 1 1 0%;
       overflow-y: auto;
       display: flex;
       flex-direction: column;
       gap: 8px;
-      min-height: 80px;
+      min-height: 0;
       padding-right: 2px;
     }
     .cart-item-row {
@@ -425,7 +428,7 @@
           </section>
 
           <!-- Right: Persistent Cart / Pedido Panel -->
-          <aside class="cart-panel-sticky">
+          <aside class="cart-panel-sticky sticky top-4 h-[calc(100vh-2rem)] flex flex-col">
             <div class="cart-panel-head">
               <h2>Pedido Actual</h2>
               <button class="btn btn-ghost btn-sm" onclick="clearCart()" title="Vaciar Carrito">
@@ -491,13 +494,13 @@
             </div>
 
             <!-- Scrollable Middle Section: Items List -->
-            <div class="cart-items-section">
+            <div class="cart-items-section flex-1 min-h-0 overflow-hidden flex flex-col">
               <label>Productos en comanda</label>
-              <div id="cart" class="cart-items-box"></div>
+              <div id="cart" class="cart-items-box flex-1 overflow-y-auto"></div>
             </div>
 
             <!-- Fixed Bottom Section: Payment, Change, Summary, and Massive CTA -->
-            <div class="cart-panel-footer">
+            <div class="cart-panel-footer mt-auto flex-shrink-0">
               <!-- Payment & Change -->
               <div class="field">
                 <label for="payment-method">Forma de pago</label>
