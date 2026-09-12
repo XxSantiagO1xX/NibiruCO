@@ -62,7 +62,6 @@
           <div class="field"><label for="combo-name">Nombre</label><input id="combo-name" placeholder="Ej. Comida completa"></div>
           <div class="field"><label for="combo-price">Precio base</label><input id="combo-price" type="number" min="0" step="0.01" placeholder="95.00"></div>
         </div>
-        <p class="muted" style="margin:10px 0 0;font-size:11px">Los combos se consideran preparación de cocina. Para que aparezcan en Ventas y Mesero, deben estar asignados al menú del día.</p>
         <div class="spacer-16"></div>
         <button class="btn btn-primary" onclick="createCombo()">Crear combo</button>
       </section>
@@ -73,7 +72,6 @@
         <div class="page-header" style="margin-bottom:16px">
           <div>
             <h2 class="section-title" style="margin:0">Configurar opciones y disponibilidad en menú</h2>
-            <p class="muted" style="margin:5px 0 0;font-size:12px">Ejemplo: grupo “Guisado” → Milanesa, Mole, Enchiladas.</p>
           </div>
           <div class="field" style="min-width:280px">
             <label for="combo-select">Combo</label>
@@ -103,7 +101,6 @@
             <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
               <div>
                 <strong><svg class="ui-icon" style="width:15px;height:15px;vertical-align:-2px;margin-right:5px;"><use href="assets/icons.svg#calendar"/></svg>Días disponible en el Menú Semanal</strong>
-                <p class="muted" style="font-size: 12px; margin-top: 2px;">Marca los días en que este combo se ofrecerá en Mesero y Ventas.</p>
               </div>
               <button class="btn btn-sm btn-primary" id="btn-save-days" onclick="saveComboDays()">Guardar días en Menú</button>
             </div>

@@ -246,23 +246,81 @@ router.delete("/:productId", auth, adminOnly, async (req, res) => {
     }
 
     await client.query("BEGIN");
-    await client.query("DELETE FROM menu WHERE product_id = $1", [productId]);
-    const result = await client.query(
-      "DELETE FROM products WHERE id = $1 AND product_kind = 'combo' RETURNING id",
+
+    const comboRes = await client.query(
+      "SELECT id FROM products WHERE id = $1 AND product_kind = 'combo' FOR UPDATE",
       [productId]
     );
-
-    if (!result.rows.length) {
+    if (!comboRes.rows.length) {
       await client.query("ROLLBACK");
       return res.status(404).json({ message: "Combo no encontrado" });
     }
 
+    // 1. Quitar del menú semanal
+    await client.query("DELETE FROM menu WHERE product_id = $1", [productId]);
+
+    // 2. Eliminar opciones de los grupos del combo
+    await client.query(`
+      DELETE FROM combo_group_options
+      WHERE group_id IN (SELECT id FROM combo_groups WHERE combo_product_id = $1)
+    `, [productId]);
+
+    // 3. Eliminar si este producto era opción en otros combos
+    await client.query("DELETE FROM combo_group_options WHERE option_product_id = $1", [productId]);
+
+    // 4. Eliminar los grupos del combo
+    await client.query("DELETE FROM combo_groups WHERE combo_product_id = $1", [productId]);
+
+    // 5. Manejo seguro de registros vinculados en órdenes históricas
+    const orderItemsRes = await client.query("SELECT 1 FROM order_items WHERE product_id = $1 LIMIT 1", [productId]);
+    if (orderItemsRes.rows.length) {
+      await client.query("UPDATE products SET available = false, product_kind = 'archived_combo' WHERE id = $1", [productId]);
+    } else {
+      await client.query("DELETE FROM products WHERE id = $1 AND product_kind = 'combo'", [productId]);
+    }
+
     await client.query("COMMIT");
-    res.json({ ok: true, message: "Combo eliminado" });
+
+    const io = req.app.get("io");
+    if (io) io.emit("menu-updated");
+
+    res.json({ ok: true, message: "Combo eliminado correctamente" });
   } catch (err) {
     try { await client.query("ROLLBACK"); } catch (_) {}
-    console.error(err);
+    console.error("DELETE COMBO ERROR:", err);
     res.status(500).json({ message: "Error eliminando combo" });
+  } finally {
+    client.release();
+  }
+});
+
+router.delete("/groups/:groupId", auth, adminOnly, async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const groupId = Number(req.params.groupId);
+    if (!Number.isInteger(groupId)) {
+      return res.status(400).json({ message: "ID de grupo inválido" });
+    }
+
+    await client.query("BEGIN");
+    await client.query("DELETE FROM combo_group_options WHERE group_id = $1", [groupId]);
+    const result = await client.query("DELETE FROM combo_groups WHERE id = $1 RETURNING id", [groupId]);
+
+    if (!result.rows.length) {
+      await client.query("ROLLBACK");
+      return res.status(404).json({ message: "Grupo no encontrado" });
+    }
+
+    await client.query("COMMIT");
+
+    const io = req.app.get("io");
+    if (io) io.emit("menu-updated");
+
+    res.json({ ok: true, message: "Grupo eliminado correctamente" });
+  } catch (err) {
+    try { await client.query("ROLLBACK"); } catch (_) {}
+    console.error("DELETE COMBO GROUP ERROR:", err);
+    res.status(500).json({ message: "Error eliminando grupo" });
   } finally {
     client.release();
   }
