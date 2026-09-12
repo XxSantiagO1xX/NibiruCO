@@ -45,8 +45,8 @@
           </div>
           <div class="field"><label for="price">Precio ($)</label><input id="price" type="number" min="0" step="0.01" placeholder="0.00"></div>
           <div class="field">
-            <label for="image">URL de imagen (opcional)</label>
-            <input id="image" type="url" placeholder="https://..." oninput="updateNewImagePreview()">
+            <label for="productImage">Imagen del producto</label>
+            <input type="file" id="productImage" name="image" accept="image/png, image/jpeg, image/webp" class="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-orange-50 file:text-orange-700 hover:file:bg-orange-100" onchange="updateNewImagePreview()">
           </div>
         </div>
         
@@ -104,8 +104,8 @@
         <input id="edit-price" type="number" min="0" step="0.01">
       </div>
       <div class="field" style="margin-bottom:12px">
-        <label for="edit-image">URL de imagen</label>
-        <input id="edit-image" type="url" placeholder="https://..." oninput="updateEditImagePreview()">
+        <label for="edit-image">Imagen del producto</label>
+        <input type="file" id="edit-image" name="image" accept="image/png, image/jpeg, image/webp" class="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-orange-50 file:text-orange-700 hover:file:bg-orange-100" onchange="updateEditImagePreview()">
       </div>
       <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
         <div class="product-thumb" id="edit-image-preview">
@@ -131,20 +131,24 @@
     let products = [];
 
     function updateNewImagePreview() {
-      const url = document.getElementById('image').value.trim();
+      const fileInput = document.getElementById('productImage');
       const preview = document.getElementById('new-image-preview');
-      if (url) {
-        preview.innerHTML = `<img src="${escapeHtml(url)}" alt="" onerror="this.classList.add('img-failed')"><div class="thumb-placeholder"><svg class="icon" style="width:20px;height:20px"><use href="assets/icons.svg#dining"></use></svg></div>`;
+      if (fileInput && fileInput.files && fileInput.files[0]) {
+        const objectUrl = URL.createObjectURL(fileInput.files[0]);
+        preview.innerHTML = `<img src="${objectUrl}" alt="" onerror="this.classList.add('img-failed')"><div class="thumb-placeholder"><svg class="icon" style="width:20px;height:20px"><use href="assets/icons.svg#dining"></use></svg></div>`;
       } else {
         preview.innerHTML = '<div class="thumb-placeholder"><svg class="icon" style="width:20px;height:20px"><use href="assets/icons.svg#dining"></use></svg></div>';
       }
     }
 
-    function updateEditImagePreview() {
-      const url = document.getElementById('edit-image').value.trim();
+    function updateEditImagePreview(currentUrl = null) {
+      const fileInput = document.getElementById('edit-image');
       const preview = document.getElementById('edit-image-preview');
-      if (url) {
-        preview.innerHTML = `<img src="${escapeHtml(url)}" alt="" onerror="this.classList.add('img-failed')"><div class="thumb-placeholder"><svg class="icon" style="width:20px;height:20px"><use href="assets/icons.svg#dining"></use></svg></div>`;
+      if (fileInput && fileInput.files && fileInput.files[0]) {
+        const objectUrl = URL.createObjectURL(fileInput.files[0]);
+        preview.innerHTML = `<img src="${objectUrl}" alt="" onerror="this.classList.add('img-failed')"><div class="thumb-placeholder"><svg class="icon" style="width:20px;height:20px"><use href="assets/icons.svg#dining"></use></svg></div>`;
+      } else if (currentUrl) {
+        preview.innerHTML = `<img src="${escapeHtml(currentUrl)}" alt="" onerror="this.classList.add('img-failed')"><div class="thumb-placeholder"><svg class="icon" style="width:20px;height:20px"><use href="assets/icons.svg#dining"></use></svg></div>`;
       } else {
         preview.innerHTML = '<div class="thumb-placeholder"><svg class="icon" style="width:20px;height:20px"><use href="assets/icons.svg#dining"></use></svg></div>';
       }
@@ -192,7 +196,7 @@
       const name = document.getElementById('name').value.trim();
       const category = document.getElementById('productCategory').value.trim();
       const price = Number(document.getElementById('price').value);
-      const image = document.getElementById('image').value.trim();
+      const fileInput = document.getElementById('productImage');
       const kitchenRequired = document.getElementById('kitchen-required').checked;
 
       if (!name || !Number.isFinite(price) || price <= 0) {
@@ -203,23 +207,27 @@
         return showToast('Selecciona una categoría para el producto.', 'error');
       }
 
+      const formData = new FormData();
+      formData.append('name', name);
+      formData.append('category', category);
+      formData.append('price', String(price));
+      formData.append('kitchen_required', String(kitchenRequired));
+      formData.append('sendToKds', String(kitchenRequired));
+      if (fileInput && fileInput.files && fileInput.files[0]) {
+        formData.append('image', fileInput.files[0]);
+      }
+
       const button = document.getElementById('create-button');
       button.disabled = true;
       try {
         await apiFetch('/products', {
           method: 'POST',
-          body: JSON.stringify({
-            name,
-            category,
-            price,
-            image: image || null,
-            kitchen_required: kitchenRequired
-          })
+          body: formData
         });
         document.getElementById('name').value = '';
         document.getElementById('productCategory').value = '';
         document.getElementById('price').value = '';
-        document.getElementById('image').value = '';
+        if (fileInput) fileInput.value = '';
         document.getElementById('kitchen-required').checked = true;
         updateNewImagePreview();
         await loadProducts();
@@ -238,9 +246,10 @@
       document.getElementById('edit-name').value = product.name;
       document.getElementById('edit-category').value = product.category || 'Guisados';
       document.getElementById('edit-price').value = product.price;
-      document.getElementById('edit-image').value = product.image || '';
+      const fileInput = document.getElementById('edit-image');
+      if (fileInput) fileInput.value = '';
       document.getElementById('edit-kitchen').checked = Boolean(product.kitchen_required);
-      updateEditImagePreview();
+      updateEditImagePreview(product.image || '');
       document.getElementById('edit-modal').classList.remove('hidden');
     }
 
@@ -253,11 +262,21 @@
       const name = document.getElementById('edit-name').value.trim();
       const category = document.getElementById('edit-category').value.trim() || 'Guisados';
       const price = Number(document.getElementById('edit-price').value);
-      const image = document.getElementById('edit-image').value.trim();
+      const fileInput = document.getElementById('edit-image');
       const kitchenRequired = document.getElementById('edit-kitchen').checked;
 
       if (!name || !Number.isFinite(price) || price <= 0) {
         return showToast('Ingresa un nombre y precio válido.', 'error');
+      }
+
+      const formData = new FormData();
+      formData.append('name', name);
+      formData.append('category', category);
+      formData.append('price', String(price));
+      formData.append('kitchen_required', String(kitchenRequired));
+      formData.append('sendToKds', String(kitchenRequired));
+      if (fileInput && fileInput.files && fileInput.files[0]) {
+        formData.append('image', fileInput.files[0]);
       }
 
       const btn = document.getElementById('edit-save-button');
@@ -265,13 +284,7 @@
       try {
         await apiFetch(`/products/${id}`, {
           method: 'PUT',
-          body: JSON.stringify({
-            name,
-            category,
-            price,
-            image: image || null,
-            kitchen_required: kitchenRequired
-          })
+          body: formData
         });
         closeEditModal();
         await loadProducts();

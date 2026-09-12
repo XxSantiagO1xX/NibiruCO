@@ -3,6 +3,7 @@ const router = express.Router();
 const pool = require("../db");
 const auth = require("../middleware/auth");
 const roles = require("../middleware/roles");
+const upload = require("../middleware/upload");
 const { getBusinessDayKey } = require("../utils/timezone");
 
 const adminOnly = roles(["admin"]);
@@ -114,13 +115,21 @@ router.get("/", async (req, res) => {
   }
 });
 
-router.post("/", auth, adminOnly, async (req, res) => {
+router.post("/", auth, adminOnly, upload.single("image"), async (req, res) => {
   try {
     const name = String(req.body.name || "").trim();
     const category = req.body.category ? String(req.body.category).trim() : "Guisados";
     const price = Number(req.body.price);
-    const image = req.body.image ? String(req.body.image).trim() : null;
-    const kitchenRequired = req.body.kitchen_required !== false;
+    const kitchenRequired = req.body.kitchen_required !== undefined
+      ? (String(req.body.kitchen_required) === "true" || req.body.kitchen_required === true)
+      : (req.body.sendToKds !== undefined ? (String(req.body.sendToKds) === "true" || req.body.sendToKds === true) : true);
+
+    let image = null;
+    if (req.file) {
+      image = `/uploads/products/${req.file.filename}`;
+    } else if (req.body.image) {
+      image = String(req.body.image).trim();
+    }
 
     if (!name || !Number.isFinite(price) || price <= 0) {
       return res.status(400).json({ message: "Nombre y precio válido son requeridos" });
@@ -138,7 +147,7 @@ router.post("/", auth, adminOnly, async (req, res) => {
     res.status(201).json(result.rows[0]);
   } catch (err) {
     console.error(err);
-    res.status(500).json({ message: "Error creando producto" });
+    res.status(500).json({ message: err.message || "Error creando producto" });
   }
 });
 
@@ -192,7 +201,7 @@ router.patch("/:id/settings", auth, adminOnly, async (req, res) => {
   }
 });
 
-router.put("/:id", auth, adminOnly, async (req, res) => {
+router.put("/:id", auth, adminOnly, upload.single("image"), async (req, res) => {
   try {
     const id = Number(req.params.id);
     if (!Number.isInteger(id)) return res.status(400).json({ message: "ID inválido" });
@@ -204,9 +213,24 @@ router.put("/:id", auth, adminOnly, async (req, res) => {
     const name = req.body.name !== undefined ? String(req.body.name).trim() : current.name;
     const category = req.body.category !== undefined ? (String(req.body.category).trim() || "Guisados") : (current.category || "Guisados");
     const price = req.body.price !== undefined ? Number(req.body.price) : Number(current.price);
-    const image = req.body.image !== undefined ? (req.body.image ? String(req.body.image).trim() : null) : current.image;
-    const kitchenRequired = req.body.kitchen_required !== undefined ? Boolean(req.body.kitchen_required) : current.kitchen_required;
-    const available = req.body.available !== undefined ? Boolean(req.body.available) : current.available;
+
+    let image = current.image;
+    if (req.file) {
+      image = `/uploads/products/${req.file.filename}`;
+    } else if (req.body.image !== undefined) {
+      image = req.body.image ? String(req.body.image).trim() : null;
+    }
+
+    let kitchenRequired = current.kitchen_required;
+    if (req.body.kitchen_required !== undefined) {
+      kitchenRequired = String(req.body.kitchen_required) === "true" || req.body.kitchen_required === true;
+    } else if (req.body.sendToKds !== undefined) {
+      kitchenRequired = String(req.body.sendToKds) === "true" || req.body.sendToKds === true;
+    }
+
+    const available = req.body.available !== undefined
+      ? (String(req.body.available) === "true" || req.body.available === true)
+      : current.available;
 
     if (!name || !Number.isFinite(price) || price <= 0) {
       return res.status(400).json({ message: "Nombre y precio válido son requeridos" });
@@ -225,7 +249,7 @@ router.put("/:id", auth, adminOnly, async (req, res) => {
     res.json(result.rows[0]);
   } catch (err) {
     console.error(err);
-    res.status(500).json({ message: "Error actualizando producto" });
+    res.status(500).json({ message: err.message || "Error actualizando producto" });
   }
 });
 
