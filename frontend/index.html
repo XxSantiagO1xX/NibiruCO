@@ -655,9 +655,9 @@
             <!-- Filtros de Categoría Rápidos (Pills) -->
             <div class="category-pills-bar" id="category-pills-bar">
               <button class="category-pill active" data-cat="all" onclick="filterCategory('all')">Todos</button>
-              <button class="category-pill" data-cat="Guisados" onclick="filterCategory('Guisados')">Guisados</button>
-              <button class="category-pill" data-cat="Bebidas" onclick="filterCategory('Bebidas')">Bebidas</button>
-              <button class="category-pill" data-cat="Extras" onclick="filterCategory('Extras')">Extras</button>
+              <button class="category-pill" data-cat="guisados" onclick="filterCategory('guisados')">Guisados</button>
+              <button class="category-pill" data-cat="bebidas" onclick="filterCategory('bebidas')">Bebidas</button>
+              <button class="category-pill" data-cat="extras" onclick="filterCategory('extras')">Extras</button>
             </div>
           </div>
 
@@ -919,40 +919,93 @@
       }
     }
 
+    function getProductCategory(product) {
+      if (!product) return 'guisados';
+      if (product.category && typeof product.category === 'string' && product.category.trim()) {
+        return product.category.trim().toLowerCase();
+      }
+      if (product.product_kind === 'combo') {
+        return 'combos';
+      }
+      const name = (product.name || '').toLowerCase().trim();
+      if (
+        name.includes('agua') ||
+        name.includes('refresco') ||
+        name.includes('coca') ||
+        name.includes('pepsi') ||
+        name.includes('jugo') ||
+        name.includes('bebida') ||
+        name.includes('cerveza') ||
+        name.includes('café') ||
+        name.includes('cafe') ||
+        name.includes('té') ||
+        name.includes('te ') ||
+        name.includes('soda') ||
+        name.includes('jarrito') ||
+        name.includes('boing')
+      ) {
+        return 'bebidas';
+      }
+      if (
+        name.includes('extra') ||
+        name.includes('adicional') ||
+        name.includes('guarnicion') ||
+        name.includes('guarnición') ||
+        name.includes('porción') ||
+        name.includes('porcion') ||
+        name.includes('salsa') ||
+        name.includes('tortilla') ||
+        name.includes('postre') ||
+        name.includes('pan') ||
+        name.includes('frijol') ||
+        name.includes('arroz extra')
+      ) {
+        return 'extras';
+      }
+      // Fallback temporal para alimentos / guisados de comida corrida
+      return 'guisados';
+    }
+
     function buildDynamicCategories() {
       const container = document.getElementById('category-pills-bar');
       if (!container) return;
 
-      const defaultCategories = ['Guisados', 'Bebidas', 'Extras'];
-      const catsSet = new Set();
+      const defaultCategories = [
+        { key: 'all', label: 'Todos' },
+        { key: 'guisados', label: 'Guisados' },
+        { key: 'bebidas', label: 'Bebidas' },
+        { key: 'extras', label: 'Extras' }
+      ];
+
+      const dynamicCats = new Set();
       let hasCombos = false;
 
       (products || []).forEach(p => {
         if (p.product_kind === 'combo') {
           hasCombos = true;
-        } else if (p.category && p.category.trim()) {
-          catsSet.add(p.category.trim());
+        } else if (p.category && typeof p.category === 'string' && p.category.trim()) {
+          const rawCat = p.category.trim().toLowerCase();
+          if (!defaultCategories.some(d => d.key === rawCat)) {
+            dynamicCats.add(p.category.trim());
+          }
         }
       });
 
-      // Lista consolidada de categorías
-      const categoryList = ['all'];
-      defaultCategories.forEach(c => categoryList.push(c));
-      catsSet.forEach(c => {
-        if (!categoryList.some(existing => existing.toLowerCase() === c.toLowerCase())) {
-          categoryList.push(c);
-        }
-      });
+      const currentSelected = String(selectedCategory || 'all').trim().toLowerCase();
 
-      let html = categoryList.map(cat => {
-        const isAll = cat === 'all';
-        const label = isAll ? 'Todos' : cat;
-        const isActive = isAll ? (selectedCategory === 'all' || !selectedCategory) : (selectedCategory.toLowerCase() === cat.toLowerCase());
-        return `<button class="category-pill ${isActive ? 'active' : ''}" data-cat="${escapeHtml(cat)}" onclick="filterCategory('${escapeHtml(cat)}')">${escapeHtml(label)}</button>`;
+      let html = defaultCategories.map(cat => {
+        const isActive = currentSelected === cat.key;
+        return `<button class="category-pill ${isActive ? 'active' : ''}" data-cat="${escapeHtml(cat.key)}" onclick="filterCategory('${escapeHtml(cat.key)}')">${escapeHtml(cat.label)}</button>`;
       }).join('');
 
+      dynamicCats.forEach(catName => {
+        const catKey = catName.trim().toLowerCase();
+        const isActive = currentSelected === catKey;
+        html += `<button class="category-pill ${isActive ? 'active' : ''}" data-cat="${escapeHtml(catKey)}" onclick="filterCategory('${escapeHtml(catKey)}')">${escapeHtml(catName)}</button>`;
+      });
+
       if (hasCombos) {
-        const isComboActive = selectedCategory === 'combos';
+        const isComboActive = currentSelected === 'combos';
         html += `<button class="category-pill ${isComboActive ? 'active' : ''}" data-cat="combos" onclick="filterCategory('combos')"><svg class="ui-icon" width="13" height="13"><use href="assets/icons.svg#combo"></use></svg> Combos</button>`;
       }
 
@@ -960,7 +1013,13 @@
     }
 
     function filterCategory(cat) {
-      selectedCategory = cat;
+      selectedCategory = String(cat || 'all').trim().toLowerCase();
+      document.querySelectorAll('.category-pill').forEach(btn => {
+        const btnCat = (btn.getAttribute('data-cat') || btn.textContent || '').trim().toLowerCase();
+        const isMatch = (selectedCategory === 'all' && (btnCat === 'all' || btnCat === 'todos')) ||
+                        (btnCat === selectedCategory);
+        btn.classList.toggle('active', isMatch);
+      });
       buildDynamicCategories();
       renderProducts();
     }
@@ -1097,17 +1156,25 @@
     function renderProducts() {
       const searchInput = document.getElementById('search');
       const query = (searchInput ? searchInput.value : '').trim().toLowerCase();
-      let filtered = (products || []).filter((product) => product.name.toLowerCase().includes(query));
+      const activeCategory = String(selectedCategory || 'all').trim().toLowerCase();
 
-      if (selectedCategory === 'combos') {
-        filtered = filtered.filter(p => p.product_kind === 'combo');
-      } else if (selectedCategory && selectedCategory !== 'all') {
-        filtered = filtered.filter(p => (p.category || '').toLowerCase() === selectedCategory.toLowerCase());
-      }
+      let filtered = (products || []).filter((product) => {
+        // Filtro por búsqueda de texto
+        const matchesQuery = !query || (product.name || '').toLowerCase().includes(query);
+        if (!matchesQuery) return false;
+
+        // Filtro por categoría normalizada con fallback
+        if (activeCategory === 'all') return true;
+        const prodCat = getProductCategory(product);
+        if (activeCategory === 'combos') {
+          return prodCat === 'combos' || product.product_kind === 'combo';
+        }
+        return prodCat === activeCategory;
+      });
 
       const container = document.getElementById('products');
       if (!filtered.length) {
-        container.innerHTML = '<div class="card card-pad muted" style="grid-column:1/-1;text-align:center">No hay productos disponibles en esta selección del menú de hoy.</div>';
+        container.innerHTML = '<div class="card card-pad muted" style="grid-column:1/-1;text-align:center">No hay productos disponibles en esta categoría.</div>';
         return;
       }
 
