@@ -35,7 +35,8 @@ export default function OrderTrackModal({
   visible,
   orderId,
   token,
-  onClose
+  onClose,
+  navigation
 }) {
   const { socket } = useContext(AppContext);
   const [trackingData, setTrackingData] = useState(null);
@@ -352,6 +353,22 @@ export default function OrderTrackModal({
                       : "📍 Tu repartidor avanza por la ruta óptima hacia tu dirección."}
                   </Text>
                 </View>
+              )}
+
+              {/* Live Tracking Map Link Button */}
+              {navigation && !isDelivered && (
+                <TouchableOpacity
+                  style={styles.openMapBtn}
+                  onPress={() => {
+                    onClose();
+                    navigation.navigate("DeliveryTracking", { orderId, order: trackingData });
+                  }}
+                  activeOpacity={0.85}
+                >
+                  <Ionicons name="map" size={18} color="#ffffff" />
+                  <Text style={styles.openMapBtnText}>Ver Mapa de Entrega en Vivo</Text>
+                  <Ionicons name="chevron-forward" size={16} color="#ffffff" />
+                </TouchableOpacity>
               )}
 
               {/* Refresh Pill Button */}
@@ -713,5 +730,24 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: colors.muted,
     lineHeight: 16
+  },
+  openMapBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    backgroundColor: colors.primary,
+    paddingVertical: 14,
+    borderRadius: 20,
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 4
+  },
+  openMapBtnText: {
+    color: "#ffffff",
+    fontSize: 13.5,
+    fontWeight: "800"
   }
 });

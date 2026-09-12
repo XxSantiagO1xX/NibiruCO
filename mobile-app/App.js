@@ -19,6 +19,7 @@ import CartScreen from "./screens/CartScreen";
 import OrdersScreen from "./screens/OrdersScreen";
 import ProfileScreen from "./screens/ProfileScreen";
 import AddressesScreen from "./screens/AddressesScreen";
+import DeliveryTrackingScreen from "./screens/DeliveryTrackingScreen";
 
 /* WAITER SCREENS */
 import WaiterTablesScreen from "./screens/waiter/WaiterTablesScreen";
@@ -232,6 +233,7 @@ function RootNavigator() {
         <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
         <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} />
         <Stack.Screen name="Addresses" component={AddressesScreen} />
+        <Stack.Screen name="DeliveryTracking" component={DeliveryTrackingScreen} />
         <Stack.Screen name="WaiterTableDetail" component={WaiterTableDetailScreen} />
         <Stack.Screen name="WaiterUnassignedOrders" component={WaiterUnassignedOrdersScreen} />
         <Stack.Screen name="AdminDeliveryDispatch" component={AdminDeliveryDispatchScreen} />

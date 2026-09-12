@@ -243,6 +243,7 @@ export default function OrdersScreen({ navigation }) {
         visible={trackModalVisible}
         orderId={selectedTrackOrderId}
         token={token}
+        navigation={navigation}
         onClose={() => {
           setTrackModalVisible(false);
           setSelectedTrackOrderId(null);
