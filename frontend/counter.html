@@ -36,19 +36,16 @@
     .counter-title p { margin: 2px 0 0; color: var(--muted); font-size: 12px; }
     .counter-header-actions { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
 
-    /* Search in Topbar */
-    /* Search & Service Filter Tabs in Topbar */
+    /* Topbar Search */
     .counter-topbar-center {
       flex: 1;
       display: flex;
       align-items: center;
-      gap: 12px;
       margin: 0 16px;
-      max-width: 800px;
+      max-width: 600px;
     }
     .counter-topbar-search {
       flex: 1;
-      min-width: 220px;
       position: relative;
       display: flex;
       align-items: center;
@@ -63,8 +60,8 @@
     }
     .counter-topbar-search input {
       width: 100%;
-      height: 38px;
-      padding: 0 14px 0 36px;
+      height: 40px;
+      padding: 0 14px 0 38px;
       background: var(--surface-2);
       border: 1px solid var(--border);
       border-radius: 10px;
@@ -79,49 +76,18 @@
       box-shadow: 0 0 0 3px var(--primary-soft);
     }
 
-    .dest-filter-tabs {
-      display: flex;
-      gap: 6px;
-      flex-shrink: 0;
-    }
-    .dest-filter-btn {
-      padding: 6px 13px;
-      border-radius: 999px;
-      background: var(--surface);
-      border: 1px solid var(--border);
-      font-size: 12px;
-      font-weight: 700;
-      color: var(--muted);
-      cursor: pointer;
-      display: inline-flex;
-      align-items: center;
-      gap: 5px;
-      transition: all .15s ease;
-      white-space: nowrap;
-    }
-    .dest-filter-btn:hover { border-color: var(--muted); color: var(--text); }
-    .dest-filter-btn.active {
-      background: var(--dark);
-      color: #fff;
-      border-color: var(--dark);
-    }
-
-    /* KPI Bar (Informational Metrics Only) */
+    /* KPI Bar (Tarjetas como Filtros Interactivos Principales) */
     .counter-metrics-bar {
       display: grid;
-      grid-template-columns: repeat(5, 1fr);
-      gap: 14px;
-      margin-bottom: 20px;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      margin-bottom: 24px;
     }
-    @media (max-width: 1200px) {
-      .counter-metrics-bar { grid-template-columns: repeat(3, 1fr); }
-    }
-    @media (max-width: 1100px) {
-      .counter-topbar-center { flex-wrap: wrap; max-width: 100%; margin: 10px 0; }
-      .counter-topbar-search { min-width: 100%; }
-    }
-    @media (max-width: 768px) {
+    @media (max-width: 960px) {
       .counter-metrics-bar { grid-template-columns: repeat(2, 1fr); }
+    }
+    @media (max-width: 540px) {
+      .counter-metrics-bar { grid-template-columns: 1fr; }
       .counter-header { flex-direction: column; align-items: stretch; }
     }
     .metric-card {
@@ -133,81 +99,41 @@
       align-items: center;
       justify-content: space-between;
       box-shadow: var(--shadow-sm);
-      cursor: default;
-      transition: border-color .15s ease, box-shadow .15s ease;
-    }
-    .metric-card.interactive {
       cursor: pointer;
+      user-select: none;
+      position: relative;
+      transition: transform .15s ease, border-color .15s ease, box-shadow .15s ease, background-color .15s ease;
     }
-    .metric-card.interactive:hover {
-      border-color: var(--danger-border);
+    .metric-card:hover {
+      transform: translateY(-2px);
       box-shadow: var(--shadow-md);
+      border-color: var(--primary);
     }
-    .metric-val { font-size: 26px; font-weight: 900; letter-spacing: -.03em; line-height: 1.1; }
-    .metric-label { font-size: 11px; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; margin-bottom: 3px; }
+    .metric-card.active {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 2px var(--primary-soft), var(--shadow-sm);
+      background-color: #FFFBF8;
+    }
+    .metric-card.active::after {
+      content: '';
+      position: absolute;
+      bottom: -1px;
+      left: 16px;
+      right: 16px;
+      height: 3px;
+      background: var(--primary);
+      border-radius: 3px 3px 0 0;
+    }
+    .metric-val { font-size: 28px; font-weight: 900; letter-spacing: -.03em; line-height: 1.1; }
+    .metric-label { font-size: 11.5px; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; margin-bottom: 3px; }
 
-    /* 3 ZONES TOWER GRID (Desktop) */
-    .tower-3zones-layout {
+    /* UNIFIED MOSTRADOR GRID (Vista Única) */
+    .orders-unified-grid {
       display: grid;
-      grid-template-columns: repeat(3, 1fr);
+      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
       gap: 18px;
-      align-items: start;
-    }
-    @media (max-width: 1180px) {
-      .tower-3zones-layout { grid-template-columns: 1fr; }
-    }
-
-    .zone-column {
-      background: var(--surface-2);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-md);
-      padding: 18px;
-      display: flex;
-      flex-direction: column;
-      gap: 14px;
-      min-height: 600px;
-    }
-    .zone-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding-bottom: 12px;
-      border-bottom: 2px solid;
-    }
-    .zone-header.prep { border-color: var(--role-cocina); color: var(--role-cocina); }
-    .zone-header.counter { border-color: var(--role-mesero); color: var(--role-mesero); }
-    .zone-header.dispatch { border-color: var(--role-repartidor); color: var(--role-repartidor); }
-    
-    .zone-title {
-      font-size: 13.5px;
-      font-weight: 900;
-      text-transform: uppercase;
-      letter-spacing: .04em;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-    .zone-count {
-      font-size: 11.5px;
-      font-weight: 800;
-      background: var(--surface);
-      border: 1px solid var(--border);
-      padding: 2px 9px;
-      border-radius: 999px;
-      color: var(--text);
-    }
-
-    .zone-orders-list {
-      display: flex;
-      flex-direction: column;
-      gap: 14px;
-    }
-
-    /* SINGLE LANE / FOCUS GRID */
-    .single-lane-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
-      gap: 18px;
+      width: 100%;
+      align-items: stretch;
     }
 
     /* ORDER CARD WITH FOLIO RIBBON */
@@ -644,19 +570,6 @@
             <svg class="search-icon ui-icon"><use href="assets/icons.svg#search"></use></svg>
             <input type="text" id="counter-search-input" placeholder="Buscar folio, cliente, mesa o producto..." oninput="handleCounterSearch(this.value)">
           </div>
-
-          <div class="dest-filter-tabs">
-            <button class="dest-filter-btn active" data-dest="all" onclick="setDestFilter('all')">Todos</button>
-            <button class="dest-filter-btn" data-dest="salon" onclick="setDestFilter('salon')">
-              <svg class="ui-icon" width="13" height="13"><use href="assets/icons.svg#dining"></use></svg> Salón
-            </button>
-            <button class="dest-filter-btn" data-dest="llevar" onclick="setDestFilter('llevar')">
-              <svg class="ui-icon" width="13" height="13"><use href="assets/icons.svg#bag"></use></svg> Llevar
-            </button>
-            <button class="dest-filter-btn" data-dest="domicilio" onclick="setDestFilter('domicilio')">
-              <svg class="ui-icon" width="13" height="13"><use href="assets/icons.svg#bike"></use></svg> Domicilio
-            </button>
-          </div>
         </div>
 
         <div class="counter-header-actions">
@@ -673,46 +586,39 @@
         </div>
       </header>
 
-      <!-- Operational KPIs (Indicadores Visuales No Navegables) -->
+      <!-- Tarjetas KPI como Filtros Interactivos Principales -->
       <section class="counter-metrics-bar">
-        <div class="metric-card" id="card-kpi-prep">
+        <div class="metric-card active" id="kpi-filter-all" onclick="setDestFilter('all')" title="Filtrar todos los pedidos activos">
           <div>
-            <div class="metric-label">En Cocina</div>
-            <div class="metric-val" id="count-prep" style="color:var(--role-cocina)">0</div>
+            <div class="metric-label">Todos los Pedidos</div>
+            <div class="metric-val" id="count-all" style="color:var(--text)">0</div>
           </div>
-          <svg class="ui-icon" style="color:var(--role-cocina)"><use href="assets/icons.svg#flame"></use></svg>
+          <svg class="ui-icon" style="color:var(--primary);width:26px;height:26px"><use href="assets/icons.svg#counter"></use></svg>
         </div>
-        <div class="metric-card" id="card-kpi-salida">
+        <div class="metric-card" id="kpi-filter-salon" onclick="setDestFilter('salon')" title="Filtrar pedidos de Salón / Mesa">
           <div>
-            <div class="metric-label">En Mostrador</div>
-            <div class="metric-val" id="count-salida" style="color:var(--role-mesero)">0</div>
+            <div class="metric-label">Salón</div>
+            <div class="metric-val" id="count-salon" style="color:var(--role-mesero)">0</div>
           </div>
-          <svg class="ui-icon" style="color:var(--role-mesero)"><use href="assets/icons.svg#check"></use></svg>
+          <svg class="ui-icon" style="color:var(--role-mesero);width:26px;height:26px"><use href="assets/icons.svg#dining"></use></svg>
         </div>
-        <div class="metric-card" id="card-kpi-domicilio">
+        <div class="metric-card" id="kpi-filter-llevar" onclick="setDestFilter('llevar')" title="Filtrar pedidos Para Llevar">
           <div>
-            <div class="metric-label">Reparto / Domicilio</div>
+            <div class="metric-label">Para Llevar</div>
+            <div class="metric-val" id="count-llevar" style="color:var(--warning)">0</div>
+          </div>
+          <svg class="ui-icon" style="color:var(--warning);width:26px;height:26px"><use href="assets/icons.svg#bag"></use></svg>
+        </div>
+        <div class="metric-card" id="kpi-filter-domicilio" onclick="setDestFilter('domicilio')" title="Filtrar pedidos a Domicilio">
+          <div>
+            <div class="metric-label">Domicilio</div>
             <div class="metric-val" id="count-domicilio" style="color:var(--role-repartidor)">0</div>
           </div>
-          <svg class="ui-icon" style="color:var(--role-repartidor)"><use href="assets/icons.svg#bike"></use></svg>
-        </div>
-        <div class="metric-card interactive" onclick="toggleIncidentsDrawer()" id="card-kpi-incidencias" title="Abrir bandeja de incidencias">
-          <div>
-            <div class="metric-label">Incidencias</div>
-            <div class="metric-val" id="count-incidencias" style="color:var(--danger)">0</div>
-          </div>
-          <svg class="ui-icon" style="color:var(--danger)"><use href="assets/icons.svg#alert"></use></svg>
-        </div>
-        <div class="metric-card" id="card-kpi-historial">
-          <div>
-            <div class="metric-label">Entregados Hoy</div>
-            <div class="metric-val" id="count-historial" style="color:var(--muted)">0</div>
-          </div>
-          <svg class="ui-icon" style="color:var(--muted)"><use href="assets/icons.svg#box"></use></svg>
+          <svg class="ui-icon" style="color:var(--role-repartidor);width:26px;height:26px"><use href="assets/icons.svg#bike"></use></svg>
         </div>
       </section>
 
-      <!-- Main Display Layout (Kanban 3 Columnas) -->
+      <!-- Main Display Layout (Cuadrícula Unificada) -->
       <section id="tower-main-area"></section>
     </div>
   </main>
@@ -846,9 +752,11 @@
 
     function setDestFilter(dest) {
       currentDestFilter = dest;
-      document.querySelectorAll('.dest-filter-btn').forEach(el => {
-        el.classList.toggle('active', el.getAttribute('data-dest') === dest);
+      document.querySelectorAll('.counter-metrics-bar .metric-card').forEach(el => {
+        el.classList.remove('active');
       });
+      const activeCard = document.getElementById('kpi-filter-' + dest);
+      if (activeCard) activeCard.classList.add('active');
       render();
     }
 
@@ -887,14 +795,14 @@
     function matchesDestFilter(order) {
       if (currentDestFilter === 'all') return true;
       const type = (order.service_type || order.serviceType || order.type || 'local').toLowerCase();
-      if (currentDestFilter === 'salon') return type === 'mesa' || type === 'local' || type === 'salon' || type === 'dine_in' || type === 'comer_aqui' || order.table_session_id || order.table_id || order.table_name;
-      if (currentDestFilter === 'llevar') return type === 'llevar' || type === 'recoger' || type === 'takeout' || type === 'pickup' || type === 'para_llevar';
+      const hasTable = Boolean(order.table_session_id || order.table_id || order.table_name);
+      if (currentDestFilter === 'salon') return type === 'mesa' || type === 'local' || type === 'salon' || type === 'dine_in' || type === 'comer_aqui' || hasTable;
+      if (currentDestFilter === 'llevar') return type === 'llevar' || type === 'recoger' || type === 'takeout' || type === 'pickup' || type === 'para_llevar' || type === 'para-llevar';
       if (currentDestFilter === 'domicilio') return type === 'domicilio' || type === 'delivery' || type === 'a_domicilio';
       return true;
     }
 
     function renderOrderCard(order) {
-      const isReady = order.status === 'listo';
       const isDelivered = order.status === 'entregado';
       const summary = order.summary || {};
       const stage = summary.counter_stage || 'esperando_cocina';
@@ -926,41 +834,28 @@
         statusBadgeHtml = '<span class="status-badge-hub badge-hub-incident" onclick="toggleIncidentsDrawer(true)" title="Ver incidencia activa"><svg class="ui-icon" width="12" height="12"><use href="assets/icons.svg#alert"></use></svg> Incidencia</span>';
       } else if (isDelivered) {
         statusBadgeHtml = '<span class="status-badge-hub badge-hub-delivered"><svg class="ui-icon" width="12" height="12"><use href="assets/icons.svg#check"></use></svg> Entregado</span>';
-      } else if (isReady) {
-        if (serviceType === 'domicilio') {
-          const tripBadge = order.trip_folio ? (' · Viaje #' + order.trip_folio) : '';
-          if (stage === 'en_ruta') {
-            statusBadgeHtml = '<span class="status-badge-hub badge-hub-transit"><svg class="ui-icon" width="12" height="12"><use href="assets/icons.svg#bike"></use></svg> En ruta' + tripBadge + '</span>';
-          } else if (stage === 'esperando_recogida' || order.driver_name) {
-            statusBadgeHtml = '<span class="status-badge-hub badge-hub-ready"><svg class="ui-icon" width="12" height="12"><use href="assets/icons.svg#bike"></use></svg> ' + escapeHtml(order.driver_name || 'Repartidor') + tripBadge + '</span>';
-          } else if (stage === 'oferta_enviada' && summary.active_offer) {
-            statusBadgeHtml = '<span class="status-badge-hub badge-hub-prep" style="background:var(--warning-soft);color:var(--warning);border-color:var(--warning-border)">Oferta (' + summary.active_offer.seconds_left + 's)</span>';
-          } else {
-            statusBadgeHtml = '<span class="status-badge-hub badge-hub-prep" style="background:var(--role-repartidor-soft);color:var(--role-repartidor)">Buscando repartidor</span>';
-          }
-        } else if (stage === 'listo_para_mesa') {
-          statusBadgeHtml = '<span class="status-badge-hub badge-hub-ready"><svg class="ui-icon" width="12" height="12"><use href="assets/icons.svg#check"></use></svg> Listo Salón</span>';
-        } else if (stage === 'en_camino_a_mesa') {
-          statusBadgeHtml = '<span class="status-badge-hub badge-hub-transit">En camino a mesa</span>';
-        } else if (stage === 'listo_esperando_llegada') {
-          statusBadgeHtml = '<span class="status-badge-hub badge-hub-prep">Esperando llegada</span>';
+      } else if (serviceType === 'domicilio' || serviceType === 'delivery' || serviceType === 'a_domicilio') {
+        const tripBadge = order.trip_folio ? (' · Viaje #' + order.trip_folio) : '';
+        if (stage === 'en_ruta') {
+          statusBadgeHtml = '<span class="status-badge-hub badge-hub-transit"><svg class="ui-icon" width="12" height="12"><use href="assets/icons.svg#bike"></use></svg> En ruta' + tripBadge + '</span>';
+        } else if (order.driver_name) {
+          statusBadgeHtml = '<span class="status-badge-hub badge-hub-ready"><svg class="ui-icon" width="12" height="12"><use href="assets/icons.svg#bike"></use></svg> ' + escapeHtml(order.driver_name) + tripBadge + '</span>';
+        } else if (stage === 'oferta_enviada' && summary.active_offer) {
+          statusBadgeHtml = '<span class="status-badge-hub badge-hub-prep" style="background:var(--warning-soft);color:var(--warning);border-color:var(--warning-border)">Oferta (' + summary.active_offer.seconds_left + 's)</span>';
         } else {
-          statusBadgeHtml = '<span class="status-badge-hub badge-hub-ready"><svg class="ui-icon" width="12" height="12"><use href="assets/icons.svg#check"></use></svg> Listo en Mostrador</span>';
+          statusBadgeHtml = '<span class="status-badge-hub badge-hub-prep" style="background:var(--role-repartidor-soft);color:var(--role-repartidor)">Por despachar</span>';
         }
-      } else if (stage === 'esperando_cocina') {
-        statusBadgeHtml = '<span class="status-badge-hub badge-hub-prep"><svg class="ui-icon" width="12" height="12"><use href="assets/icons.svg#flame"></use></svg> Cocina (' + (summary.kitchen_items_ready_count || 0) + '/' + (summary.kitchen_items_count || 1) + ')</span>';
+      } else if (serviceType === 'mesa' || order.table_session_id || order.table_name) {
+        statusBadgeHtml = '<span class="status-badge-hub badge-hub-ready"><svg class="ui-icon" width="12" height="12"><use href="assets/icons.svg#dining"></use></svg> Salón</span>';
+      } else if (serviceType === 'llevar' || serviceType === 'recoger' || serviceType === 'takeout' || serviceType === 'pickup' || serviceType === 'para_llevar' || serviceType === 'para-llevar') {
+        statusBadgeHtml = '<span class="status-badge-hub badge-hub-ready"><svg class="ui-icon" width="12" height="12"><use href="assets/icons.svg#bag"></use></svg> Para Llevar</span>';
       } else {
-        statusBadgeHtml = '<span class="status-badge-hub badge-hub-prep">Armando</span>';
+        statusBadgeHtml = '<span class="status-badge-hub badge-hub-ready"><svg class="ui-icon" width="12" height="12"><use href="assets/icons.svg#check"></use></svg> Activo</span>';
       }
 
-      // Items list with highlighted bold quantities only
+      // Items list with highlighted bold quantities
       const items = Array.isArray(order.items) ? order.items : [];
       const itemsHtml = items.map(item => {
-        const isItemReady = item.status === 'listo' || item.status === 'entregado' || !item.kitchen_required;
-        const tagHtml = isItemReady
-          ? '<span class="item-tag tag-ready">Listo</span>'
-          : '<span class="item-tag tag-kitchen">Cocina</span>';
-
         const choices = Array.isArray(item.choices) ? item.choices : [];
         const choicesHtml = choices.length
           ? '<div class="item-choices-text">• ' + choices.map(c => escapeHtml(c.name)).join(' · ') + '</div>'
@@ -968,7 +863,6 @@
 
         return '<div class="item-line">' +
           '<div class="item-name-part">' +
-            tagHtml +
             '<div style="min-width:0">' +
               '<strong class="item-qty-bold">' + item.quantity + '×</strong> ' +
               '<span class="item-name-text">' + escapeHtml(item.name || ('Producto #' + item.product_id)) + '</span>' +
@@ -980,14 +874,14 @@
 
       // Metadata blocks
       let metaBlockHtml = '';
-      if (serviceType === 'mesa' || order.table_session_id) {
+      if (serviceType === 'mesa' || order.table_session_id || order.table_name) {
         metaBlockHtml += '<div class="waiter-assigned-box">' +
           '<span><strong>Mesa:</strong> ' + escapeHtml(order.table_name || 'Salón') + '</span>' +
           '<span><strong>Mesero:</strong> ' + escapeHtml(order.waiter_display_name || 'Sin asignar') + '</span>' +
         '</div>';
       }
 
-      if (serviceType === 'domicilio') {
+      if (serviceType === 'domicilio' || serviceType === 'delivery' || serviceType === 'a_domicilio') {
         let driverInfo = '';
         const tripLabel = order.trip_folio ? (' · <strong>Viaje #' + order.trip_folio + '</strong>') : '';
         if (isDelivered) {
@@ -996,14 +890,12 @@
             : ('<strong>Entrega finalizada</strong>' + tripLabel);
         } else if (stage === 'en_ruta') {
           driverInfo = '<svg class="ui-icon" width="13" height="13"><use href="assets/icons.svg#bike"></use></svg> <strong>En ruta con:</strong> ' + escapeHtml(order.driver_name || 'Repartidor') + tripLabel + (order.delivery_pin ? (' · <strong>PIN:</strong> ' + order.delivery_pin) : '');
-        } else if (stage === 'esperando_recogida' || order.driver_name) {
+        } else if (order.driver_name) {
           driverInfo = '<svg class="ui-icon" width="13" height="13"><use href="assets/icons.svg#bike"></use></svg> <strong>Asignado:</strong> ' + escapeHtml(order.driver_name) + tripLabel + (order.delivery_pin ? (' · <strong>PIN:</strong> ' + order.delivery_pin) : '');
         } else if (stage === 'oferta_enviada' && summary.active_offer) {
           driverInfo = '<strong>Oferta enviada:</strong> ' + escapeHtml(summary.active_offer.driver_name) + ' (' + summary.active_offer.seconds_left + 's)';
-        } else if (isReady) {
-          driverInfo = '<strong>Despacho:</strong> Buscando repartidor disponible';
         } else {
-          driverInfo = '<strong>Preparación:</strong> Se enviará a despacho al estar listo';
+          driverInfo = '<strong>Despacho:</strong> Buscando repartidor disponible';
         }
 
         metaBlockHtml += '<div class="address-box">' +
@@ -1012,41 +904,27 @@
         '</div>';
       }
 
-      // Soft Action Buttons (Full-width with 10% alpha background and dark border/text)
+      // Direct Resolutive Action Buttons
       let actionsHtml = '';
       if (!isDelivered) {
-        if (serviceType === 'mesa' || order.table_session_id) {
-          if (isReady) {
-            if (!order.picked_up_from_counter_at) {
-              actionsHtml += '<button class="btn-soft-info" onclick="notifyWaiter(' + order.id + ')"><svg class="ui-icon" width="13" height="13"><use href="assets/icons.svg#bell"></use></svg> Avisar Mesero</button>' +
-                '<button class="btn-soft-warning" onclick="pickupWaiter(' + order.id + ')">Mesero Recogió</button>';
-            } else {
-              actionsHtml += '<button class="btn-soft-success" onclick="deliverTable(' + order.id + ')"><svg class="ui-icon" width="13" height="13"><use href="assets/icons.svg#check"></use></svg> Servido en Mesa</button>';
-            }
+        if (serviceType === 'domicilio' || serviceType === 'delivery' || serviceType === 'a_domicilio') {
+          if (order.driver_name || stage === 'en_ruta' || stage === 'esperando_recogida') {
+            actionsHtml += '<button class="btn-soft-success" onclick="deliverOrder(' + order.id + ')"><svg class="ui-icon" width="13" height="13"><use href="assets/icons.svg#check"></use></svg> Marcar Entregado</button>';
           } else {
-            actionsHtml += '<button class="btn-soft-primary" onclick="markReady(' + order.id + ')"><svg class="ui-icon" width="13" height="13"><use href="assets/icons.svg#check"></use></svg> Marcar Listo</button>';
+            actionsHtml += '<button class="btn-soft-primary" onclick="openAssignDriverModal(' + order.id + ')"><svg class="ui-icon" width="13" height="13"><use href="assets/icons.svg#bike"></use></svg> Despachar Repartidor</button>';
           }
-        } else if (serviceType === 'llevar' || serviceType === 'recoger') {
-          if (isReady) {
-            actionsHtml += '<button class="btn-soft-success" onclick="deliverOrder(' + order.id + ')"><svg class="ui-icon" width="13" height="13"><use href="assets/icons.svg#check"></use></svg> Entregar a Cliente</button>';
-          } else {
-            actionsHtml += '<button class="btn-soft-primary" onclick="markReady(' + order.id + ')"><svg class="ui-icon" width="13" height="13"><use href="assets/icons.svg#check"></use></svg> Marcar Listo</button>';
-          }
-        } else if (serviceType === 'local' && !order.table_session_id) {
+        } else if (serviceType === 'mesa' || order.table_session_id || order.table_name) {
+          actionsHtml += '<button class="btn-soft-success" onclick="deliverTable(' + order.id + ')"><svg class="ui-icon" width="13" height="13"><use href="assets/icons.svg#check"></use></svg> Servido en Mesa</button>';
+        } else if (serviceType === 'llevar' || serviceType === 'recoger' || serviceType === 'takeout' || serviceType === 'pickup' || serviceType === 'para_llevar' || serviceType === 'para-llevar') {
+          actionsHtml += '<button class="btn-soft-success" onclick="deliverOrder(' + order.id + ')"><svg class="ui-icon" width="13" height="13"><use href="assets/icons.svg#check"></use></svg> Completar / Entregar</button>';
+        } else {
+          // local sin mesa
           actionsHtml += '<button class="btn-soft-secondary" onclick="window.location.href=\'tables.html\'">Asignar a Mesa</button>' +
-            (!isReady ? '<button class="btn-soft-primary" onclick="markReady(' + order.id + ')"><svg class="ui-icon" width="13" height="13"><use href="assets/icons.svg#check"></use></svg> Marcar Listo</button>' : '');
-        } else if (serviceType === 'domicilio') {
-          if (!isReady) {
-            actionsHtml += '<button class="btn-soft-primary" onclick="markReady(' + order.id + ')"><svg class="ui-icon" width="13" height="13"><use href="assets/icons.svg#check"></use></svg> Listo para Reparto</button>';
-          } else {
-            if (currentUser && currentUser.role === 'admin') {
-              actionsHtml += '<button class="btn-soft-secondary" onclick="openAssignDriverModal(' + order.id + ')">Asignar Repartidor (Admin)</button>';
-            }
-          }
+            '<button class="btn-soft-success" onclick="deliverOrder(' + order.id + ')"><svg class="ui-icon" width="13" height="13"><use href="assets/icons.svg#check"></use></svg> Completar / Cobrar</button>';
         }
       }
 
-      const cardClass = isDelivered ? 'delivered' : isReady ? 'ready' : isDelayed ? 'delayed' : stage === 'esperando_cocina' ? 'waiting-kitchen' : '';
+      const cardClass = isDelivered ? 'delivered' : isDelayed ? 'delayed' : '';
 
       return '<article class="order-card-hub ' + cardClass + '" id="hub-order-' + order.id + '">' +
         ribbonHtml +
@@ -1146,90 +1024,75 @@
     function render() {
       const nonCancelled = orders.filter(o => o.status !== 'cancelado');
       const activeOrders = nonCancelled.filter(o => o.status !== 'entregado');
-      const deliveredToday = nonCancelled.filter(o => o.status === 'entregado');
 
-      // 1. PREPARACIÓN (esperando_cocina, pendiente, aceptado, preparando, armando)
-      const prepOrders = activeOrders.filter(o => {
-        const stage = o.summary?.counter_stage;
-        return o.status === 'pendiente' || o.status === 'aceptado' || o.status === 'preparando' || stage === 'esperando_cocina' || stage === 'armando';
-      }).filter(matchesDestFilter).filter(matchesSearch);
+      function getCategory(o) {
+        const type = String(o.service_type || o.serviceType || o.type || 'local').toLowerCase();
+        if (type === 'domicilio' || type === 'delivery' || type === 'a_domicilio') return 'domicilio';
+        if (type === 'llevar' || type === 'recoger' || type === 'takeout' || type === 'pickup' || type === 'para_llevar' || type === 'para-llevar') return 'llevar';
+        return 'salon';
+      }
 
-      // 2. EN MOSTRADOR (listos en mostrador para salón, llevar, recoger o esperando recolección de domicilio)
-      const salidaOrders = activeOrders.filter(o => {
-        const sType = String(o.service_type || o.serviceType || o.type || 'local').toLowerCase();
-        return o.status === 'listo' && sType !== 'domicilio' && sType !== 'delivery' && sType !== 'a_domicilio';
-      }).filter(matchesDestFilter).filter(matchesSearch);
+      const salonOrders = activeOrders.filter(o => getCategory(o) === 'salon');
+      const llevarOrders = activeOrders.filter(o => getCategory(o) === 'llevar');
+      const domicilioOrders = activeOrders.filter(o => getCategory(o) === 'domicilio');
 
-      // 3. SALIDA / DOMICILIO (domicilios listos/en ruta, o salón en camino a mesa)
-      const dispatchOrders = activeOrders.filter(o => {
-        const sType = String(o.service_type || o.serviceType || o.type || 'local').toLowerCase();
-        return (sType === 'domicilio' || sType === 'delivery' || sType === 'a_domicilio') && o.status !== 'entregado';
-      }).filter(matchesDestFilter).filter(matchesSearch);
+      // Update KPI counters
+      const elAll = document.getElementById('count-all');
+      const elSalon = document.getElementById('count-salon');
+      const elLlevar = document.getElementById('count-llevar');
+      const elDomicilio = document.getElementById('count-domicilio');
+
+      if (elAll) elAll.textContent = activeOrders.length;
+      if (elSalon) elSalon.textContent = salonOrders.length;
+      if (elLlevar) elLlevar.textContent = llevarOrders.length;
+      if (elDomicilio) elDomicilio.textContent = domicilioOrders.length;
+
+      // Filter active orders based on selected KPI tab & search query
+      const filteredOrders = activeOrders
+        .filter(matchesDestFilter)
+        .filter(matchesSearch);
 
       // Open incidents
       const openIncidents = incidents.filter(i => i.status !== 'resuelta' && i.status !== 'cerrada');
-
-      // Update KPI counters
-      document.getElementById('count-prep').textContent = prepOrders.length;
-      document.getElementById('count-salida').textContent = salidaOrders.length;
-      document.getElementById('count-domicilio').textContent = dispatchOrders.length;
-      document.getElementById('count-incidencias').textContent = openIncidents.length;
-      document.getElementById('count-historial').textContent = deliveredToday.length;
-
       const headerBadge = document.getElementById('header-incidents-badge');
-      if (openIncidents.length > 0) {
-        headerBadge.style.display = 'inline-flex';
-        headerBadge.textContent = openIncidents.length;
-      } else {
-        headerBadge.style.display = 'none';
+      if (headerBadge) {
+        if (openIncidents.length > 0) {
+          headerBadge.style.display = 'inline-flex';
+          headerBadge.textContent = openIncidents.length;
+        } else {
+          headerBadge.style.display = 'none';
+        }
       }
 
       const mainArea = document.getElementById('tower-main-area');
+      if (!mainArea) return;
 
-      // Render 3-column Kanban layout directly
+      if (!filteredOrders.length) {
+        let emptyMsg = 'No hay pedidos activos en este momento.';
+        if (searchFilter) {
+          emptyMsg = `No se encontraron pedidos que coincidan con "${escapeHtml(searchFilter)}".`;
+        } else if (currentDestFilter === 'salon') {
+          emptyMsg = 'No hay comandas activas en Salón.';
+        } else if (currentDestFilter === 'llevar') {
+          emptyMsg = 'No hay pedidos activos Para Llevar.';
+        } else if (currentDestFilter === 'domicilio') {
+          emptyMsg = 'No hay entregas a Domicilio activas.';
+        }
+
+        mainArea.innerHTML = `
+          <div class="empty-hub">
+            <svg class="ui-icon" style="width:40px;height:40px;color:var(--muted);margin:0 auto"><use href="assets/icons.svg#check"></use></svg>
+            <h3>Sin pedidos activos</h3>
+            <p>${emptyMsg}</p>
+          </div>
+        `;
+        return;
+      }
+
+      // Render unified grid directly
       mainArea.innerHTML = `
-        <div class="tower-3zones-layout">
-          <!-- Zona 1: PREPARACIÓN -->
-          <div class="zone-column">
-            <div class="zone-header prep">
-              <div class="zone-title">
-                <svg class="ui-icon" width="16" height="16"><use href="assets/icons.svg#flame"></use></svg>
-                1. Preparación / Cocina
-              </div>
-              <span class="zone-count">${prepOrders.length}</span>
-            </div>
-            <div class="zone-orders-list">
-              ${prepOrders.length ? prepOrders.map(renderOrderCard).join('') : '<div class="empty-hub"><p>Sin comandas pendientes en cocina</p></div>'}
-            </div>
-          </div>
-
-          <!-- Zona 2: EN MOSTRADOR -->
-          <div class="zone-column">
-            <div class="zone-header counter">
-              <div class="zone-title">
-                <svg class="ui-icon" width="16" height="16"><use href="assets/icons.svg#check"></use></svg>
-                2. En Mostrador / Listo
-              </div>
-              <span class="zone-count">${salidaOrders.length}</span>
-            </div>
-            <div class="zone-orders-list">
-              ${salidaOrders.length ? salidaOrders.map(renderOrderCard).join('') : '<div class="empty-hub"><p>Sin pedidos esperando en mostrador</p></div>'}
-            </div>
-          </div>
-
-          <!-- Zona 3: SALIDA & REPARTO -->
-          <div class="zone-column">
-            <div class="zone-header dispatch">
-              <div class="zone-title">
-                <svg class="ui-icon" width="16" height="16"><use href="assets/icons.svg#bike"></use></svg>
-                3. Salida & Domicilio
-              </div>
-              <span class="zone-count">${dispatchOrders.length}</span>
-            </div>
-            <div class="zone-orders-list">
-              ${dispatchOrders.length ? dispatchOrders.map(renderOrderCard).join('') : '<div class="empty-hub"><p>Sin entregas en curso o por despachar</p></div>'}
-            </div>
-          </div>
+        <div class="orders-unified-grid">
+          ${filteredOrders.map(renderOrderCard).join('')}
         </div>
       `;
     }

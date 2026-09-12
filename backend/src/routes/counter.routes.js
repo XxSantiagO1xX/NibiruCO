@@ -378,13 +378,13 @@ router.patch("/orders/:id/deliver", auth, counterRoles, async (req, res) => {
           payment_collected_by = COALESCE(payment_collected_by, 'business'),
           payment_collector_user_id = COALESCE(payment_collector_user_id, $2),
           payment_collected_at = COALESCE(payment_collected_at, NOW())
-      WHERE id = $1 AND status = 'listo'
+      WHERE id = $1 AND status NOT IN ('entregado', 'cancelado')
       RETURNING *
     `, [id, req.user.id]);
 
     if (!result.rows.length) {
       await client.query("ROLLBACK");
-      return res.status(409).json({ message: "El pedido no está listo para entregar" });
+      return res.status(409).json({ message: "El pedido no se encuentra activo para entregar" });
     }
 
     const order = result.rows[0];
