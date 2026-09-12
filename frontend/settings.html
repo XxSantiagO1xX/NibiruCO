@@ -503,6 +503,10 @@
           <input id="staff-form-password" type="password" placeholder="••••••••">
         </div>
         <div class="field">
+          <label for="userPosPin">PIN de Acceso POS <small class="muted">(4-6 dígitos)</small></label>
+          <input id="userPosPin" type="password" maxlength="6" pattern="\d*" placeholder="Ej. 1234">
+        </div>
+        <div class="field">
           <label for="staff-form-role">Rol Operativo</label>
           <select id="staff-form-role">
             <option value="mesero">Mesero (Salón)</option>
@@ -654,12 +658,15 @@
             statusText += ' · ' + (m.driver_status || 'offline');
           }
 
+          const pinTag = m.pos_pin ? '<span class="code-tag" title="PIN de acceso POS configurado">🔑 PIN</span>' : '';
+
           return '<div class="staff-compact-card ' + (m.active ? '' : 'inactive') + '" onclick="openStaffModal(' + m.id + ')">' +
             '<div class="staff-avatar-compact" style="background:' + roleColors[r] + '">' + avatarHtml + '</div>' +
             '<div class="staff-compact-info">' +
               '<h4 class="staff-compact-name">' + escapeHtml(m.name) + '</h4>' +
               '<div class="staff-compact-meta">' +
                 '<span class="code-tag">' + shortCode + '</span>' +
+                pinTag +
                 '<span>' + statusText + '</span>' +
               '</div>' +
             '</div>' +
@@ -799,6 +806,7 @@
           document.getElementById('staff-form-name').value = member.name || '';
           document.getElementById('staff-form-phone').value = member.phone || '';
           document.getElementById('staff-form-password').value = '';
+          document.getElementById('userPosPin').value = member.pos_pin || '';
           document.getElementById('staff-form-role').value = member.role || 'mesero';
           document.getElementById('staff-form-code').value = member.short_code || '';
           document.getElementById('staff-form-active').checked = member.active !== false;
@@ -810,6 +818,7 @@
         document.getElementById('staff-form-name').value = '';
         document.getElementById('staff-form-phone').value = '';
         document.getElementById('staff-form-password').value = '';
+        document.getElementById('userPosPin').value = '';
         document.getElementById('staff-form-role').value = 'mesero';
         document.getElementById('staff-form-code').value = '';
         document.getElementById('staff-form-active').checked = true;
@@ -831,10 +840,17 @@
       const name = document.getElementById('staff-form-name').value.trim();
       const phone = document.getElementById('staff-form-phone').value.trim();
       const password = document.getElementById('staff-form-password').value;
+      const rawPin = document.getElementById('userPosPin').value.trim();
+      const pos_pin = rawPin.length > 0 ? rawPin : null;
       const role = document.getElementById('staff-form-role').value;
       const short_code = document.getElementById('staff-form-code').value.trim();
       const active = document.getElementById('staff-form-active').checked;
       const avatarFile = document.getElementById('staff-form-avatar').files[0];
+
+      if (pos_pin && !/^\d{4,6}$/.test(pos_pin)) {
+        showToast('El PIN de acceso POS debe contener de 4 a 6 dígitos numéricos.', 'error');
+        return;
+      }
 
       if (!name) {
         showToast('El nombre es requerido.', 'error');
@@ -844,7 +860,7 @@
       try {
         let userId = editId;
         if (isEdit) {
-          const payload = { name, phone, role, short_code, active };
+          const payload = { name, phone, role, short_code, active, pos_pin };
           if (password) payload.password = password;
           await apiFetch('/users/' + editId, {
             method: 'PUT',
@@ -857,7 +873,7 @@
           }
           const res = await apiFetch('/users/staff', {
             method: 'POST',
-            body: JSON.stringify({ name, phone, password, role, short_code, active })
+            body: JSON.stringify({ name, phone, password, role, short_code, active, pos_pin })
           });
           userId = res.id;
         }
@@ -986,9 +1002,10 @@
                 '<h3 style="margin:0;font-size:16px"><svg class="ui-icon" style="width:16px;height:16px;vertical-align:-3px;margin-right:4px;"><use href="assets/icons.svg#bike"/></svg>' + escapeHtml(driverName) + ' (' + (driverObj?.short_code || 'REP') + ')</h3>' +
                 '<span class="muted" style="font-size:12px">Turno ' + (s.status === 'open' ? '● Abierto' : '○ Concluido') + ' · Fecha: ' + s.shift_date + '</span>' +
               '</div>' +
-              (s.shift_id ? (
-                '<button class="btn btn-sm btn-primary" onclick="openSettleModal(' + s.shift_id + ', ' + s.pending_settlement + ')"><svg class="ui-icon" style="width:13px;height:13px;vertical-align:-2px;margin-right:4px;"><use href="assets/icons.svg#dollar"/></svg>Registrar Liquidación</button>'
-              ) : '') +
+              '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">' +
+                '<button class="btn btn-sm btn-primary" onclick="liquidarRepartidor(' + s.driver_id + ', ' + (s.pending_settlement || 0) + ')"><svg class="ui-icon" style="width:13px;height:13px;vertical-align:-2px;margin-right:4px;"><use href="assets/icons.svg#dollar"/></svg>Liquidar Turno</button>' +
+                (s.shift_id ? '<button class="btn btn-sm btn-secondary" onclick="openSettleModal(' + s.shift_id + ', ' + s.pending_settlement + ')">Abono Parcial</button>' : '') +
+              '</div>' +
             '</div>' +
             '<div class="financial-grid gap-2 py-2">' +
               '<div class="financial-item"><small>Entregas</small><strong>' + (s.delivered_count || 0) + '</strong></div>' +
@@ -1000,6 +1017,25 @@
             '</div>' +
           '</div>';
         }).join('');
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    }
+
+    async function liquidarRepartidor(driverId, pendingAmount = null) {
+      const amountStr = (pendingAmount !== null && pendingAmount !== undefined && Number(pendingAmount) > 0)
+        ? ' con un saldo pendiente de $' + Number(pendingAmount).toFixed(2) + ' MXN'
+        : '';
+      if (!confirm('¿Confirmas liquidar el turno del repartidor' + amountStr + '? Se marcarán sus pedidos como liquidados, se registrará la liquidación y se cerrará su turno.')) {
+        return;
+      }
+
+      try {
+        await apiFetch('/settlements/driver/' + driverId, {
+          method: 'POST'
+        });
+        showToast('Turno liquidado y cerrado con éxito.', 'success');
+        await loadSettlements();
       } catch (err) {
         showToast(err.message, 'error');
       }

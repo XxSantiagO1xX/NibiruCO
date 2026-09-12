@@ -3,8 +3,10 @@ const router = express.Router();
 const pool = require("../db");
 const auth = require("../middleware/auth");
 const roles = require("../middleware/roles");
+const { requirePermission } = require("../middleware/rbac");
 
 const adminOnly = roles(["admin"]);
+const comboPerm = requirePermission("combos_edit");
 
 async function getCombo(productId, client = pool) {
   const productResult = await client.query(`
@@ -101,7 +103,7 @@ router.get("/:productId", auth, async (req, res) => {
   }
 });
 
-router.post("/", auth, adminOnly, async (req, res) => {
+router.post("/", auth, comboPerm, async (req, res) => {
   const client = await pool.connect();
   try {
     const name = String(req.body.name || "").trim();
@@ -129,7 +131,7 @@ router.post("/", auth, adminOnly, async (req, res) => {
   }
 });
 
-router.post("/:productId/groups", auth, adminOnly, async (req, res) => {
+router.post("/:productId/groups", auth, comboPerm, async (req, res) => {
   try {
     const productId = Number(req.params.productId);
     const name = String(req.body.name || "").trim();
@@ -157,7 +159,7 @@ router.post("/:productId/groups", auth, adminOnly, async (req, res) => {
   }
 });
 
-router.post("/groups/:groupId/options", auth, adminOnly, async (req, res) => {
+router.post("/groups/:groupId/options", auth, comboPerm, async (req, res) => {
   try {
     const groupId = Number(req.params.groupId);
     const productId = Number(req.body.option_product_id);
@@ -188,7 +190,7 @@ router.post("/groups/:groupId/options", auth, adminOnly, async (req, res) => {
   }
 });
 
-router.patch("/groups/:groupId/options/:optionId", auth, adminOnly, async (req, res) => {
+router.patch("/groups/:groupId/options/:optionId", auth, comboPerm, async (req, res) => {
   try {
     const active = Boolean(req.body.active);
     const result = await pool.query(`
@@ -206,7 +208,7 @@ router.patch("/groups/:groupId/options/:optionId", auth, adminOnly, async (req, 
   }
 });
 
-router.put("/:productId", auth, adminOnly, async (req, res) => {
+router.put("/:productId", auth, comboPerm, async (req, res) => {
   try {
     const productId = Number(req.params.productId);
     const name = String(req.body.name || "").trim();
@@ -237,7 +239,7 @@ router.put("/:productId", auth, adminOnly, async (req, res) => {
   }
 });
 
-router.delete("/:productId", auth, adminOnly, async (req, res) => {
+router.delete("/:productId", auth, comboPerm, async (req, res) => {
   const client = await pool.connect();
   try {
     const productId = Number(req.params.productId);
@@ -323,7 +325,7 @@ router.delete("/:productId", auth, adminOnly, async (req, res) => {
   }
 });
 
-router.delete("/groups/:groupId", auth, adminOnly, async (req, res) => {
+router.delete("/groups/:groupId", auth, comboPerm, async (req, res) => {
   const client = await pool.connect();
   try {
     const groupId = Number(req.params.groupId);
@@ -355,7 +357,7 @@ router.delete("/groups/:groupId", auth, adminOnly, async (req, res) => {
   }
 });
 
-router.delete("/groups/:groupId/options/:optionId", auth, adminOnly, async (req, res) => {
+router.delete("/groups/:groupId/options/:optionId", auth, comboPerm, async (req, res) => {
   try {
     const groupId = Number(req.params.groupId);
     const optionId = Number(req.params.optionId);
@@ -376,7 +378,7 @@ router.delete("/groups/:groupId/options/:optionId", auth, adminOnly, async (req,
   }
 });
 
-router.patch("/groups/:groupId/options/:optionId/price", auth, adminOnly, async (req, res) => {
+router.patch("/groups/:groupId/options/:optionId/price", auth, comboPerm, async (req, res) => {
   try {
     const groupId = Number(req.params.groupId);
     const optionId = Number(req.params.optionId);

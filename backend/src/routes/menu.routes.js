@@ -3,6 +3,7 @@ const router = express.Router();
 const pool = require("../db");
 const auth = require("../middleware/auth");
 const roles = require("../middleware/roles");
+const { requirePermission } = require("../middleware/rbac");
 const { VALID_DAYS, getBusinessDayKey } = require("../utils/timezone");
 
 router.get("/today", async (req, res) => {
@@ -71,7 +72,7 @@ router.get("/:day", async (req, res) => {
   }
 });
 
-router.post("/day", auth, roles(["admin"]), async (req, res) => {
+router.post("/day", auth, requirePermission("menu_edit"), async (req, res) => {
   const client = await pool.connect();
 
   try {

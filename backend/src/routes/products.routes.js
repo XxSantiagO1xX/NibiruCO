@@ -3,10 +3,12 @@ const router = express.Router();
 const pool = require("../db");
 const auth = require("../middleware/auth");
 const roles = require("../middleware/roles");
+const { requirePermission } = require("../middleware/rbac");
 const upload = require("../middleware/upload");
 const { getBusinessDayKey } = require("../utils/timezone");
 
 const adminOnly = roles(["admin"]);
+const prodPerm = requirePermission("products_edit");
 
 async function attachComboData(products, client = pool) {
   if (!Array.isArray(products) || !products.length) return products;
@@ -115,7 +117,7 @@ router.get("/", async (req, res) => {
   }
 });
 
-router.post("/", auth, adminOnly, upload.single("image"), async (req, res) => {
+router.post("/", auth, prodPerm, upload.single("image"), async (req, res) => {
   try {
     const name = String(req.body.name || "").trim();
     const category = req.body.category ? String(req.body.category).trim() : "Guisados";
@@ -151,7 +153,7 @@ router.post("/", auth, adminOnly, upload.single("image"), async (req, res) => {
   }
 });
 
-router.patch("/:id", auth, adminOnly, async (req, res) => {
+router.patch("/:id", auth, prodPerm, async (req, res) => {
   try {
     const id = Number(req.params.id);
     if (!Number.isInteger(id)) {
@@ -174,7 +176,7 @@ router.patch("/:id", auth, adminOnly, async (req, res) => {
   }
 });
 
-router.patch("/:id/settings", auth, adminOnly, async (req, res) => {
+router.patch("/:id/settings", auth, prodPerm, async (req, res) => {
   try {
     const id = Number(req.params.id);
     if (!Number.isInteger(id)) return res.status(400).json({ message: "ID inválido" });
@@ -201,7 +203,7 @@ router.patch("/:id/settings", auth, adminOnly, async (req, res) => {
   }
 });
 
-router.put("/:id", auth, adminOnly, upload.single("image"), async (req, res) => {
+router.put("/:id", auth, prodPerm, upload.single("image"), async (req, res) => {
   try {
     const id = Number(req.params.id);
     if (!Number.isInteger(id)) return res.status(400).json({ message: "ID inválido" });

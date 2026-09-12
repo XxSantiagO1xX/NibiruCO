@@ -3,10 +3,12 @@ const router = express.Router();
 const pool = require("../db");
 const auth = require("../middleware/auth");
 const roles = require("../middleware/roles");
+const { requirePermission } = require("../middleware/rbac");
 const { getBusinessDateStr } = require("../utils/timezone");
 
 const waiterRoles = roles(["mesero", "admin"]);
 const adminOnly = roles(["admin"]);
+const tablePerm = requirePermission("tables_manage");
 
 async function getSessionSummary(sessionId, client = pool) {
   const sessionResult = await client.query(`
@@ -146,7 +148,7 @@ router.get("/admin/all", auth, adminOnly, async (req, res) => {
   }
 });
 
-router.post("/", auth, adminOnly, async (req, res) => {
+router.post("/", auth, tablePerm, async (req, res) => {
   try {
     const name = String(req.body.name || "").trim();
     const zone = String(req.body.zone || "").trim() || null;
@@ -174,7 +176,7 @@ router.post("/", auth, adminOnly, async (req, res) => {
   }
 });
 
-router.patch("/:id", auth, adminOnly, async (req, res) => {
+router.patch("/:id", auth, tablePerm, async (req, res) => {
   try {
     const id = Number(req.params.id);
     if (!Number.isInteger(id)) return res.status(400).json({ message: "Mesa inválida" });
@@ -223,7 +225,7 @@ router.patch("/:id", auth, adminOnly, async (req, res) => {
   }
 });
 
-router.delete("/:id", auth, adminOnly, async (req, res) => {
+router.delete("/:id", auth, tablePerm, async (req, res) => {
   const client = await pool.connect();
   try {
     const id = Number(req.params.id);

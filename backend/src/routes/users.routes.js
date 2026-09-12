@@ -7,6 +7,8 @@ const auth = require("../middleware/auth");
 const roles = require("../middleware/roles");
 const fileStorage = require("../services/fileStorage");
 
+const { requirePermission } = require("../middleware/rbac");
+
 const adminOnly = roles(["admin"]);
 const staffOnly = roles(["admin", "mesero", "cocina", "repartidor"]);
 
@@ -14,7 +16,7 @@ const staffOnly = roles(["admin", "mesero", "cocina", "repartidor"]);
 router.get("/me", auth, async (req, res) => {
   try {
     const result = await pool.query(
-      `SELECT id, name, phone, email, role, short_code, avatar_url, active, allow_push, created_at
+      `SELECT id, name, phone, email, role, short_code, avatar_url, pos_pin, active, allow_push, created_at
        FROM users
        WHERE id = $1`,
       [req.user.id]
@@ -209,7 +211,7 @@ router.patch("/addresses/:id/default", auth, async (req, res) => {
 /* ========================================================================== */
 
 // 1. Listar colaboradores del personal
-router.get("/staff", auth, adminOnly, async (req, res) => {
+router.get("/staff", auth, requirePermission("staff_manage"), async (req, res) => {
   try {
     const result = await pool.query(`
       SELECT
@@ -220,6 +222,7 @@ router.get("/staff", auth, adminOnly, async (req, res) => {
         u.role,
         COALESCE(u.short_code, 'EMP-' || LPAD(u.id::text, 2, '0')) AS short_code,
         u.avatar_url,
+        u.pos_pin,
         COALESCE(u.active, TRUE) AS active,
         COALESCE(u.driver_status, 'offline') AS driver_status,
         u.driver_status_updated_at,
@@ -264,11 +267,12 @@ router.get("/staff", auth, adminOnly, async (req, res) => {
   }
 });
 
-// 2. Crear nuevo colaborador (Admin)
-router.post("/staff", auth, adminOnly, async (req, res) => {
+// 2. Crear nuevo colaborador (Admin / Staff Manage)
+router.post("/staff", auth, requirePermission("staff_manage"), async (req, res) => {
   const client = await pool.connect();
   try {
     const { name, phone, password, role, short_code, avatar_url, custom_permissions } = req.body;
+    const rawPin = req.body.pos_pin !== undefined ? req.body.pos_pin : req.body.posPin;
 
     if (!name || !phone || !password || !role) {
       return res.status(400).json({ message: "Nombre, teléfono, contraseña y rol son obligatorios" });
@@ -285,16 +289,31 @@ router.post("/staff", auth, adminOnly, async (req, res) => {
       return res.status(400).json({ message: "Este teléfono ya está registrado" });
     }
 
+    let finalPin = null;
+    if (rawPin !== undefined && rawPin !== null) {
+      const cleanPin = String(rawPin).trim();
+      if (cleanPin.length > 0) {
+        if (!/^\d{4,6}$/.test(cleanPin)) {
+          return res.status(400).json({ message: "El PIN de POS debe contener de 4 a 6 dígitos numéricos" });
+        }
+        const pinCheck = await client.query("SELECT id FROM users WHERE pos_pin = $1", [cleanPin]);
+        if (pinCheck.rows.length) {
+          return res.status(400).json({ message: "Este PIN ya está asignado a otro colaborador" });
+        }
+        finalPin = cleanPin;
+      }
+    }
+
     const hashed = await bcrypt.hash(password, 10);
     const generatedShortCode = short_code ? String(short_code).trim() : null;
 
     await client.query("BEGIN");
 
     const userRes = await client.query(`
-      INSERT INTO users (name, phone, password, role, short_code, avatar_url, active)
-      VALUES ($1, $2, $3, $4, $5, $6, TRUE)
-      RETURNING id, name, phone, email, role, short_code, avatar_url, active, created_at
-    `, [name.trim(), normalizedPhone, hashed, role, generatedShortCode, avatar_url || null]);
+      INSERT INTO users (name, phone, password, role, short_code, avatar_url, pos_pin, active)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, TRUE)
+      RETURNING id, name, phone, email, role, short_code, avatar_url, pos_pin, active, created_at
+    `, [name.trim(), normalizedPhone, hashed, role, generatedShortCode, avatar_url || null, finalPin]);
 
     const newUser = userRes.rows[0];
 
@@ -334,12 +353,13 @@ router.post("/staff", auth, adminOnly, async (req, res) => {
   }
 });
 
-// 3. Modificar colaborador / cambiar rol / baja lógica (Admin)
-router.patch("/staff/:id", auth, adminOnly, async (req, res) => {
+// 3. Modificar colaborador / cambiar rol / baja lógica (Admin / Staff Manage)
+const updateStaffHandler = async (req, res) => {
   const client = await pool.connect();
   try {
     const userId = Number(req.params.id);
     const { name, phone, password, role, short_code, avatar_url, active, custom_permissions } = req.body;
+    const rawPin = req.body.pos_pin !== undefined ? req.body.pos_pin : req.body.posPin;
 
     if (!Number.isInteger(userId)) {
       return res.status(400).json({ message: "ID de usuario inválido" });
@@ -350,6 +370,23 @@ router.patch("/staff/:id", auth, adminOnly, async (req, res) => {
       return res.status(404).json({ message: "Colaborador no encontrado" });
     }
     const current = currentUserRes.rows[0];
+
+    let updatedPin = current.pos_pin;
+    if (rawPin !== undefined) {
+      if (rawPin === null || String(rawPin).trim() === "") {
+        updatedPin = null;
+      } else {
+        const cleanPin = String(rawPin).trim();
+        if (!/^\d{4,6}$/.test(cleanPin)) {
+          return res.status(400).json({ message: "El PIN de POS debe contener de 4 a 6 dígitos numéricos" });
+        }
+        const pinCheck = await client.query("SELECT id FROM users WHERE pos_pin = $1 AND id != $2", [cleanPin, userId]);
+        if (pinCheck.rows.length) {
+          return res.status(400).json({ message: "Este PIN ya está asignado a otro colaborador" });
+        }
+        updatedPin = cleanPin;
+      }
+    }
 
     await client.query("BEGIN");
 
@@ -370,10 +407,10 @@ router.patch("/staff/:id", auth, adminOnly, async (req, res) => {
 
     const result = await client.query(`
       UPDATE users
-      SET name = $1, phone = $2, password = $3, role = $4, short_code = $5, avatar_url = $6, active = $7
-      WHERE id = $8
-      RETURNING id, name, phone, email, role, short_code, avatar_url, active, created_at
-    `, [updatedName, updatedPhone, newHash, updatedRole, updatedShortCode, updatedAvatar, updatedActive, userId]);
+      SET name = $1, phone = $2, password = $3, role = $4, short_code = $5, avatar_url = $6, active = $7, pos_pin = $8
+      WHERE id = $9
+      RETURNING id, name, phone, email, role, short_code, avatar_url, pos_pin, active, created_at
+    `, [updatedName, updatedPhone, newHash, updatedRole, updatedShortCode, updatedAvatar, updatedActive, updatedPin, userId]);
 
     const updatedUser = result.rows[0];
 
@@ -404,10 +441,15 @@ router.patch("/staff/:id", auth, adminOnly, async (req, res) => {
   } finally {
     client.release();
   }
-});
+};
 
-// 4. Baja lógica / Desactivación de colaborador (Admin)
-router.delete("/staff/:id", auth, adminOnly, async (req, res) => {
+router.patch("/staff/:id", auth, requirePermission("staff_manage"), updateStaffHandler);
+router.put("/staff/:id", auth, requirePermission("staff_manage"), updateStaffHandler);
+router.patch("/:id", auth, requirePermission("staff_manage"), updateStaffHandler);
+router.put("/:id", auth, requirePermission("staff_manage"), updateStaffHandler);
+
+// 4. Baja lógica / Desactivación de colaborador (Admin / Staff Manage)
+const deleteStaffHandler = async (req, res) => {
   try {
     const userId = Number(req.params.id);
     if (!Number.isInteger(userId)) {
@@ -433,7 +475,10 @@ router.delete("/staff/:id", auth, adminOnly, async (req, res) => {
     console.error("DEACTIVATE STAFF ERROR:", err);
     res.status(500).json({ message: "Error desactivando colaborador" });
   }
-});
+};
+
+router.delete("/staff/:id", auth, requirePermission("staff_manage"), deleteStaffHandler);
+router.delete("/:id", auth, requirePermission("staff_manage"), deleteStaffHandler);
 
 // 5. Búsqueda y listado de clientes para POS de ventas (Admin / Mesero)
 router.get("/customers", auth, staffOnly, async (req, res) => {
@@ -474,7 +519,7 @@ router.get("/customers", auth, staffOnly, async (req, res) => {
 /* GESTIÓN DE FOTO DE PERFIL / AVATAR                                         */
 /* ========================================================================== */
 
-router.post("/staff/:id/avatar", auth, adminOnly, async (req, res) => {
+const uploadAvatarHandler = async (req, res) => {
   try {
     const targetUserId = Number(req.params.id);
     const { image_base64, avatar_base64, filename } = req.body;
@@ -500,7 +545,10 @@ router.post("/staff/:id/avatar", auth, adminOnly, async (req, res) => {
     console.error("UPLOAD AVATAR ERROR:", err);
     res.status(400).json({ message: err.message || "Error al subir avatar" });
   }
-});
+};
+
+router.post("/staff/:id/avatar", auth, adminOnly, uploadAvatarHandler);
+router.post("/:id/avatar", auth, adminOnly, uploadAvatarHandler);
 
 router.post("/me/avatar", auth, async (req, res) => {
   try {
@@ -530,7 +578,7 @@ router.post("/me/avatar", auth, async (req, res) => {
   }
 });
 
-router.delete("/staff/:id/avatar", auth, adminOnly, async (req, res) => {
+const deleteAvatarHandler = async (req, res) => {
   try {
     const targetUserId = Number(req.params.id);
     const userRes = await pool.query("SELECT avatar_url FROM users WHERE id = $1", [targetUserId]);
@@ -549,7 +597,10 @@ router.delete("/staff/:id/avatar", auth, adminOnly, async (req, res) => {
     console.error("DELETE AVATAR ERROR:", err);
     res.status(500).json({ message: "Error eliminando avatar" });
   }
-});
+};
+
+router.delete("/staff/:id/avatar", auth, adminOnly, deleteAvatarHandler);
+router.delete("/:id/avatar", auth, adminOnly, deleteAvatarHandler);
 
 router.delete("/me/avatar", auth, async (req, res) => {
   try {
