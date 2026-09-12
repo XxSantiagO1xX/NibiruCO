@@ -33,6 +33,18 @@
 }
 
 * { box-sizing: border-box; }
+
+/* Global Scrollbars: Visually hidden while preserving scrollability */
+html, body, *, *::before, *::after {
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+}
+::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
 html { color-scheme: light; }
 body {
   margin: 0;
@@ -56,6 +68,17 @@ a:hover { text-decoration: none; }
   border-right: 1px solid var(--border);
   display: flex; flex-direction: column;
   flex-shrink: 0;
+  transition: width 0.2s cubic-bezier(0.4, 0, 0.2, 1), padding 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.sidebar.collapsed {
+  width: 0 !important;
+  min-width: 0 !important;
+  padding: 0 !important;
+  border-right: none !important;
+  overflow: visible !important;
+}
+.sidebar.collapsed > :not(.sidebar-toggle-btn) {
+  display: none !important;
 }
 .brand { display: flex; align-items: center; gap: 12px; padding: 4px 8px 24px; text-decoration: none; color: var(--text); }
 .brand-mark {

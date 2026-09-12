@@ -77,11 +77,23 @@
 
   /* Layout */
   --sidebar-width: 240px;
-  --sidebar-collapsed-width: 72px;
+  --sidebar-collapsed-width: 0px;
 }
 
 /* Base resets & typography */
 * { box-sizing: border-box; }
+
+/* Global Scrollbars: Visually hidden while preserving mouse & touch scrollability */
+html, body, *, *::before, *::after {
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+}
+::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
 body {
   margin: 0;
   padding: 0;
@@ -145,11 +157,19 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   top: 0;
   height: 100vh;
   z-index: 50;
-  transition: width 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: width 0.2s cubic-bezier(0.4, 0, 0.2, 1), padding 0.2s cubic-bezier(0.4, 0, 0.2, 1), border 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .sidebar.collapsed {
-  width: var(--sidebar-collapsed-width);
+  width: 0 !important;
+  min-width: 0 !important;
+  padding: 0 !important;
+  border-right: none !important;
+  overflow: visible !important;
+}
+
+.sidebar.collapsed > :not(.sidebar-toggle-btn) {
+  display: none !important;
 }
 
 .sidebar-header {
@@ -177,8 +197,6 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .brand-copy strong { font-size: 16px; font-weight: 800; letter-spacing: -0.03em; color: var(--text); }
 .brand-copy span { font-size: 11px; color: var(--muted); font-weight: 600; }
 
-.sidebar.collapsed .brand-copy { display: none; }
-
 /* Floating Tab Control for Retractable Sidebar */
 .sidebar-toggle-btn {
   position: absolute;
@@ -196,12 +214,15 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   cursor: pointer;
   color: var(--muted);
   z-index: 60;
-  transition: color 0.15s ease, transform 0.15s ease, background 0.15s ease;
+  transition: color 0.15s ease, transform 0.15s ease, background 0.15s ease, right 0.2s ease;
 }
 .sidebar-toggle-btn:hover {
   color: var(--primary);
   background: var(--surface-2);
   transform: scale(1.08);
+}
+.sidebar.collapsed .sidebar-toggle-btn {
+  right: -24px;
 }
 .sidebar.collapsed .sidebar-toggle-btn svg {
   transform: rotate(180deg);

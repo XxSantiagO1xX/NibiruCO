@@ -52,6 +52,17 @@
       box-shadow: 0 2px 8px rgba(245, 102, 36, 0.25);
     }
 
+    /* Global Scrollbars Visually Hidden */
+    html, body, *, *::before, *::after {
+      scrollbar-width: none !important;
+      -ms-overflow-style: none !important;
+    }
+    ::-webkit-scrollbar {
+      display: none !important;
+      width: 0 !important;
+      height: 0 !important;
+    }
+
     /* Products Grid */
     .products-grid {
       display: grid;
@@ -69,11 +80,22 @@
       position: relative;
       transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease;
       cursor: pointer;
+      user-select: none;
     }
     .product-card-pos:hover {
       transform: translateY(-2px);
       box-shadow: var(--shadow-md);
       border-color: var(--primary-border);
+    }
+    .product-card-pos:active {
+      transform: scale(0.985);
+    }
+    .product-card-pos .product-media {
+      cursor: pointer;
+      transition: transform 0.15s ease;
+    }
+    .product-card-pos:hover .product-media img {
+      transform: scale(1.03);
     }
     .product-card-pos h3 {
       margin: 8px 0 2px;
@@ -121,18 +143,29 @@
       transform: scale(1.08);
     }
 
-    /* Cart / Pedido Panel */
+    /* Cart / Pedido Panel Fixed & Ergonomic Layout */
     .cart-panel-sticky {
       position: sticky;
       top: 24px;
       background: var(--surface);
       border: 1.5px solid var(--border);
       border-radius: var(--radius-md);
-      padding: 22px;
+      padding: 20px;
       box-shadow: var(--shadow-sm);
       display: flex;
       flex-direction: column;
-      gap: 14px;
+      gap: 12px;
+      height: calc(100vh - 48px);
+      max-height: calc(100vh - 48px);
+      box-sizing: border-box;
+      overflow: hidden;
+    }
+    @media (max-width: 1200px) {
+      .cart-panel-sticky {
+        position: static;
+        height: auto;
+        max-height: none;
+      }
     }
     .cart-panel-head {
       display: flex;
@@ -140,24 +173,26 @@
       align-items: center;
       padding-bottom: 12px;
       border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
     }
     .cart-panel-head h2 { margin: 0; font-size: 18px; font-weight: 800; }
     
-    /* Service Type Selector Pills */
+    /* Service Type Selector (3 options: Local, Para Llevar, Domicilio) */
     .service-type-selector {
       display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 5px;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 6px;
       background: var(--surface-2);
       padding: 4px;
       border-radius: 10px;
       border: 1px solid var(--border);
+      flex-shrink: 0;
     }
     .service-btn {
-      padding: 7px 4px;
+      padding: 8px 4px;
       border-radius: 7px;
       background: transparent;
-      border: none;
+      border: 1px solid transparent;
       font-size: 12px;
       font-weight: 700;
       color: var(--muted);
@@ -165,19 +200,47 @@
       text-align: center;
       transition: all .15s ease;
     }
-    .service-btn:hover { color: var(--text); }
-    .service-btn.active {
-      background: var(--primary);
+    .service-btn:hover { color: var(--text); background: rgba(0,0,0,0.03); }
+    .service-btn.btn-service-local.active {
+      background: #16A34A;
       color: #fff;
-      box-shadow: 0 1px 4px rgba(245,102,36,0.2);
+      border-color: #16A34A;
+      box-shadow: 0 2px 6px rgba(22, 163, 74, 0.25);
+    }
+    .service-btn.btn-service-llevar.active {
+      background: #F56624;
+      color: #fff;
+      border-color: #F56624;
+      box-shadow: 0 2px 6px rgba(245, 102, 36, 0.25);
+    }
+    .service-btn.btn-service-domicilio.active {
+      background: #7C3AED;
+      color: #fff;
+      border-color: #7C3AED;
+      box-shadow: 0 2px 6px rgba(124, 58, 237, 0.25);
     }
 
+    /* Scrollable items section */
+    .cart-items-section {
+      display: flex;
+      flex-direction: column;
+      flex: 1 1 auto;
+      min-height: 0;
+      gap: 6px;
+    }
+    .cart-items-section label {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--text);
+    }
     .cart-items-box {
-      max-height: 280px;
+      flex: 1 1 auto;
       overflow-y: auto;
       display: flex;
       flex-direction: column;
       gap: 8px;
+      min-height: 80px;
+      padding-right: 2px;
     }
     .cart-item-row {
       padding: 10px 0;
@@ -186,39 +249,85 @@
       justify-content: space-between;
       align-items: flex-start;
       gap: 10px;
+      flex-shrink: 0;
     }
     .cart-item-info strong { display: block; font-size: 13px; font-weight: 700; color: var(--text); }
     .cart-item-info small { color: var(--muted); font-size: 11px; }
+
+    /* Fixed bottom footer anchored to the bottom */
+    .cart-panel-footer {
+      margin-top: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      flex-shrink: 0;
+      padding-top: 10px;
+      border-top: 1px solid var(--border-light);
+    }
 
     /* Summary Rows */
     .summary-box {
       background: var(--surface-2);
       border-radius: 12px;
-      padding: 12px 14px;
+      padding: 10px 14px;
       display: flex;
       flex-direction: column;
-      gap: 6px;
+      gap: 5px;
       border: 1px solid var(--border);
     }
     .summary-line {
       display: flex;
       justify-content: space-between;
-      font-size: 12.5px;
+      font-size: 12px;
       color: var(--muted);
     }
     .summary-total {
       display: flex;
       justify-content: space-between;
       align-items: baseline;
-      padding-top: 6px;
+      padding-top: 5px;
       border-top: 1px dashed var(--border);
-      font-size: 15px;
+      font-size: 14px;
       font-weight: 900;
       color: var(--text);
     }
     .summary-total strong {
-      font-size: 20px;
+      font-size: 19px;
       color: var(--primary);
+    }
+
+    /* Massive Full Width CTA Button */
+    .btn-process-order {
+      width: 100%;
+      min-height: 46px;
+      height: 46px;
+      font-size: 15px;
+      font-weight: 800;
+      letter-spacing: -0.01em;
+      border-radius: var(--radius-sm);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      background: var(--primary);
+      color: #fff;
+      border: none;
+      cursor: pointer;
+      box-shadow: 0 4px 14px rgba(245, 102, 36, 0.28);
+      transition: all 0.15s ease;
+    }
+    .btn-process-order:hover {
+      background: var(--primary-hover);
+      transform: translateY(-1px);
+      box-shadow: 0 6px 18px rgba(245, 102, 36, 0.38);
+    }
+    .btn-process-order:active {
+      transform: translateY(0);
+    }
+    .btn-process-order:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
     }
 
     /* Modal Combo */
@@ -325,33 +434,32 @@
             </div>
 
             <!-- Service Type Selector -->
-            <div>
+            <div style="flex-shrink:0">
               <div class="field" style="margin-bottom:6px">
                 <label>Tipo de servicio</label>
               </div>
               <div class="service-type-selector">
-                <button type="button" class="service-btn active" data-type="local" onclick="selectServiceType('local')">Local</button>
-                <button type="button" class="service-btn" data-type="llevar" onclick="selectServiceType('llevar')">Llevar</button>
-                <button type="button" class="service-btn" data-type="recoger" onclick="selectServiceType('recoger')">Recoger</button>
-                <button type="button" class="service-btn" data-type="domicilio" onclick="selectServiceType('domicilio')">Domicilio</button>
+                <button type="button" class="service-btn btn-service-local active" data-type="local" onclick="selectServiceType('local')">Local</button>
+                <button type="button" class="service-btn btn-service-llevar" data-type="llevar" onclick="selectServiceType('llevar')">Para Llevar</button>
+                <button type="button" class="service-btn btn-service-domicilio" data-type="domicilio" onclick="selectServiceType('domicilio')">Domicilio</button>
               </div>
               <input type="hidden" id="type" value="local">
             </div>
 
-            <!-- Service Extras: Llevar y Recoger -->
-            <div id="service-extra" class="hidden" style="display:grid;gap:8px;background:var(--surface-2);padding:10px;border-radius:10px;border:1px solid var(--border)">
+            <!-- Service Extras: Para Llevar -->
+            <div id="service-extra" class="hidden" style="display:grid;gap:8px;background:var(--surface-2);padding:10px;border-radius:10px;border:1px solid var(--border);flex-shrink:0">
               <div class="field">
                 <label for="customer-name">Nombre / Referencia</label>
                 <input id="customer-name" placeholder="Ej. Laura Gómez">
               </div>
               <div class="field" id="pickup-field">
-                <label for="pickup-at">Hora de recolección</label>
+                <label for="pickup-at">Hora de recolección (Opcional)</label>
                 <input id="pickup-at" type="datetime-local">
               </div>
             </div>
 
             <!-- Service Extras: Domicilio -->
-            <div id="delivery-extra" class="hidden" style="display:grid;gap:8px;background:var(--role-repartidor-soft);padding:12px;border-radius:12px;border:1px solid var(--role-repartidor-border)">
+            <div id="delivery-extra" class="hidden" style="display:grid;gap:8px;background:var(--role-repartidor-soft);padding:12px;border-radius:12px;border:1px solid var(--role-repartidor-border);flex-shrink:0;max-height:220px;overflow-y:auto">
               <div class="field">
                 <label for="delivery-zone">Zona de reparto</label>
                 <select id="delivery-zone" onchange="onZoneChange()"></select>
@@ -382,57 +490,63 @@
               </div>
             </div>
 
-            <!-- Items List -->
-            <div class="field"><label>Productos en comanda</label></div>
-            <div id="cart" class="cart-items-box"></div>
-
-            <!-- Payment & Change -->
-            <div class="field">
-              <label for="payment-method">Forma de pago</label>
-              <select id="payment-method" onchange="onPaymentMethodChange()">
-                <option value="">Pendiente al entregar</option>
-                <option value="efectivo">Efectivo</option>
-                <option value="tarjeta">Tarjeta</option>
-                <option value="transferencia">Transferencia</option>
-                <option value="otro">Otro</option>
-              </select>
+            <!-- Scrollable Middle Section: Items List -->
+            <div class="cart-items-section">
+              <label>Productos en comanda</label>
+              <div id="cart" class="cart-items-box"></div>
             </div>
 
-            <div id="cash-change-box" class="hidden" style="background:var(--surface-2);padding:10px 12px;border-radius:10px;border:1px solid var(--border)">
+            <!-- Fixed Bottom Section: Payment, Change, Summary, and Massive CTA -->
+            <div class="cart-panel-footer">
+              <!-- Payment & Change -->
               <div class="field">
-                <label for="cash-paid-with">Paga con ($)</label>
-                <input id="cash-paid-with" type="number" min="0" step="10" placeholder="Ej. 200.00" oninput="calculateCashChange()">
+                <label for="payment-method">Forma de pago</label>
+                <select id="payment-method" onchange="onPaymentMethodChange()">
+                  <option value="">Pendiente al entregar</option>
+                  <option value="efectivo">Efectivo</option>
+                  <option value="tarjeta">Tarjeta</option>
+                  <option value="transferencia">Transferencia</option>
+                  <option value="otro">Otro</option>
+                </select>
               </div>
-              <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px;font-size:12px">
-                <span class="muted">Cambio a devolver:</span>
-                <strong id="cash-change-val" style="color:var(--primary);font-size:14px">$0.00</strong>
+
+              <div id="cash-change-box" class="hidden" style="background:var(--surface-2);padding:8px 10px;border-radius:10px;border:1px solid var(--border)">
+                <div class="field">
+                  <label for="cash-paid-with">Paga con ($)</label>
+                  <input id="cash-paid-with" type="number" min="0" step="10" placeholder="Ej. 200.00" oninput="calculateCashChange()">
+                </div>
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px;font-size:12px">
+                  <span class="muted">Cambio a devolver:</span>
+                  <strong id="cash-change-val" style="color:var(--primary);font-size:13px">$0.00</strong>
+                </div>
               </div>
+
+              <label style="display:flex;align-items:center;gap:8px;font-size:12px;font-weight:700;cursor:pointer">
+                <input id="mark-paid" type="checkbox" style="width:auto"> Marcar como pagado al crear
+              </label>
+
+              <!-- Summary Box -->
+              <div class="summary-box">
+                <div class="summary-line">
+                  <span>Subtotal</span>
+                  <span id="subtotal-val">$0.00</span>
+                </div>
+                <div class="summary-line" id="delivery-fee-line" style="display:none">
+                  <span>Tarifa de envío</span>
+                  <span id="delivery-fee-val" style="color:var(--primary)">$0.00</span>
+                </div>
+                <div class="summary-total">
+                  <span>Total</span>
+                  <strong id="total">$0.00</strong>
+                </div>
+              </div>
+
+              <!-- Massive Full Width CTA Button -->
+              <button class="btn btn-primary btn-process-order" id="create-order" onclick="createOrder()">
+                <svg class="ui-icon" width="18" height="18"><use href="assets/icons.svg#check"></use></svg>
+                <span>Procesar Pedido</span>
+              </button>
             </div>
-
-            <label style="display:flex;align-items:center;gap:8px;font-size:12px;font-weight:700;cursor:pointer">
-              <input id="mark-paid" type="checkbox" style="width:auto"> Marcar como pagado al crear
-            </label>
-
-            <!-- Summary Box -->
-            <div class="summary-box">
-              <div class="summary-line">
-                <span>Subtotal</span>
-                <span id="subtotal-val">$0.00</span>
-              </div>
-              <div class="summary-line" id="delivery-fee-line" style="display:none">
-                <span>Tarifa de envío</span>
-                <span id="delivery-fee-val" style="color:var(--primary)">$0.00</span>
-              </div>
-              <div class="summary-total">
-                <span>Total</span>
-                <strong id="total">$0.00</strong>
-              </div>
-            </div>
-
-            <!-- Create Order Button -->
-            <button class="btn btn-primary" id="create-order" style="width:100%;height:44px;font-size:14px" onclick="createOrder()">
-              <svg class="ui-icon" width="16" height="16"><use href="assets/icons.svg#check"></use></svg> Crear Pedido
-            </button>
           </aside>
         </div>
       </div>
@@ -917,10 +1031,10 @@
       if (type === 'domicilio') {
         deliveryExtra.classList.remove('hidden');
         pickupExtra.classList.add('hidden');
-      } else if (['llevar', 'recoger'].includes(type)) {
+      } else if (type === 'llevar' || type === 'recoger') {
         deliveryExtra.classList.add('hidden');
         pickupExtra.classList.remove('hidden');
-        pickupField.classList.toggle('hidden', type !== 'recoger');
+        if (pickupField) pickupField.classList.remove('hidden');
       } else {
         deliveryExtra.classList.add('hidden');
         pickupExtra.classList.add('hidden');
