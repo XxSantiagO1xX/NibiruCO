@@ -284,53 +284,68 @@
       font-weight: 800;
     }
 
-    /* Items List & Highlighted Quantities */
-    .items-container {
-      background: var(--surface-2);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 10px 12px;
-      display: grid;
-      gap: 6px;
-    }
-    .item-line {
+    /* Scoped Order Items Redesign (Vista de Mostrador) */
+    .orders-unified-grid .order-items-container,
+    .orders-unified-grid .items-container {
+      background: #FDFBF7;
+      border: 1px solid #EFEAE3;
+      border-radius: 12px;
+      padding: 14px 16px;
+      margin: 10px 0 14px;
       display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
-      font-size: 12.5px;
-      line-height: 1.35;
-      color: var(--text);
+      flex-direction: column;
+      gap: 12px;
+      box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.02);
     }
-    .item-name-part {
+    .orders-unified-grid .order-item-row,
+    .orders-unified-grid .item-line {
       display: flex;
-      align-items: flex-start;
-      gap: 6px;
-      flex: 1;
+      align-items: center;
+      gap: 12px;
+      padding-bottom: 10px;
+      border-bottom: 1px dashed #E5DFD7;
     }
-    .item-tag {
-      font-size: 9px;
-      font-weight: 800;
-      padding: 1px 5px;
-      border-radius: 4px;
-      text-transform: uppercase;
+    .orders-unified-grid .order-item-row:last-child,
+    .orders-unified-grid .item-line:last-child {
+      padding-bottom: 0;
+      border-bottom: none;
+    }
+    .orders-unified-grid .order-item-qty-badge,
+    .orders-unified-grid .item-qty-bold {
+      min-width: 38px;
+      height: 38px;
+      padding: 0 6px;
+      background: #111827;
+      color: #FFFFFF;
+      font-size: 17px;
+      font-weight: 900;
+      letter-spacing: -0.02em;
+      border-radius: 8px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
       flex-shrink: 0;
-      margin-top: 1px;
+      box-shadow: 0 2px 4px rgba(17, 24, 39, 0.18);
     }
-    .tag-ready { background: var(--role-mesero-soft); color: var(--role-mesero); }
-    .tag-kitchen { background: var(--role-cocina-soft); color: var(--role-cocina); }
-    .item-qty-bold {
-      font-weight: 800;
-      color: var(--text);
-      margin-right: 2px;
+    .orders-unified-grid .order-item-details,
+    .orders-unified-grid .item-name-part {
+      flex: 1;
+      min-width: 0;
     }
-    .item-name-text {
+    .orders-unified-grid .order-item-name,
+    .orders-unified-grid .item-name-text {
+      font-size: 18.5px;
+      font-weight: 700;
+      line-height: 1.25;
+      color: #111827;
+      letter-spacing: -0.02em;
+      word-break: break-word;
+    }
+    .orders-unified-grid .item-choices-text {
+      font-size: 13px;
       font-weight: 500;
-      color: var(--text);
-    }
-    .item-choices-text {
-      font-size: 11px;
-      color: var(--muted);
-      margin-top: 2px;
+      color: #4B5563;
+      margin-top: 3px;
       line-height: 1.35;
     }
 
@@ -922,7 +937,7 @@
         statusBadgeHtml = '<span class="status-badge-hub badge-hub-ready"><svg class="ui-icon" width="12" height="12"><use href="assets/icons.svg#check"></use></svg> Activo</span>';
       }
 
-      // Items list with highlighted bold quantities
+      // Items list with prominent qty badge and large typography
       const items = Array.isArray(order.items) ? order.items : [];
       const itemsHtml = items.map(item => {
         const choices = Array.isArray(item.choices) ? item.choices : [];
@@ -930,13 +945,11 @@
           ? '<div class="item-choices-text">• ' + choices.map(c => escapeHtml(c.name)).join(' · ') + '</div>'
           : '';
 
-        return '<div class="item-line">' +
-          '<div class="item-name-part">' +
-            '<div style="min-width:0">' +
-              '<strong class="item-qty-bold">' + item.quantity + '×</strong> ' +
-              '<span class="item-name-text">' + escapeHtml(item.name || ('Producto #' + item.product_id)) + '</span>' +
-              choicesHtml +
-            '</div>' +
+        return '<div class="order-item-row">' +
+          '<span class="order-item-qty-badge">' + item.quantity + 'x</span>' +
+          '<div class="order-item-details">' +
+            '<div class="order-item-name">' + escapeHtml(item.name || ('Producto #' + item.product_id)) + '</div>' +
+            choicesHtml +
           '</div>' +
         '</div>';
       }).join('');
@@ -1014,7 +1027,7 @@
           '</span>' +
         '</div>' +
         metaBlockHtml +
-        '<div class="items-container">' +
+        '<div class="order-items-container items-container">' +
           (itemsHtml || '<div class="muted">Sin detalle de platillos.</div>') +
         '</div>' +
         (actionsHtml ? ('<div class="actions-grid">' + actionsHtml + '</div>') : '') +
