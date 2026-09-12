@@ -293,11 +293,11 @@
 
       <!-- Settings Navigation Tabs (Sin overflow scroll horizontal excesivo) -->
       <div class="settings-nav">
-        <button class="settings-tab active" onclick="switchTab('staff')">👥 Personal & Colaboradores</button>
-        <button class="settings-tab" onclick="switchTab('rbac')">🛡️ Matriz de Permisos (RBAC)</button>
-        <button class="settings-tab" onclick="switchTab('settlements')">💵 Cortes & Liquidaciones</button>
-        <button class="settings-tab" onclick="switchTab('operation')">⚙️ Operación & Despacho</button>
-        <button class="settings-tab" onclick="switchTab('restaurant')">🏪 Restaurante & Horarios</button>
+        <button class="settings-tab active" onclick="switchTab('staff')"><svg class="ui-icon" style="width:14px;height:14px;vertical-align:-2px;margin-right:4px;"><use href="assets/icons.svg#users"/></svg>Personal & Colaboradores</button>
+        <button class="settings-tab" onclick="switchTab('rbac')"><svg class="ui-icon" style="width:14px;height:14px;vertical-align:-2px;margin-right:4px;"><use href="assets/icons.svg#shield"/></svg>Matriz de Permisos (RBAC)</button>
+        <button class="settings-tab" onclick="switchTab('settlements')"><svg class="ui-icon" style="width:14px;height:14px;vertical-align:-2px;margin-right:4px;"><use href="assets/icons.svg#dollar"/></svg>Cortes & Liquidaciones</button>
+        <button class="settings-tab" onclick="switchTab('operation')"><svg class="ui-icon" style="width:14px;height:14px;vertical-align:-2px;margin-right:4px;"><use href="assets/icons.svg#settings"/></svg>Operación & Despacho</button>
+        <button class="settings-tab" onclick="switchTab('restaurant')"><svg class="ui-icon" style="width:14px;height:14px;vertical-align:-2px;margin-right:4px;"><use href="assets/icons.svg#store"/></svg>Restaurante & Horarios</button>
       </div>
 
       <!-- TAB 1: PERSONAL & COLABORADORES (4 Dense Role Columns) -->
@@ -316,7 +316,7 @@
           <!-- Columna 1: Administración -->
           <div class="role-column">
             <div class="role-column-header admin">
-              <span class="role-col-title">👑 Administración</span>
+              <span class="role-col-title"><svg class="ui-icon" style="width:14px;height:14px;vertical-align:-2px;margin-right:4px;"><use href="assets/icons.svg#shield"/></svg>Administración</span>
               <span class="role-col-count" id="count-role-admin">0</span>
             </div>
             <div id="col-role-admin" style="display:flex;flex-direction:column;gap:10px;"></div>
@@ -325,7 +325,7 @@
           <!-- Columna 2: Meseros -->
           <div class="role-column">
             <div class="role-column-header mesero">
-              <span class="role-col-title">🍽️ Meseros</span>
+              <span class="role-col-title"><svg class="ui-icon" style="width:14px;height:14px;vertical-align:-2px;margin-right:4px;"><use href="assets/icons.svg#dining"/></svg>Meseros</span>
               <span class="role-col-count" id="count-role-mesero">0</span>
             </div>
             <div id="col-role-mesero" style="display:flex;flex-direction:column;gap:10px;"></div>
@@ -334,7 +334,7 @@
           <!-- Columna 3: Cocina -->
           <div class="role-column">
             <div class="role-column-header cocina">
-              <span class="role-col-title">🔥 Cocina & KDS</span>
+              <span class="role-col-title"><svg class="ui-icon" style="width:14px;height:14px;vertical-align:-2px;margin-right:4px;"><use href="assets/icons.svg#flame"/></svg>Cocina & KDS</span>
               <span class="role-col-count" id="count-role-cocina">0</span>
             </div>
             <div id="col-role-cocina" style="display:flex;flex-direction:column;gap:10px;"></div>
@@ -343,7 +343,7 @@
           <!-- Columna 4: Repartidores -->
           <div class="role-column">
             <div class="role-column-header repartidor">
-              <span class="role-col-title">🛵 Repartidores</span>
+              <span class="role-col-title"><svg class="ui-icon" style="width:14px;height:14px;vertical-align:-2px;margin-right:4px;"><use href="assets/icons.svg#bike"/></svg>Repartidores</span>
               <span class="role-col-count" id="count-role-repartidor">0</span>
             </div>
             <div id="col-role-repartidor" style="display:flex;flex-direction:column;gap:10px;"></div>
@@ -389,7 +389,7 @@
               <h2 class="section-title" style="margin:0">Cortes de Turno y Control de Efectivo</h2>
               <p class="muted" style="margin:4px 0 0;font-size:12.5px">Audita el efectivo cobrado por los repartidores, el cambio entregado y concilia los viajes.</p>
             </div>
-            <button class="btn btn-secondary" onclick="reconcileStaleTripsAdmin()">⚡ Reconciliar Viajes Incompletos</button>
+            <button class="btn btn-secondary" onclick="reconcileStaleTripsAdmin()"><svg class="ui-icon" style="width:13px;height:13px;vertical-align:-2px;margin-right:4px;"><use href="assets/icons.svg#refresh"/></svg>Reconciliar Viajes Incompletos</button>
           </div>
         </div>
 
@@ -651,7 +651,7 @@
             ? '<img src="' + m.avatar_url + '" alt="' + escapeHtml(m.name) + '">'
             : initials;
 
-          let statusText = m.active ? '🟢 Activo' : '🔴 Inactivo';
+          let statusText = m.active ? '● Activo' : '○ Inactivo';
           if (m.role === 'repartidor' && m.active) {
             statusText += ' · ' + (m.driver_status || 'offline');
           }
@@ -677,7 +677,7 @@
 
       let html = '';
       for (const cat of categories) {
-        html += '<tr class="rbac-category-row"><td colspan="5">📁 ' + escapeHtml(cat) + '</td></tr>';
+        html += '<tr class="rbac-category-row"><td colspan="5"><svg class="ui-icon" style="width:13px;height:13px;vertical-align:-2px;margin-right:4px;"><use href="assets/icons.svg#folder"/></svg>' + escapeHtml(cat) + '</td></tr>';
         const permsInCat = permissionsCatalog.filter(p => p.category === cat);
         for (const perm of permsInCat) {
           html += '<tr>' +
@@ -805,8 +805,8 @@
           document.getElementById('staff-form-code').value = member.short_code || '';
           document.getElementById('staff-form-active').checked = member.active !== false;
 
-          extraActions.innerHTML = '<button class="btn btn-sm btn-ghost" onclick="openUserPermsModal(' + member.id + '); return false;">🛡️ Permisos Especiales</button>' +
-            (member.avatar_url ? '<button class="btn btn-sm btn-danger-soft" onclick="deleteStaffAvatar(' + member.id + '); return false;">🗑️ Quitar Foto</button>' : '');
+          extraActions.innerHTML = '<button class="btn btn-sm btn-ghost" onclick="openUserPermsModal(' + member.id + '); return false;"><svg class="ui-icon" style="width:13px;height:13px;vertical-align:-2px;margin-right:4px;"><use href="assets/icons.svg#shield"/></svg>Permisos Especiales</button>' +
+            (member.avatar_url ? '<button class="btn btn-sm btn-danger-soft" onclick="deleteStaffAvatar(' + member.id + '); return false;"><svg class="ui-icon" style="width:13px;height:13px;vertical-align:-2px;margin-right:4px;"><use href="assets/icons.svg#trash"/></svg>Quitar Foto</button>' : '');
         }
       } else {
         document.getElementById('staff-form-name').value = '';
@@ -985,11 +985,11 @@
           return '<div class="shift-card">' +
             '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">' +
               '<div>' +
-                '<h3 style="margin:0;font-size:16px">🛵 ' + escapeHtml(driverName) + ' (' + (driverObj?.short_code || 'REP') + ')</h3>' +
-                '<span class="muted" style="font-size:12px">Turno ' + (s.status === 'open' ? '🟢 Abierto' : '⚪ Concluido') + ' · Fecha: ' + s.shift_date + '</span>' +
+                '<h3 style="margin:0;font-size:16px"><svg class="ui-icon" style="width:16px;height:16px;vertical-align:-3px;margin-right:4px;"><use href="assets/icons.svg#bike"/></svg>' + escapeHtml(driverName) + ' (' + (driverObj?.short_code || 'REP') + ')</h3>' +
+                '<span class="muted" style="font-size:12px">Turno ' + (s.status === 'open' ? '● Abierto' : '○ Concluido') + ' · Fecha: ' + s.shift_date + '</span>' +
               '</div>' +
               (s.shift_id ? (
-                '<button class="btn btn-sm btn-primary" onclick="openSettleModal(' + s.shift_id + ', ' + s.pending_settlement + ')">💵 Registrar Liquidación</button>'
+                '<button class="btn btn-sm btn-primary" onclick="openSettleModal(' + s.shift_id + ', ' + s.pending_settlement + ')"><svg class="ui-icon" style="width:13px;height:13px;vertical-align:-2px;margin-right:4px;"><use href="assets/icons.svg#dollar"/></svg>Registrar Liquidación</button>'
               ) : '') +
             '</div>' +
             '<div class="financial-grid">' +

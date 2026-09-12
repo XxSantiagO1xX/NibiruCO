@@ -102,7 +102,7 @@
           <div class="card card-pad" style="background: var(--bg-subtle, #f8fafc); border: 1px dashed var(--border); margin-bottom: 20px;">
             <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
               <div>
-                <strong>📅 Días disponible en el Menú Semanal</strong>
+                <strong><svg class="ui-icon" style="width:15px;height:15px;vertical-align:-2px;margin-right:5px;"><use href="assets/icons.svg#calendar"/></svg>Días disponible en el Menú Semanal</strong>
                 <p class="muted" style="font-size: 12px; margin-top: 2px;">Marca los días en que este combo se ofrecerá en Mesero y Ventas.</p>
               </div>
               <button class="btn btn-sm btn-primary" id="btn-save-days" onclick="saveComboDays()">Guardar días en Menú</button>
@@ -385,7 +385,7 @@
                   <small>${Number(option.extra_price) > 0 ? `+ ${formatCurrency(option.extra_price)} extra` : 'Sin costo extra'} · ${option.active ? 'Activa' : 'Inactiva'}</small>
                 </div>
                 <div style="display: flex; gap: 6px; align-items: center;">
-                  <button class="btn btn-sm btn-ghost" title="Modificar precio extra" onclick="editOptionPrice(${group.id}, ${option.id}, ${option.extra_price})">✏️ Extra</button>
+                  <button class="btn btn-sm btn-ghost" title="Modificar precio extra" onclick="editOptionPrice(${group.id}, ${option.id}, ${option.extra_price})"><svg class="ui-icon" style="width:13px;height:13px;vertical-align:-2px;margin-right:3px;"><use href="assets/icons.svg#edit"/></svg>Extra</button>
                   <button class="btn btn-sm ${option.active ? 'btn-secondary' : 'btn-primary'}" onclick="toggleOption(${group.id}, ${option.id}, ${option.active ? 'false' : 'true'})">${option.active ? 'Desactivar' : 'Activar'}</button>
                   <button class="btn btn-sm btn-danger-soft" title="Eliminar opción" onclick="deleteOption(${group.id}, ${option.id})">✕</button>
                 </div>

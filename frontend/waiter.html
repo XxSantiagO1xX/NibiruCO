@@ -161,7 +161,7 @@
     socket.on('orders-updated', loadTables);
     socket.on('counter-updated', loadTables);
     socket.on('waiter-table-ready', (data) => {
-      showToast(`🔔 ¡Comanda lista para servir en ${data.tableName || 'mesa'}! (Folio ${data.folio || data.orderId})`, 'info');
+      showToast(`¡Comanda lista para servir en ${data.tableName || 'mesa'}! (Folio ${data.folio || data.orderId})`, 'info');
       try {
         const snd = new Audio('alert.wav');
         snd.play().catch(() => {});
@@ -296,7 +296,7 @@
           <button class="waiter-product card" onclick="addToCart(${Number(product.id)})" ${activeSessionStatus === 'account_requested' ? 'disabled' : ''}>
             <div class="product-thumb">
               ${product.image ? `<img src="${escapeHtml(product.image)}" alt="" loading="lazy" onerror="this.classList.add('img-failed')">` : ''}
-              <div class="thumb-placeholder">${isCombo ? '🍱' : '🍽️'}</div>
+              <div class="thumb-placeholder">${isCombo ? '<svg class="icon" style="width:16px;height:16px"><use href="assets/icons.svg#combo"/></svg>' : '<svg class="icon" style="width:16px;height:16px"><use href="assets/icons.svg#dining"/></svg>'}</div>
             </div>
             <span class="waiter-product-copy">
               <strong>${escapeHtml(product.name)}</strong>
@@ -407,7 +407,7 @@
               <input type="${type}" name="waiter-combo-${group.id}" value="${option.option_product_id}" data-extra="${Number(option.extra_price || 0)}" data-name="${escapeHtml(option.name)}" ${isSingle && min === 1 && idx === 0 ? 'checked' : ''} onchange="onComboOptionChange(this, ${group.id}, ${max})">
               <div class="product-thumb" style="width:40px;height:40px;min-width:40px">
                 ${imgUrl ? `<img src="${escapeHtml(imgUrl)}" alt="" loading="lazy" onerror="this.classList.add('img-failed')">` : ''}
-                <div class="thumb-placeholder" style="font-size:14px">🍽️</div>
+                <div class="thumb-placeholder" style="font-size:14px"><svg class="icon" style="width:16px;height:16px"><use href="assets/icons.svg#dining"/></svg></div>
               </div>
               <span>${escapeHtml(option.name)}${Number(option.extra_price) > 0 ? ` <small class="muted" style="font-weight:600;color:var(--primary)">(+${formatCurrency(option.extra_price)})</small>` : ''}</span>
             </label>

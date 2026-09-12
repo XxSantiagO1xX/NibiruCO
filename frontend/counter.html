@@ -8,7 +8,7 @@
   <link rel="stylesheet" href="../css/theme.css" data-mealops-theme="true">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
   <style>
-    .counter-page { min-height: 100vh; padding: 24px 32px; background: var(--bg); }
+    .counter-page { min-height: 100vh; padding: 24px 32px 64px; background: var(--bg); }
     .counter-shell { max-width: 1750px; margin: 0 auto; }
     
     /* Topbar */
@@ -18,58 +18,98 @@
       gap: 20px;
       align-items: center;
       margin-bottom: 20px;
-      padding: 16px 22px;
+      padding: 14px 24px;
       border: 1px solid var(--border);
       border-radius: var(--radius-md);
       background: var(--surface);
       box-shadow: var(--shadow-sm);
     }
-    .counter-title { display: flex; align-items: center; gap: 14px; }
+    .counter-title { display: flex; align-items: center; gap: 12px; }
     .counter-title-icon {
-      width: 44px; height: 44px; border-radius: 12px;
+      width: 40px; height: 40px; border-radius: 12px;
       display: grid; place-items: center;
       background: var(--primary-soft); color: var(--primary);
+      box-shadow: 0 2px 8px rgba(245, 102, 36, 0.15);
+      flex-shrink: 0;
     }
-    .counter-title h1 { margin: 0; font-size: 20px; font-weight: 800; letter-spacing: -.03em; color: var(--text); }
-    .counter-title p { margin: 3px 0 0; color: var(--muted); font-size: 12px; }
-    .counter-header-actions { display: flex; align-items: center; gap: 10px; }
+    .counter-title h1 { margin: 0; font-size: 19px; font-weight: 800; letter-spacing: -.03em; color: var(--text); }
+    .counter-title p { margin: 2px 0 0; color: var(--muted); font-size: 12px; }
+    .counter-header-actions { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+
+    /* Search in Topbar */
+    .counter-topbar-search {
+      flex: 1;
+      max-width: 420px;
+      position: relative;
+      display: flex;
+      align-items: center;
+      margin: 0 16px;
+    }
+    .counter-topbar-search .search-icon {
+      position: absolute;
+      left: 12px;
+      color: var(--muted);
+      pointer-events: none;
+      width: 16px;
+      height: 16px;
+    }
+    .counter-topbar-search input {
+      width: 100%;
+      height: 38px;
+      padding: 0 14px 0 36px;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      font-size: 13px;
+      color: var(--text);
+      outline: none;
+      transition: all 0.15s ease;
+    }
+    .counter-topbar-search input:focus {
+      background: var(--surface);
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px var(--primary-soft);
+    }
 
     /* KPI Bar */
     .counter-metrics-bar {
       display: grid;
       grid-template-columns: repeat(5, 1fr);
-      gap: 12px;
-      margin-bottom: 18px;
+      gap: 14px;
+      margin-bottom: 20px;
     }
     @media (max-width: 1200px) {
       .counter-metrics-bar { grid-template-columns: repeat(3, 1fr); }
     }
     @media (max-width: 768px) {
       .counter-metrics-bar { grid-template-columns: repeat(2, 1fr); }
+      .counter-header { flex-direction: column; align-items: stretch; }
+      .counter-topbar-search { max-width: 100%; margin: 10px 0; }
     }
     .metric-card {
       background: var(--surface);
       border: 1px solid var(--border);
       border-radius: var(--radius);
-      padding: 14px 18px;
+      padding: 16px 20px;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      box-shadow: var(--shadow-xs);
+      box-shadow: var(--shadow-sm);
       cursor: pointer;
-      transition: all .15s ease;
+      transition: transform .15s ease, border-color .15s ease, box-shadow .15s ease;
     }
     .metric-card:hover {
-      border-color: var(--primary);
-      transform: translateY(-1px);
-      box-shadow: var(--shadow-sm);
+      border-color: var(--primary-border);
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-md);
     }
     .metric-card.active {
       border-color: var(--primary);
       background: var(--primary-soft);
+      box-shadow: 0 0 0 2px var(--primary-border);
     }
-    .metric-val { font-size: 24px; font-weight: 900; letter-spacing: -.03em; line-height: 1.1; }
-    .metric-label { font-size: 11px; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; margin-bottom: 2px; }
+    .metric-val { font-size: 26px; font-weight: 900; letter-spacing: -.03em; line-height: 1.1; }
+    .metric-label { font-size: 11px; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; margin-bottom: 3px; }
 
     /* Control Tower Bar & Filter Controls */
     .tower-controls {
@@ -77,7 +117,7 @@
       justify-content: space-between;
       align-items: center;
       gap: 12px;
-      margin-bottom: 18px;
+      margin-bottom: 20px;
       flex-wrap: wrap;
     }
     .view-mode-tabs {
@@ -89,7 +129,7 @@
       border: 1px solid var(--border);
     }
     .view-tab {
-      padding: 7px 14px;
+      padding: 8px 16px;
       border-radius: 9px;
       background: transparent;
       border: none;
@@ -115,17 +155,17 @@
       gap: 6px;
     }
     .dest-filter-btn {
-      padding: 6px 12px;
+      padding: 7px 14px;
       border-radius: 999px;
       background: var(--surface);
       border: 1px solid var(--border);
-      font-size: 11.5px;
+      font-size: 12px;
       font-weight: 700;
       color: var(--muted);
       cursor: pointer;
       display: inline-flex;
       align-items: center;
-      gap: 5px;
+      gap: 6px;
       transition: all .15s ease;
     }
     .dest-filter-btn:hover { border-color: var(--muted); color: var(--text); }
@@ -150,17 +190,17 @@
       background: var(--surface-2);
       border: 1px solid var(--border);
       border-radius: var(--radius-md);
-      padding: 16px;
+      padding: 18px;
       display: flex;
       flex-direction: column;
-      gap: 12px;
+      gap: 14px;
       min-height: 600px;
     }
     .zone-header {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      padding-bottom: 10px;
+      padding-bottom: 12px;
       border-bottom: 2px solid;
     }
     .zone-header.prep { border-color: var(--role-cocina); color: var(--role-cocina); }
@@ -181,7 +221,7 @@
       font-weight: 800;
       background: var(--surface);
       border: 1px solid var(--border);
-      padding: 2px 8px;
+      padding: 2px 9px;
       border-radius: 999px;
       color: var(--text);
     }
@@ -189,67 +229,92 @@
     .zone-orders-list {
       display: flex;
       flex-direction: column;
-      gap: 12px;
+      gap: 14px;
     }
 
     /* SINGLE LANE / FOCUS GRID */
     .single-lane-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
-      gap: 16px;
+      grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+      gap: 18px;
     }
 
-    /* ORDER CARD */
+    /* ORDER CARD WITH FOLIO RIBBON */
     .order-card-hub {
       background: var(--surface);
-      border: 1.5px solid var(--border);
+      border: 1px solid var(--border);
       border-radius: var(--radius);
-      padding: 16px;
+      padding: 22px 18px 16px;
       box-shadow: var(--shadow-sm);
       display: flex;
       flex-direction: column;
       gap: 12px;
       position: relative;
+      overflow: hidden;
       transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease;
     }
     .order-card-hub:hover {
       box-shadow: var(--shadow-md);
+      border-color: var(--border-focus);
     }
     .order-card-hub.ready {
       border-color: var(--role-mesero-border);
-      background: linear-gradient(180deg, #FFFFFF 0%, #F9FEFA 100%);
     }
     .order-card-hub.waiting-kitchen {
       border-color: var(--role-cocina-border);
     }
     .order-card-hub.delayed {
       border-color: var(--danger-border);
-      background: linear-gradient(180deg, #FFFFFF 0%, #FFF8F8 100%);
+      background: #FFFDFC;
     }
 
-    .card-top {
+    /* Dynamic Folio Ribbon */
+    .card-folio-ribbon {
+      position: absolute;
+      top: 0;
+      left: 0;
+      margin: 0;
+      padding: 5px 14px;
+      font-size: 13px;
+      font-weight: 800;
+      color: #FFFFFF;
+      border-top-left-radius: 14px;
+      border-bottom-right-radius: 12px;
+      border-top-right-radius: 0;
+      border-bottom-left-radius: 0;
+      z-index: 5;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      letter-spacing: -0.02em;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+    }
+    .ribbon-salon, .ribbon-mesa { background-color: #16A34A !important; color: #FFFFFF !important; }
+    .ribbon-llevar, .ribbon-recoger { background-color: #F56624 !important; color: #FFFFFF !important; }
+    .ribbon-domicilio { background-color: #7C3AED !important; color: #FFFFFF !important; }
+
+    .card-header-row {
       display: flex;
       justify-content: space-between;
       align-items: flex-start;
-      gap: 8px;
-    }
-    .folio-box {
-      font-size: 22px;
-      font-weight: 900;
-      letter-spacing: -.04em;
-      color: var(--text);
-      line-height: 1;
+      padding-top: 14px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--border);
+      gap: 10px;
     }
     .customer-line {
-      font-size: 13px;
+      font-size: 15px;
       font-weight: 800;
       color: var(--text);
-      margin-top: 4px;
+      letter-spacing: -0.02em;
     }
     .phone-line {
-      font-size: 11px;
+      font-size: 12px;
       color: var(--muted);
-      margin-top: 1px;
+      margin-top: 2px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
     }
 
     .status-badge-hub {
@@ -275,6 +340,8 @@
       flex-wrap: wrap;
       gap: 6px;
       align-items: center;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--border);
     }
     .dest-pill {
       font-size: 11px;
@@ -291,11 +358,11 @@
     .dest-local { background: var(--surface-2); color: var(--text); border: 1px solid var(--border); }
 
     .time-badge {
-      font-size: 10px;
+      font-size: 10.5px;
       font-weight: 700;
       color: var(--muted);
       background: var(--surface-2);
-      padding: 3px 7px;
+      padding: 3px 8px;
       border-radius: 6px;
       border: 1px solid var(--border);
       display: inline-flex;
@@ -309,12 +376,12 @@
       font-weight: 800;
     }
 
-    /* Items List */
+    /* Items List & Highlighted Quantities */
     .items-container {
       background: var(--surface-2);
       border: 1px solid var(--border);
       border-radius: 10px;
-      padding: 8px 10px;
+      padding: 10px 12px;
       display: grid;
       gap: 6px;
     }
@@ -322,8 +389,9 @@
       display: flex;
       justify-content: space-between;
       align-items: flex-start;
-      font-size: 12px;
+      font-size: 12.5px;
       line-height: 1.35;
+      color: var(--text);
     }
     .item-name-part {
       display: flex;
@@ -338,13 +406,24 @@
       border-radius: 4px;
       text-transform: uppercase;
       flex-shrink: 0;
+      margin-top: 1px;
     }
     .tag-ready { background: var(--role-mesero-soft); color: var(--role-mesero); }
     .tag-kitchen { background: var(--role-cocina-soft); color: var(--role-cocina); }
+    .item-qty-bold {
+      font-weight: 800;
+      color: var(--text);
+      margin-right: 2px;
+    }
+    .item-name-text {
+      font-weight: 500;
+      color: var(--text);
+    }
     .item-choices-text {
-      font-size: 10.5px;
+      font-size: 11px;
       color: var(--muted);
       margin-top: 2px;
+      line-height: 1.35;
     }
 
     .address-box {
@@ -368,36 +447,83 @@
       justify-content: space-between;
     }
 
-    /* Actions */
+    /* Actions Grid & Soft Buttons */
     .actions-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+      grid-template-columns: 1fr;
       gap: 6px;
       margin-top: 2px;
     }
-    .btn-action {
-      padding: 8px 10px;
-      border-radius: 8px;
-      font-size: 11.5px;
-      font-weight: 800;
-      border: 1px solid transparent;
-      cursor: pointer;
-      display: flex;
+    .btn-action-soft,
+    .btn-soft-success,
+    .btn-soft-primary,
+    .btn-soft-info,
+    .btn-soft-warning,
+    .btn-soft-secondary {
+      width: 100%;
+      min-height: 38px;
+      display: inline-flex;
       align-items: center;
       justify-content: center;
-      gap: 5px;
-      transition: all .15s ease;
+      gap: 6px;
+      padding: 8px 12px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 800;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      text-decoration: none;
     }
-    .btn-ready { background: var(--primary); color: #fff; }
-    .btn-ready:hover { background: var(--primary-hover); }
-    .btn-deliver { background: var(--role-mesero); color: #fff; }
-    .btn-deliver:hover { background: #15803D; }
-    .btn-notify { background: var(--role-admin); color: #fff; }
-    .btn-notify:hover { background: #0369A1; }
-    .btn-pickup-waiter { background: var(--warning); color: #fff; }
-    .btn-pickup-waiter:hover { background: #B45309; }
-    .btn-secondary-hub { background: var(--surface); color: var(--text); border-color: var(--border); }
-    .btn-secondary-hub:hover { background: var(--surface-hover); }
+    .btn-soft-success {
+      background: rgba(22, 163, 74, 0.10);
+      color: #15803D;
+      border: 1px solid rgba(22, 163, 74, 0.35);
+    }
+    .btn-soft-success:hover {
+      background: rgba(22, 163, 74, 0.18);
+      border-color: #16A34A;
+      color: #14532D;
+    }
+    .btn-soft-primary {
+      background: rgba(245, 102, 36, 0.10);
+      color: #C2410C;
+      border: 1px solid rgba(245, 102, 36, 0.35);
+    }
+    .btn-soft-primary:hover {
+      background: rgba(245, 102, 36, 0.18);
+      border-color: #F56624;
+      color: #9A3412;
+    }
+    .btn-soft-info {
+      background: rgba(37, 99, 235, 0.10);
+      color: #1D4ED8;
+      border: 1px solid rgba(37, 99, 235, 0.35);
+    }
+    .btn-soft-info:hover {
+      background: rgba(37, 99, 235, 0.18);
+      border-color: #2563EB;
+      color: #1E40AF;
+    }
+    .btn-soft-warning {
+      background: rgba(217, 119, 6, 0.10);
+      color: #B45309;
+      border: 1px solid rgba(217, 119, 6, 0.35);
+    }
+    .btn-soft-warning:hover {
+      background: rgba(217, 119, 6, 0.18);
+      border-color: #D97706;
+      color: #92400E;
+    }
+    .btn-soft-secondary {
+      background: rgba(115, 111, 105, 0.08);
+      color: #24211F;
+      border: 1px solid var(--border);
+    }
+    .btn-soft-secondary:hover {
+      background: rgba(115, 111, 105, 0.14);
+      border-color: var(--muted);
+      color: #1E1B18;
+    }
 
     /* INCIDENTS DRAWER */
     .incidents-drawer-backdrop {
@@ -447,7 +573,7 @@
 
     .incident-item-card {
       background: var(--surface);
-      border: 1.5px solid var(--border);
+      border: 1px solid var(--border);
       border-radius: var(--radius);
       padding: 16px;
       box-shadow: var(--shadow-xs);
@@ -513,26 +639,34 @@
 <body>
   <main class="counter-page">
     <div class="counter-shell">
-      <!-- Header -->
+      <!-- Minimalist Clean Topbar Header -->
       <header class="counter-header">
         <div class="counter-title">
           <div class="counter-title-icon">
             <svg class="ui-icon" width="22" height="22"><use href="assets/icons.svg#counter"></use></svg>
           </div>
           <div>
-            <h1>Torre de Control · Centro de Expedición</h1>
-            <p>Supervisión en tiempo real de pedidos de salón, mostrador, recolección, despacho a domicilio e incidencias.</p>
+            <h1>Torre de Control</h1>
+            <p>Centro de Expedición y Salida MealOps</p>
           </div>
         </div>
+
+        <div class="counter-topbar-search">
+          <svg class="search-icon ui-icon"><use href="assets/icons.svg#search"></use></svg>
+          <input type="text" id="counter-search-input" placeholder="Buscar folio, cliente, mesa o producto..." oninput="handleCounterSearch(this.value)">
+        </div>
+
         <div class="counter-header-actions">
           <button class="btn btn-secondary btn-sm" id="btn-open-incidents" onclick="toggleIncidentsDrawer()" style="position:relative">
-            <svg class="ui-icon" width="16" height="16" style="color:var(--danger)"><use href="assets/icons.svg#alert"></use></svg>
+            <svg class="ui-icon" width="15" height="15" style="color:var(--danger)"><use href="assets/icons.svg#alert"></use></svg>
             <span>Incidencias</span>
             <span class="badge badge-danger" id="header-incidents-badge" style="display:none;margin-left:4px;padding:2px 6px">0</span>
           </button>
-          <span id="counter-sync" class="badge badge-neutral"><span class="ui-icon" style="width:7px;height:7px;border-radius:50%;background:var(--role-mesero);display:inline-block"></span> En Vivo</span>
-          <button class="btn btn-secondary btn-sm" onclick="window.location.href='home.html'">Panel Principal</button>
-          <button class="btn btn-ghost btn-sm" onclick="logout()">Salir</button>
+          <span id="counter-sync" class="topbar-user-badge">
+            <span class="ui-icon" style="width:7px;height:7px;border-radius:50%;background:var(--role-mesero);display:inline-block"></span> En Vivo
+          </span>
+          <button class="btn btn-secondary btn-sm" onclick="window.location.href='home.html'">Panel</button>
+          <button class="btn btn-ghost btn-sm" onclick="logout()" title="Cerrar sesión">Salir</button>
         </div>
       </header>
 
@@ -682,8 +816,36 @@
     let incidents = [];
     let currentViewMode = '3zones'; // '3zones' | 'prep' | 'salida' | 'domicilio' | 'historial'
     let currentDestFilter = 'all'; // 'all' | 'salon' | 'llevar' | 'domicilio'
+    let searchFilter = '';
     let refreshTimer;
     let knownReadyOrderIds = new Set();
+
+    function handleCounterSearch(val) {
+      searchFilter = String(val || '').trim().toLowerCase();
+      render();
+    }
+
+    function matchesSearch(order) {
+      if (!searchFilter) return true;
+      const q = searchFilter;
+      const folioStr = folioText(order).toLowerCase();
+      const customer = String(order.customer_name || order.user_name || '').toLowerCase();
+      const phone = String(order.user_phone || '').toLowerCase();
+      const table = String(order.table_name || '').toLowerCase();
+      const address = String(order.address || '').toLowerCase();
+      const driver = String(order.driver_name || '').toLowerCase();
+      const items = Array.isArray(order.items) ? order.items.map(i => String(i.name || '').toLowerCase()).join(' ') : '';
+      return (
+        String(order.id).includes(q) ||
+        folioStr.includes(q) ||
+        customer.includes(q) ||
+        phone.includes(q) ||
+        table.includes(q) ||
+        address.includes(q) ||
+        driver.includes(q) ||
+        items.includes(q)
+      );
+    }
 
     const socket = io(API, {
       auth: { token: localStorage.getItem('token') },
@@ -787,7 +949,19 @@
       const summary = order.summary || {};
       const stage = summary.counter_stage || 'esperando_cocina';
       const isDelayed = summary.is_delayed;
-      const serviceType = (order.service_type || 'local').toLowerCase();
+      const serviceType = (order.service_type || order.type || 'local').toLowerCase();
+
+      // Dynamic Ribbon class
+      let ribbonClass = 'ribbon-salon';
+      if (serviceType === 'domicilio') {
+        ribbonClass = 'ribbon-domicilio';
+      } else if (serviceType === 'llevar' || serviceType === 'recoger') {
+        ribbonClass = 'ribbon-llevar';
+      } else if (serviceType === 'mesa' || serviceType === 'local' || order.table_session_id) {
+        ribbonClass = 'ribbon-salon';
+      }
+
+      const ribbonHtml = '<div class="card-folio-ribbon ' + ribbonClass + '">' + folioText(order) + '</div>';
 
       // Check open incidents
       const orderIncidents = incidents.filter(i => Number(i.order_id) === Number(order.id) && i.status !== 'resuelta' && i.status !== 'cerrada');
@@ -825,7 +999,7 @@
         statusBadgeHtml = '<span class="status-badge-hub badge-hub-prep">Armando</span>';
       }
 
-      // Items list
+      // Items list with highlighted bold quantities only
       const items = Array.isArray(order.items) ? order.items : [];
       const itemsHtml = items.map(item => {
         const isItemReady = item.status === 'listo' || item.status === 'entregado' || !item.kitchen_required;
@@ -841,8 +1015,9 @@
         return '<div class="item-line">' +
           '<div class="item-name-part">' +
             tagHtml +
-            '<div>' +
-              '<strong>' + item.quantity + '×</strong> ' + escapeHtml(item.name || ('Producto #' + item.product_id)) +
+            '<div style="min-width:0">' +
+              '<strong class="item-qty-bold">' + item.quantity + '×</strong> ' +
+              '<span class="item-name-text">' + escapeHtml(item.name || ('Producto #' + item.product_id)) + '</span>' +
               choicesHtml +
             '</div>' +
           '</div>' +
@@ -883,35 +1058,35 @@
         '</div>';
       }
 
-      // Actions
+      // Soft Action Buttons (Full-width with 10% alpha background and dark border/text)
       let actionsHtml = '';
       if (!isDelivered) {
         if (serviceType === 'mesa' || order.table_session_id) {
           if (isReady) {
             if (!order.picked_up_from_counter_at) {
-              actionsHtml += '<button class="btn-action btn-notify" onclick="notifyWaiter(' + order.id + ')"><svg class="ui-icon" width="13" height="13"><use href="assets/icons.svg#bell"></use></svg> Avisar Mesero</button>' +
-                '<button class="btn-action btn-pickup-waiter" onclick="pickupWaiter(' + order.id + ')">Mesero Recogió</button>';
+              actionsHtml += '<button class="btn-soft-info" onclick="notifyWaiter(' + order.id + ')"><svg class="ui-icon" width="13" height="13"><use href="assets/icons.svg#bell"></use></svg> Avisar Mesero</button>' +
+                '<button class="btn-soft-warning" onclick="pickupWaiter(' + order.id + ')">Mesero Recogió</button>';
             } else {
-              actionsHtml += '<button class="btn-action btn-deliver" onclick="deliverTable(' + order.id + ')"><svg class="ui-icon" width="13" height="13"><use href="assets/icons.svg#check"></use></svg> Servido en Mesa</button>';
+              actionsHtml += '<button class="btn-soft-success" onclick="deliverTable(' + order.id + ')"><svg class="ui-icon" width="13" height="13"><use href="assets/icons.svg#check"></use></svg> Servido en Mesa</button>';
             }
           } else {
-            actionsHtml += '<button class="btn-action btn-ready" onclick="markReady(' + order.id + ')"><svg class="ui-icon" width="13" height="13"><use href="assets/icons.svg#check"></use></svg> Marcar Listo</button>';
+            actionsHtml += '<button class="btn-soft-primary" onclick="markReady(' + order.id + ')"><svg class="ui-icon" width="13" height="13"><use href="assets/icons.svg#check"></use></svg> Marcar Listo</button>';
           }
         } else if (serviceType === 'llevar' || serviceType === 'recoger') {
           if (isReady) {
-            actionsHtml += '<button class="btn-action btn-deliver" onclick="deliverOrder(' + order.id + ')"><svg class="ui-icon" width="13" height="13"><use href="assets/icons.svg#check"></use></svg> Entregar a Cliente</button>';
+            actionsHtml += '<button class="btn-soft-success" onclick="deliverOrder(' + order.id + ')"><svg class="ui-icon" width="13" height="13"><use href="assets/icons.svg#check"></use></svg> Entregar a Cliente</button>';
           } else {
-            actionsHtml += '<button class="btn-action btn-ready" onclick="markReady(' + order.id + ')"><svg class="ui-icon" width="13" height="13"><use href="assets/icons.svg#check"></use></svg> Marcar Listo</button>';
+            actionsHtml += '<button class="btn-soft-primary" onclick="markReady(' + order.id + ')"><svg class="ui-icon" width="13" height="13"><use href="assets/icons.svg#check"></use></svg> Marcar Listo</button>';
           }
         } else if (serviceType === 'local' && !order.table_session_id) {
-          actionsHtml += '<button class="btn-action btn-secondary-hub" onclick="window.location.href=\'tables.html\'">Asignar a Mesa</button>' +
-            (!isReady ? '<button class="btn-action btn-ready" onclick="markReady(' + order.id + ')"><svg class="ui-icon" width="13" height="13"><use href="assets/icons.svg#check"></use></svg> Marcar Listo</button>' : '');
+          actionsHtml += '<button class="btn-soft-secondary" onclick="window.location.href=\'tables.html\'">Asignar a Mesa</button>' +
+            (!isReady ? '<button class="btn-soft-primary" onclick="markReady(' + order.id + ')"><svg class="ui-icon" width="13" height="13"><use href="assets/icons.svg#check"></use></svg> Marcar Listo</button>' : '');
         } else if (serviceType === 'domicilio') {
           if (!isReady) {
-            actionsHtml += '<button class="btn-action btn-ready" onclick="markReady(' + order.id + ')"><svg class="ui-icon" width="13" height="13"><use href="assets/icons.svg#check"></use></svg> Listo para Reparto</button>';
+            actionsHtml += '<button class="btn-soft-primary" onclick="markReady(' + order.id + ')"><svg class="ui-icon" width="13" height="13"><use href="assets/icons.svg#check"></use></svg> Listo para Reparto</button>';
           } else {
             if (currentUser && currentUser.role === 'admin') {
-              actionsHtml += '<button class="btn-action btn-secondary-hub" onclick="openAssignDriverModal(' + order.id + ')">Asignar Repartidor (Admin)</button>';
+              actionsHtml += '<button class="btn-soft-secondary" onclick="openAssignDriverModal(' + order.id + ')">Asignar Repartidor (Admin)</button>';
             }
           }
         }
@@ -920,20 +1095,20 @@
       const cardClass = isDelivered ? 'delivered' : isReady ? 'ready' : isDelayed ? 'delayed' : stage === 'esperando_cocina' ? 'waiting-kitchen' : '';
 
       return '<article class="order-card-hub ' + cardClass + '" id="hub-order-' + order.id + '">' +
-        '<div class="card-top">' +
-          '<div>' +
-            '<div class="folio-box">' + folioText(order) + '</div>' +
+        ribbonHtml +
+        '<div class="card-header-row">' +
+          '<div style="min-width:0;flex:1">' +
             '<div class="customer-line">' + escapeHtml(order.customer_name || order.user_name || 'Cliente') + '</div>' +
-            (order.user_phone ? ('<div class="phone-line">Tel: ' + escapeHtml(order.user_phone) + '</div>') : '') +
+            (order.user_phone ? ('<div class="phone-line"><svg class="ui-icon" width="12" height="12"><use href="assets/icons.svg#phone"></use></svg> ' + escapeHtml(order.user_phone) + '</div>') : '') +
           '</div>' +
-          statusBadgeHtml +
+          '<div style="flex-shrink:0;text-align:right">' + statusBadgeHtml + '</div>' +
         '</div>' +
         '<div class="service-dest-row">' +
           serviceBadgeSvg(order) +
           '<span class="time-badge ' + (isDelayed ? 'alert' : '') + '">' +
             '<svg class="ui-icon" width="11" height="11"><use href="assets/icons.svg#clock"></use></svg> ' + (summary.elapsed_minutes || 0) + ' min ' + (isDelayed ? '· DEMORADO' : '') +
           '</span>' +
-          '<span class="time-badge">' +
+          '<span class="time-badge" style="font-weight:700">' +
             (order.payment_status === 'paid' ? 'Pagado' : 'Pago pendiente') + ' · ' + formatCurrency(order.total) +
           '</span>' +
         '</div>' +
@@ -1024,17 +1199,17 @@
       const prepOrders = activeOrders.filter(o => {
         const stage = o.summary?.counter_stage;
         return o.status === 'pendiente' || o.status === 'aceptado' || o.status === 'preparando' || stage === 'esperando_cocina' || stage === 'armando';
-      }).filter(matchesDestFilter);
+      }).filter(matchesDestFilter).filter(matchesSearch);
 
       // 2. EN MOSTRADOR (listos en mostrador para salón, llevar, recoger o esperando recolección de domicilio)
       const salidaOrders = activeOrders.filter(o => {
         return o.status === 'listo' && o.service_type !== 'domicilio';
-      }).filter(matchesDestFilter);
+      }).filter(matchesDestFilter).filter(matchesSearch);
 
       // 3. SALIDA / DOMICILIO (domicilios listos/en ruta, o salón en camino a mesa)
       const dispatchOrders = activeOrders.filter(o => {
         return o.service_type === 'domicilio' && o.status !== 'entregado';
-      }).filter(matchesDestFilter);
+      }).filter(matchesDestFilter).filter(matchesSearch);
 
       // Open incidents
       const openIncidents = incidents.filter(i => i.status !== 'resuelta' && i.status !== 'cerrada');
@@ -1121,7 +1296,7 @@
           (dispatchOrders.length ? dispatchOrders.map(renderOrderCard).join('') : '<div class="empty-hub" style="grid-column:1/-1"><h3>Sin pedidos de domicilio activos</h3><p>No hay órdenes en reparto en este momento.</p></div>') +
         '</div>';
       } else if (currentViewMode === 'historial') {
-        const filteredDelivered = deliveredToday.filter(matchesDestFilter);
+        const filteredDelivered = deliveredToday.filter(matchesDestFilter).filter(matchesSearch);
         mainArea.innerHTML = '<div class="single-lane-grid">' +
           (filteredDelivered.length ? filteredDelivered.map(renderOrderCard).join('') : '<div class="empty-hub" style="grid-column:1/-1"><h3>Sin historial de entregas</h3><p>Las órdenes concluidas hoy aparecerán aquí.</p></div>') +
         '</div>';

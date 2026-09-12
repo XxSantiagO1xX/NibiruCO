@@ -728,18 +728,18 @@
         <div class="featured-menu-card">
           <div class="featured-menu-content">
             <div class="featured-badge-row">
-              <span class="featured-badge">⭐ Popular · Recomendado</span>
+              <span class="featured-badge">Destacado · Recomendado</span>
               <span class="featured-sub-badge">Comida corrida del día</span>
             </div>
             <h2 class="featured-title">Menú Comida Completa</h2>
             <p class="featured-desc">Incluye: Sopa aguada o arroz + Guisado a elegir + Agua fresca del día + Frijoles y Tortillas recién hechas.</p>
             <div class="featured-footer-meta">
-              <span class="featured-tag">🔥 El favorito de la fonda</span>
-              <span class="featured-tag">🍱 Configurable desde sección Combos</span>
+              <span class="featured-tag"><svg class="ui-icon" style="width:13px;height:13px;vertical-align:-2px;margin-right:3px;"><use href="assets/icons.svg#flame"/></svg>El favorito de la fonda</span>
+              <span class="featured-tag"><svg class="ui-icon" style="width:13px;height:13px;vertical-align:-2px;margin-right:3px;"><use href="assets/icons.svg#combo"/></svg>Configurable desde sección Combos</span>
             </div>
           </div>
           <div class="featured-visual">
-            <div class="featured-icon-circle">🍲</div>
+            <div class="featured-icon-circle"><svg class="ui-icon" style="width:28px;height:28px;"><use href="assets/icons.svg#dining"/></svg></div>
           </div>
         </div>
 
@@ -855,7 +855,7 @@
           <div class="dish-card ${active ? 'is-active' : ''} ${isCombo ? 'is-combo' : ''}">
             <div class="dish-media">
               ${product.image ? `<img src="${escapeHtml(product.image)}" alt="${escapeHtml(product.name)}" loading="lazy" onerror="this.classList.add('img-failed')">` : ''}
-              <div class="dish-placeholder">${isCombo ? '🍱' : '🍽️'}</div>
+              <div class="dish-placeholder">${isCombo ? '<svg class="icon" style="width:20px;height:20px"><use href="assets/icons.svg#combo"/></svg>' : '<svg class="icon" style="width:20px;height:20px"><use href="assets/icons.svg#dining"/></svg>'}</div>
             </div>
             <div class="dish-body">
               <div class="dish-header">

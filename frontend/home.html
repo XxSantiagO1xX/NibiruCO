@@ -165,13 +165,17 @@
 <body>
   <div class="home-shell">
     <header class="topbar">
-      <div style="display:flex;align-items:center;gap:12px">
+      <div class="topbar-brand">
         <div class="brand-mark"><svg class="ui-icon" width="22" height="22"><use href="assets/icons.svg#logo"></use></svg></div>
         <div class="brand-copy"><strong>MealOps</strong><span>Panel Principal</span></div>
       </div>
-      <div style="display:flex;align-items:center;gap:12px">
-        <span id="user-role-badge" class="badge badge-neutral">Usuario</span>
-        <span id="user-name-label" style="font-size:13px;font-weight:700"></span>
+      <div class="topbar-search">
+        <svg class="search-icon ui-icon"><use href="assets/icons.svg#search"></use></svg>
+        <input type="text" id="home-search-input" placeholder="Buscar pedidos, módulos o accesos rápidos..." oninput="handleHomeSearch(this.value)">
+      </div>
+      <div class="topbar-actions">
+        <span id="user-role-badge" class="topbar-user-badge"><svg class="ui-icon" width="14" height="14"><use href="assets/icons.svg#user"></use></svg> Usuario</span>
+        <span id="user-name-label" style="font-size:13px;font-weight:700;color:var(--text)"></span>
         <button class="btn btn-secondary btn-sm" onclick="logout()">Cerrar sesión</button>
       </div>
     </header>
@@ -502,6 +506,18 @@
 
     function go(page) {
       window.location.href = page;
+    }
+
+    function handleHomeSearch(query) {
+      const q = String(query || '').trim().toLowerCase();
+      document.querySelectorAll('.module-card-pro').forEach(card => {
+        const text = card.textContent.toLowerCase();
+        card.style.display = (!q || text.includes(q)) ? 'flex' : 'none';
+      });
+      document.querySelectorAll('.dash-item-row').forEach(row => {
+        const text = row.textContent.toLowerCase();
+        row.style.display = (!q || text.includes(q)) ? 'flex' : 'none';
+      });
     }
   </script>
 </body>
