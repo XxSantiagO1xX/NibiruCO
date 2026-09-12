@@ -412,14 +412,25 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   box-shadow: var(--shadow-sm);
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 16px;
   position: relative;
   overflow: hidden;
   transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease;
+  min-width: 0;
 }
 .order-card-hub:hover {
   box-shadow: var(--shadow-md);
   border-color: var(--border-focus);
+}
+.order-card-hub.ready {
+  border-color: var(--role-mesero-border);
+}
+.order-card-hub.waiting-kitchen {
+  border-color: var(--role-cocina-border);
+}
+.order-card-hub.delayed {
+  border-color: var(--danger-border);
+  background: #FFFDFC;
 }
 
 .card-folio-ribbon {
@@ -427,10 +438,10 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   top: 0;
   left: 0;
   margin: 0;
-  padding: 4px 14px;
+  padding: 5px 14px;
   font-size: 13px;
   font-weight: 800;
-  color: #FFFFFF;
+  color: #FFFFFF !important;
   border-top-left-radius: 14px;
   border-bottom-right-radius: 12px;
   border-top-right-radius: 0;
@@ -444,18 +455,28 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 }
 
 .ribbon-salon,
-.ribbon-mesa {
+.ribbon-mesa,
+.ribbon-local,
+.ribbon-dine_in,
+.ribbon-dine-in,
+.ribbon-comer_aqui {
   background-color: #16A34A !important;
   color: #FFFFFF !important;
 }
 
 .ribbon-llevar,
-.ribbon-recoger {
+.ribbon-recoger,
+.ribbon-takeout,
+.ribbon-pickup,
+.ribbon-para_llevar,
+.ribbon-para-llevar {
   background-color: #F56624 !important;
   color: #FFFFFF !important;
 }
 
-.ribbon-domicilio {
+.ribbon-domicilio,
+.ribbon-delivery,
+.ribbon-a_domicilio {
   background-color: #7C3AED !important;
   color: #FFFFFF !important;
 }
@@ -471,9 +492,47 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  padding-bottom: 10px;
+  padding-bottom: 12px;
   border-bottom: 1px solid var(--border);
-  gap: 10px;
+  gap: 12px;
+  min-width: 0;
+}
+
+.customer-line {
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--text);
+  letter-spacing: -0.02em;
+  word-break: break-word;
+  overflow-wrap: break-word;
+  line-height: 1.35;
+}
+
+.phone-line {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 3px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  word-break: break-word;
+}
+
+.status-badge-hub {
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 10.5px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: .03em;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+  flex-shrink: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* Items List & Highlighted Quantities */
@@ -481,9 +540,10 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   background: var(--surface-2);
   border: 1px solid var(--border);
   border-radius: 10px;
-  padding: 10px 12px;
+  padding: 12px 14px;
   display: grid;
-  gap: 6px;
+  gap: 8px;
+  min-width: 0;
 }
 .item-line {
   display: flex;
@@ -492,21 +552,63 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   font-size: 12.5px;
   line-height: 1.4;
   color: var(--text);
+  min-width: 0;
+  gap: 8px;
+}
+.item-name-part {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
 }
 .item-qty-bold {
   font-weight: 800;
   color: var(--text);
   margin-right: 2px;
+  flex-shrink: 0;
 }
 .item-name-text {
   font-weight: 500;
   color: var(--text);
+  word-break: break-word;
+  overflow-wrap: break-word;
 }
 .item-choices-text {
   font-size: 11px;
   color: var(--muted);
   margin-top: 2px;
   line-height: 1.35;
+  word-break: break-word;
+  overflow-wrap: break-word;
+}
+
+.address-box {
+  background: var(--role-repartidor-soft);
+  border: 1px solid var(--role-repartidor-border);
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 11.5px;
+  color: #5B21B6;
+  line-height: 1.45;
+  word-break: break-word;
+  overflow-wrap: break-word;
+  min-width: 0;
+}
+.waiter-assigned-box {
+  background: var(--role-admin-soft);
+  border: 1px solid var(--role-admin-border);
+  border-radius: 10px;
+  padding: 8px 12px;
+  font-size: 11.5px;
+  color: #0369A1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+  min-width: 0;
+  word-break: break-word;
 }
 
 /* Soft Bottom Action Buttons (10% color bg, dark text & border) */
@@ -529,12 +631,14 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   cursor: pointer;
   transition: all 0.15s ease;
   text-decoration: none;
+  border: 1px solid transparent;
+  box-sizing: border-box;
 }
 
 .btn-soft-success {
   background: rgba(22, 163, 74, 0.10);
   color: #15803D;
-  border: 1px solid rgba(22, 163, 74, 0.35);
+  border-color: rgba(22, 163, 74, 0.30);
 }
 .btn-soft-success:hover {
   background: rgba(22, 163, 74, 0.18);
@@ -545,7 +649,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .btn-soft-primary {
   background: rgba(245, 102, 36, 0.10);
   color: #C2410C;
-  border: 1px solid rgba(245, 102, 36, 0.35);
+  border-color: rgba(245, 102, 36, 0.30);
 }
 .btn-soft-primary:hover {
   background: rgba(245, 102, 36, 0.18);
@@ -556,7 +660,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .btn-soft-info {
   background: rgba(37, 99, 235, 0.10);
   color: #1D4ED8;
-  border: 1px solid rgba(37, 99, 235, 0.35);
+  border-color: rgba(37, 99, 235, 0.30);
 }
 .btn-soft-info:hover {
   background: rgba(37, 99, 235, 0.18);
@@ -567,7 +671,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .btn-soft-warning {
   background: rgba(217, 119, 6, 0.10);
   color: #B45309;
-  border: 1px solid rgba(217, 119, 6, 0.35);
+  border-color: rgba(217, 119, 6, 0.30);
 }
 .btn-soft-warning:hover {
   background: rgba(217, 119, 6, 0.18);
@@ -578,10 +682,10 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .btn-soft-secondary {
   background: rgba(115, 111, 105, 0.08);
   color: #24211F;
-  border: 1px solid var(--border);
+  border-color: var(--border);
 }
 .btn-soft-secondary:hover {
-  background: rgba(115, 111, 105, 0.14);
+  background: rgba(115, 111, 105, 0.15);
   border-color: var(--muted);
   color: #1E1B18;
 }

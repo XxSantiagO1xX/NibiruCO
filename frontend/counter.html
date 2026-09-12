@@ -244,14 +244,15 @@
       background: var(--surface);
       border: 1px solid var(--border);
       border-radius: var(--radius);
-      padding: 22px 18px 16px;
+      padding: 24px 16px 16px;
       box-shadow: var(--shadow-sm);
       display: flex;
       flex-direction: column;
-      gap: 12px;
+      gap: 16px;
       position: relative;
       overflow: hidden;
       transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease;
+      min-width: 0;
     }
     .order-card-hub:hover {
       box-shadow: var(--shadow-md);
@@ -277,7 +278,7 @@
       padding: 5px 14px;
       font-size: 13px;
       font-weight: 800;
-      color: #FFFFFF;
+      color: #FFFFFF !important;
       border-top-left-radius: 14px;
       border-bottom-right-radius: 12px;
       border-top-right-radius: 0;
@@ -289,38 +290,43 @@
       letter-spacing: -0.02em;
       box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
     }
-    .ribbon-salon, .ribbon-mesa { background-color: #16A34A !important; color: #FFFFFF !important; }
-    .ribbon-llevar, .ribbon-recoger { background-color: #F56624 !important; color: #FFFFFF !important; }
-    .ribbon-domicilio { background-color: #7C3AED !important; color: #FFFFFF !important; }
+    .ribbon-salon, .ribbon-mesa, .ribbon-local, .ribbon-dine_in, .ribbon-dine-in, .ribbon-comer_aqui { background-color: #16A34A !important; color: #FFFFFF !important; }
+    .ribbon-llevar, .ribbon-recoger, .ribbon-takeout, .ribbon-pickup, .ribbon-para_llevar, .ribbon-para-llevar { background-color: #F56624 !important; color: #FFFFFF !important; }
+    .ribbon-domicilio, .ribbon-delivery, .ribbon-a_domicilio { background-color: #7C3AED !important; color: #FFFFFF !important; }
 
     .card-header-row {
       display: flex;
       justify-content: space-between;
       align-items: flex-start;
       padding-top: 14px;
-      padding-bottom: 10px;
+      padding-bottom: 12px;
       border-bottom: 1px solid var(--border);
-      gap: 10px;
+      gap: 12px;
+      min-width: 0;
     }
     .customer-line {
       font-size: 15px;
       font-weight: 800;
       color: var(--text);
       letter-spacing: -0.02em;
+      word-break: break-word;
+      overflow-wrap: break-word;
+      line-height: 1.35;
     }
     .phone-line {
       font-size: 12px;
       color: var(--muted);
-      margin-top: 2px;
+      margin-top: 3px;
       display: flex;
       align-items: center;
       gap: 4px;
+      word-break: break-word;
     }
 
     .status-badge-hub {
-      padding: 4px 9px;
+      padding: 4px 10px;
       border-radius: 999px;
-      font-size: 10px;
+      font-size: 10.5px;
       font-weight: 800;
       text-transform: uppercase;
       letter-spacing: .03em;
@@ -328,6 +334,10 @@
       align-items: center;
       gap: 4px;
       white-space: nowrap;
+      flex-shrink: 0;
+      max-width: 100%;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
     .badge-hub-prep { background: var(--role-cocina-soft); color: var(--role-cocina); border: 1px solid var(--role-cocina-border); }
     .badge-hub-ready { background: var(--role-mesero-soft); color: var(--role-mesero); border: 1px solid var(--role-mesero-border); }
@@ -338,19 +348,20 @@
     .service-dest-row {
       display: flex;
       flex-wrap: wrap;
-      gap: 6px;
+      gap: 8px;
       align-items: center;
-      padding-bottom: 10px;
+      padding-bottom: 12px;
       border-bottom: 1px solid var(--border);
     }
     .dest-pill {
       font-size: 11px;
       font-weight: 800;
-      padding: 3px 8px;
+      padding: 4px 9px;
       border-radius: 6px;
       display: inline-flex;
       align-items: center;
       gap: 5px;
+      white-space: nowrap;
     }
     .dest-mesa { background: var(--role-admin-soft); color: var(--role-admin); border: 1px solid var(--role-admin-border); }
     .dest-llevar { background: var(--warning-soft); color: var(--warning); border: 1px solid var(--warning-border); }
@@ -439,20 +450,24 @@
       background: var(--role-admin-soft);
       border: 1px solid var(--role-admin-border);
       border-radius: 10px;
-      padding: 7px 10px;
-      font-size: 11px;
+      padding: 8px 12px;
+      font-size: 11.5px;
       color: #0369A1;
       display: flex;
       align-items: center;
       justify-content: space-between;
+      gap: 8px;
+      flex-wrap: wrap;
+      min-width: 0;
+      word-break: break-word;
     }
 
     /* Actions Grid & Soft Buttons */
     .actions-grid {
       display: grid;
       grid-template-columns: 1fr;
-      gap: 6px;
-      margin-top: 2px;
+      gap: 8px;
+      margin-top: 4px;
     }
     .btn-action-soft,
     .btn-soft-success,
@@ -461,23 +476,25 @@
     .btn-soft-warning,
     .btn-soft-secondary {
       width: 100%;
-      min-height: 38px;
+      min-height: 40px;
       display: inline-flex;
       align-items: center;
       justify-content: center;
       gap: 6px;
-      padding: 8px 12px;
+      padding: 8px 14px;
       border-radius: 8px;
-      font-size: 12px;
+      font-size: 12.5px;
       font-weight: 800;
       cursor: pointer;
       transition: all 0.15s ease;
       text-decoration: none;
+      border: 1px solid transparent;
+      box-sizing: border-box;
     }
     .btn-soft-success {
       background: rgba(22, 163, 74, 0.10);
       color: #15803D;
-      border: 1px solid rgba(22, 163, 74, 0.35);
+      border-color: rgba(22, 163, 74, 0.30);
     }
     .btn-soft-success:hover {
       background: rgba(22, 163, 74, 0.18);
@@ -487,7 +504,7 @@
     .btn-soft-primary {
       background: rgba(245, 102, 36, 0.10);
       color: #C2410C;
-      border: 1px solid rgba(245, 102, 36, 0.35);
+      border-color: rgba(245, 102, 36, 0.30);
     }
     .btn-soft-primary:hover {
       background: rgba(245, 102, 36, 0.18);
@@ -497,7 +514,7 @@
     .btn-soft-info {
       background: rgba(37, 99, 235, 0.10);
       color: #1D4ED8;
-      border: 1px solid rgba(37, 99, 235, 0.35);
+      border-color: rgba(37, 99, 235, 0.30);
     }
     .btn-soft-info:hover {
       background: rgba(37, 99, 235, 0.18);
@@ -507,7 +524,7 @@
     .btn-soft-warning {
       background: rgba(217, 119, 6, 0.10);
       color: #B45309;
-      border: 1px solid rgba(217, 119, 6, 0.35);
+      border-color: rgba(217, 119, 6, 0.30);
     }
     .btn-soft-warning:hover {
       background: rgba(217, 119, 6, 0.18);
@@ -517,10 +534,10 @@
     .btn-soft-secondary {
       background: rgba(115, 111, 105, 0.08);
       color: #24211F;
-      border: 1px solid var(--border);
+      border-color: var(--border);
     }
     .btn-soft-secondary:hover {
-      background: rgba(115, 111, 105, 0.14);
+      background: rgba(115, 111, 105, 0.15);
       border-color: var(--muted);
       color: #1E1B18;
     }
@@ -949,15 +966,19 @@
       const summary = order.summary || {};
       const stage = summary.counter_stage || 'esperando_cocina';
       const isDelayed = summary.is_delayed;
-      const serviceType = (order.service_type || order.type || 'local').toLowerCase();
+      const rawType = (order.service_type || order.type || '').toLowerCase();
+      const hasTable = Boolean(order.table_session_id || order.table_id || order.table_name);
 
-      // Dynamic Ribbon class
+      // Dynamic Ribbon class based on service type:
+      // - Salón / Comer aquí: #16A34A (ribbon-salon)
+      // - Para Llevar / Recoger: #F56624 (ribbon-llevar)
+      // - Domicilio / Delivery: #7C3AED (ribbon-domicilio)
       let ribbonClass = 'ribbon-salon';
-      if (serviceType === 'domicilio') {
+      if (rawType === 'domicilio' || rawType === 'delivery' || rawType === 'a_domicilio') {
         ribbonClass = 'ribbon-domicilio';
-      } else if (serviceType === 'llevar' || serviceType === 'recoger') {
+      } else if (rawType === 'llevar' || rawType === 'recoger' || rawType === 'takeout' || rawType === 'pickup' || rawType === 'para_llevar' || rawType === 'para-llevar') {
         ribbonClass = 'ribbon-llevar';
-      } else if (serviceType === 'mesa' || serviceType === 'local' || order.table_session_id) {
+      } else if (rawType === 'mesa' || rawType === 'salon' || rawType === 'dine_in' || rawType === 'local' || rawType === 'comer_aqui' || rawType === 'dine-in' || hasTable) {
         ribbonClass = 'ribbon-salon';
       }
 
@@ -1161,13 +1182,13 @@
             '<span><svg class="ui-icon" width="12" height="12"><use href="assets/icons.svg#bike"></use></svg> ' + escapeHtml(inc.driver_name || 'Repartidor') + ' (' + (inc.driver_short_code || 'REP') + ')</span>' +
             '<span><svg class="ui-icon" width="12" height="12"><use href="assets/icons.svg#map-pin"></use></svg> ' + escapeHtml(inc.delivery_address || 'Dirección') + '</span>' +
           '</div>' +
-          '<div class="actions-grid" style="margin-top:4px">' +
-            '<button class="btn-action btn-secondary-hub" onclick="focusOrderFromIncident(' + inc.order_id + ')">' +
+          '<div class="actions-grid">' +
+            '<button class="btn-soft-secondary" onclick="focusOrderFromIncident(' + inc.order_id + ')">' +
               '<svg class="ui-icon" width="13" height="13"><use href="assets/icons.svg#search"></use></svg> Ver Pedido F' + String(inc.order_folio || inc.order_id).padStart(3, '0') +
             '</button>' +
             (!isResolved ? (
-              '<button class="btn-action btn-deliver" onclick="openResolveModal(' + inc.id + ')">' +
-                '<svg class="ui-icon" width="13" height="13"><use href="assets/icons.svg#check"></use></svg> Resolver' +
+              '<button class="btn-soft-success" onclick="openResolveModal(' + inc.id + ')">' +
+                '<svg class="ui-icon" width="13" height="13"><use href="assets/icons.svg#check"></use></svg> Resolver Incidencia' +
               '</button>'
             ) : '') +
           '</div>' +
