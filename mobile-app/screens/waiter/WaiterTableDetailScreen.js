@@ -9,7 +9,8 @@ import {
   ActivityIndicator,
   Modal,
   TextInput,
-  Alert
+  Alert,
+  useWindowDimensions
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import axios from "axios";
@@ -21,23 +22,47 @@ import EmptyState from "../../components/EmptyState";
 import ComboConfigModal from "../../components/ComboConfigModal";
 
 export default function WaiterTableDetailScreen({ route, navigation }) {
+  const { width } = useWindowDimensions();
+  const isTablet = width > 768;
+
   const { tableId, sessionId: initialSessionId, tableName } = route.params || {};
   const { token, tablesUpdateSignal, orderUpdateSignal } = useContext(AppContext);
 
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  // In-app non-blocking toast feedback
+  const [toastMessage, setToastMessage] = useState("");
+
+  const showToast = (msg) => {
+    setToastMessage(msg);
+    setTimeout(() => {
+      setToastMessage("");
+    }, 2500);
+  };
+
   // Add items modal
   const [menuProducts, setMenuProducts] = useState([]);
   const [addItemsModalVisible, setAddItemsModalVisible] = useState(false);
   const [selectedProductForCombo, setSelectedProductForCombo] = useState(null);
   const [loadingMenu, setLoadingMenu] = useState(false);
+  const [quantities, setQuantities] = useState({});
 
   // Payment modal
   const [paymentModalVisible, setPaymentModalVisible] = useState(false);
   const [paymentAmount, setPaymentAmount] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("efectivo");
   const [submittingPayment, setSubmittingPayment] = useState(false);
+
+  const updateQuantity = (productId, delta) => {
+    setQuantities((prev) => {
+      const curr = prev[productId] || 1;
+      const next = Math.max(1, curr + delta);
+      return { ...prev, [productId]: next };
+    });
+  };
+
+  const getQuantity = (productId) => quantities[productId] || 1;
 
   const loadSession = useCallback(async () => {
     if (!token) return;
@@ -94,15 +119,15 @@ export default function WaiterTableDetailScreen({ route, navigation }) {
     setAddItemsModalVisible(true);
   };
 
-  const handleSelectProduct = (product) => {
+  const handleSelectProduct = (product, qty = 1) => {
     if (product.product_kind === "combo") {
       setSelectedProductForCombo(product);
     } else {
-      handleAddDirectProduct(product);
+      handleAddDirectProduct(product, qty);
     }
   };
 
-  const handleAddDirectProduct = async (product) => {
+  const handleAddDirectProduct = async (product, qty = 1) => {
     if (!session?.id) return;
     try {
       await axios.post(
@@ -111,20 +136,21 @@ export default function WaiterTableDetailScreen({ route, navigation }) {
           table_session_id: session.id,
           service_type: "mesa",
           type: session.table_name || "Mesa",
-          items: [{ product_id: product.id, quantity: 1, choices: [] }]
+          items: [{ product_id: product.id, quantity: qty, choices: [] }]
         },
         { headers: { Authorization: `Bearer ${token}` } }
       );
       setAddItemsModalVisible(false);
       loadSession();
-      Alert.alert("Agregado", `${product.name} agregado a la comanda.`);
+      showToast(`Agregado: ${qty}x ${product.name}`);
     } catch (err) {
       Alert.alert("Error", err?.response?.data?.message || "No se pudo agregar el producto");
     }
   };
 
-  const handleConfirmComboChoices = async (product, choices) => {
+  const handleConfirmComboChoices = async ({ combo, choices, quantity }) => {
     if (!session?.id) return;
+    const qty = quantity || 1;
     try {
       await axios.post(
         `${API_URL}/orders`,
@@ -132,14 +158,14 @@ export default function WaiterTableDetailScreen({ route, navigation }) {
           table_session_id: session.id,
           service_type: "mesa",
           type: session.table_name || "Mesa",
-          items: [{ product_id: product.id, quantity: 1, choices }]
+          items: [{ product_id: combo.id, quantity: qty, choices }]
         },
         { headers: { Authorization: `Bearer ${token}` } }
       );
       setSelectedProductForCombo(null);
       setAddItemsModalVisible(false);
       loadSession();
-      Alert.alert("Combo Agregado", `${product.name} agregado a la comanda de la mesa.`);
+      showToast(`Agregado: Combo ${combo.name} (x${qty})`);
     } catch (err) {
       Alert.alert("Error", err?.response?.data?.message || "No se pudo agregar el combo");
     }
@@ -154,7 +180,8 @@ export default function WaiterTableDetailScreen({ route, navigation }) {
         { headers: { Authorization: `Bearer ${token}` } }
       );
       loadSession();
-      Alert.alert("Cuenta Solicitada", "La mesa ha pasado a estado de cuenta solicitada.");
+      // Non-blocking visual confirmation via toast
+      showToast("Cuenta solicitada para la mesa");
     } catch (err) {
       Alert.alert("Error", err?.response?.data?.message || "No se pudo solicitar la cuenta");
     }
@@ -169,7 +196,7 @@ export default function WaiterTableDetailScreen({ route, navigation }) {
         { headers: { Authorization: `Bearer ${token}` } }
       );
       loadSession();
-      Alert.alert("Cuenta Reabierta", "La mesa está abierta nuevamente para agregar consumos.");
+      showToast("Mesa reabierta para consumos");
     } catch (err) {
       Alert.alert("Error", err?.response?.data?.message || "No se pudo reabrir la cuenta");
     }
@@ -183,7 +210,7 @@ export default function WaiterTableDetailScreen({ route, navigation }) {
         { headers: { Authorization: `Bearer ${token}` } }
       );
       loadSession();
-      Alert.alert("¡Servido en Mesa!", "La comanda ha sido marcada como entregada a los comensales.");
+      showToast("Comanda marcada como servida en mesa");
     } catch (err) {
       Alert.alert("Error", err?.response?.data?.message || "No se pudo marcar como entregado");
     }
@@ -220,14 +247,11 @@ export default function WaiterTableDetailScreen({ route, navigation }) {
       if (res.data.status === "closed") {
         Alert.alert(
           "¡Mesa Cobrada y Cerrada!",
-          "El saldo ha sido liquidado en su totalidad y la mesa queda libre para los siguientes comensales.",
+          "El saldo ha sido liquidado en su totalidad y la mesa queda libre.",
           [{ text: "Volver a Mesas", onPress: () => navigation.goBack() }]
         );
       } else {
-        Alert.alert(
-          "Pago Registrado",
-          `Se registró el abono de $${amt.toFixed(2)}. Saldo restante: $${res.data.balance.toFixed(2)}.`
-        );
+        showToast(`Abono registrado: $${amt.toFixed(2)}. Saldo: $${res.data.balance.toFixed(2)}`);
       }
     } catch (err) {
       Alert.alert("Error de Cobro", err?.response?.data?.message || "No se pudo registrar el pago.");
@@ -272,6 +296,16 @@ export default function WaiterTableDetailScreen({ route, navigation }) {
           </TouchableOpacity>
         }
       />
+
+      {/* Floating In-App Toast */}
+      {toastMessage ? (
+        <View style={styles.toastContainer}>
+          <View style={styles.toastPill}>
+            <Ionicons name="checkmark-circle" size={16} color="#ffffff" />
+            <Text style={styles.toastText}>{toastMessage}</Text>
+          </View>
+        </View>
+      ) : null}
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         {/* Session Summary Card */}
@@ -360,7 +394,7 @@ export default function WaiterTableDetailScreen({ route, navigation }) {
           </View>
         )}
 
-        {/* Orders Breakdown Section */}
+        {/* Orders Breakdown Section (Ticket Style) */}
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Comandas de la Mesa ({orders.length})</Text>
         </View>
@@ -374,22 +408,38 @@ export default function WaiterTableDetailScreen({ route, navigation }) {
         ) : (
           orders.map((ord, oIdx) => (
             <View key={ord.id || oIdx} style={styles.orderBreakdownCard}>
+              {/* Card / Ronda Header */}
               <View style={styles.orderCardHeader}>
                 <View style={styles.orderIdBadge}>
                   <Text style={styles.orderIdText}>Ronda #{oIdx + 1}</Text>
                 </View>
-                <View style={styles.orderStatusBadge}>
-                  <Text style={styles.orderStatusText}>{ord.status}</Text>
+                <View
+                  style={[
+                    styles.orderStatusBadge,
+                    ord.status === "listo" && styles.statusBadgeReady,
+                    ord.status === "entregado" && styles.statusBadgeDelivered
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.orderStatusText,
+                      ord.status === "listo" && styles.statusTextReady,
+                      ord.status === "entregado" && styles.statusTextDelivered
+                    ]}
+                  >
+                    {ord.status === "listo" ? "Listo para servir" : ord.status}
+                  </Text>
                 </View>
               </View>
 
+              {/* Items Breakdown with Authentic Ticket Styling */}
               <View style={styles.orderItemsList}>
                 {ord.items?.map((it, iIdx) => (
-                  <View key={iIdx} style={styles.orderItemRow}>
-                    <View style={styles.orderItemLeft}>
-                      <Text style={styles.orderItemQty}>{it.quantity}x</Text>
-                      <View>
-                        <Text style={styles.orderItemName}>{it.name}</Text>
+                  <View key={iIdx} style={styles.ticketRow}>
+                    <View style={styles.ticketLeft}>
+                      <Text style={styles.ticketQty}>{it.quantity}x</Text>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.ticketItemName}>{it.name}</Text>
                         {it.choices?.map((ch, cIdx) => (
                           <Text key={cIdx} style={styles.choiceNote}>
                             • {ch.name} {Number(ch.extra_price) > 0 ? `(+$${ch.extra_price})` : ""}
@@ -397,7 +447,7 @@ export default function WaiterTableDetailScreen({ route, navigation }) {
                         ))}
                       </View>
                     </View>
-                    <Text style={styles.orderItemPrice}>
+                    <Text style={styles.ticketPrice}>
                       ${(Number(it.price) * Number(it.quantity)).toFixed(2)}
                     </Text>
                   </View>
@@ -435,11 +485,11 @@ export default function WaiterTableDetailScreen({ route, navigation }) {
         )}
       </ScrollView>
 
-      {/* Footer: Cobro Button */}
+      {/* Footer: Cobrar Cuenta (Constrained width on Tablets) */}
       {!isClosed && session?.balance > 0 && (
         <View style={styles.footer}>
           <TouchableOpacity
-            style={styles.payBtn}
+            style={[styles.payBtn, isTablet && styles.payBtnTablet]}
             onPress={handleOpenPayment}
             activeOpacity={0.85}
           >
@@ -451,15 +501,15 @@ export default function WaiterTableDetailScreen({ route, navigation }) {
         </View>
       )}
 
-      {/* Modal: Add Menu Items */}
+      {/* Modal: Add Menu Items (Responsive modal with Stepper) */}
       <Modal
         visible={addItemsModalVisible}
-        animationType="slide"
+        animationType={isTablet ? "fade" : "slide"}
         transparent={true}
         onRequestClose={() => setAddItemsModalVisible(false)}
       >
-        <View style={styles.modalBackdrop}>
-          <SafeAreaView style={styles.modalSheet}>
+        <View style={[styles.modalBackdrop, isTablet && styles.modalBackdropTablet]}>
+          <SafeAreaView style={[styles.modalSheet, isTablet && styles.modalSheetTablet]}>
             <View style={styles.modalHeader}>
               <View>
                 <Text style={styles.modalTitle}>Menú del Día</Text>
@@ -488,25 +538,55 @@ export default function WaiterTableDetailScreen({ route, navigation }) {
               </View>
             ) : (
               <ScrollView contentContainerStyle={styles.menuListContent}>
-                {menuProducts.map((prod) => (
-                  <TouchableOpacity
-                    key={prod.id}
-                    style={styles.menuProdCard}
-                    onPress={() => handleSelectProduct(prod)}
-                    activeOpacity={0.7}
-                  >
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.menuProdName}>{prod.name}</Text>
-                      {prod.product_kind === "combo" ? (
-                        <Text style={styles.comboBadgeText}>Combo con selección</Text>
-                      ) : null}
+                {menuProducts.map((prod) => {
+                  const qty = getQuantity(prod.id);
+                  const isCombo = prod.product_kind === "combo";
+
+                  return (
+                    <View key={prod.id} style={styles.menuProdCard}>
+                      <View style={styles.menuProdInfo}>
+                        <Text style={styles.menuProdName} numberOfLines={2}>{prod.name}</Text>
+                        {isCombo ? (
+                          <View style={styles.comboTagBadge}>
+                            <Ionicons name="layers" size={11} color={colors.primary} />
+                            <Text style={styles.comboBadgeText}>Combo personalizable</Text>
+                          </View>
+                        ) : null}
+                        <Text style={styles.menuProdPrice}>${Number(prod.price).toFixed(2)}</Text>
+                      </View>
+
+                      {/* Stepper (- qty +) + Add Button */}
+                      <View style={styles.stepperWrapper}>
+                        <View style={styles.stepperBox}>
+                          <TouchableOpacity
+                            style={styles.stepperBtn}
+                            onPress={() => updateQuantity(prod.id, -1)}
+                            activeOpacity={0.7}
+                          >
+                            <Ionicons name="remove" size={14} color={colors.text} />
+                          </TouchableOpacity>
+                          <Text style={styles.stepperQtyText}>{qty}</Text>
+                          <TouchableOpacity
+                            style={styles.stepperBtn}
+                            onPress={() => updateQuantity(prod.id, 1)}
+                            activeOpacity={0.7}
+                          >
+                            <Ionicons name="add" size={14} color={colors.text} />
+                          </TouchableOpacity>
+                        </View>
+
+                        <TouchableOpacity
+                          style={styles.addItemBtn}
+                          onPress={() => handleSelectProduct(prod, qty)}
+                          activeOpacity={0.8}
+                        >
+                          <Ionicons name={isCombo ? "options-outline" : "checkmark"} size={14} color="#ffffff" />
+                          <Text style={styles.addItemBtnText}>{isCombo ? "Elegir" : "+ Agregar"}</Text>
+                        </TouchableOpacity>
+                      </View>
                     </View>
-                    <Text style={styles.menuProdPrice}>${Number(prod.price).toFixed(2)}</Text>
-                    <View style={styles.menuAddIcon}>
-                      <Ionicons name="add" size={18} color="#ffffff" />
-                    </View>
-                  </TouchableOpacity>
-                ))}
+                  );
+                })}
               </ScrollView>
             )}
           </SafeAreaView>
@@ -516,21 +596,20 @@ export default function WaiterTableDetailScreen({ route, navigation }) {
       {/* Combo Configuration Modal */}
       <ComboConfigModal
         visible={Boolean(selectedProductForCombo)}
-        product={selectedProductForCombo}
-        token={token}
+        combo={selectedProductForCombo}
         onClose={() => setSelectedProductForCombo(null)}
-        onConfirm={handleConfirmComboChoices}
+        onAddToCart={handleConfirmComboChoices}
       />
 
       {/* Modal: Register Payment */}
       <Modal
         visible={paymentModalVisible}
-        animationType="slide"
+        animationType={isTablet ? "fade" : "slide"}
         transparent={true}
         onRequestClose={() => setPaymentModalVisible(false)}
       >
-        <View style={styles.modalBackdrop}>
-          <SafeAreaView style={styles.modalSheet}>
+        <View style={[styles.modalBackdrop, isTablet && styles.modalBackdropTablet]}>
+          <SafeAreaView style={[styles.modalSheet, isTablet && styles.modalSheetTablet]}>
             <View style={styles.modalHeader}>
               <View>
                 <Text style={styles.modalTitle}>Cobro de Mesa</Text>
@@ -630,6 +709,34 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     alignItems: "center",
     justifyContent: "center"
+  },
+  toastContainer: {
+    position: "absolute",
+    top: 60,
+    left: 0,
+    right: 0,
+    alignItems: "center",
+    zIndex: 9999,
+    pointerEvents: "none"
+  },
+  toastPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: "#1e1b18",
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 20,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 4
+  },
+  toastText: {
+    color: "#ffffff",
+    fontSize: 12.5,
+    fontWeight: "700"
   },
   scrollContent: {
     padding: 16,
@@ -782,9 +889,14 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderRadius: 16,
     padding: 14,
-    marginBottom: 10,
+    marginBottom: 12,
     borderWidth: 1,
-    borderColor: colors.borderLight
+    borderColor: colors.borderLight,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    elevation: 1
   },
   orderCardHeader: {
     flexDirection: "row",
@@ -811,32 +923,48 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     backgroundColor: colors.primarySoft
   },
+  statusBadgeReady: {
+    backgroundColor: colors.successSoft
+  },
+  statusBadgeDelivered: {
+    backgroundColor: colors.surfaceMuted
+  },
   orderStatusText: {
     fontSize: 10,
     fontWeight: "800",
     color: colors.primary,
     textTransform: "uppercase"
   },
-  orderItemsList: {
-    marginTop: 8,
-    gap: 6
+  statusTextReady: {
+    color: colors.success
   },
-  orderItemRow: {
+  statusTextDelivered: {
+    color: colors.muted
+  },
+  orderItemsList: {
+    marginTop: 4
+  },
+  ticketRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "flex-start"
+    alignItems: "flex-start",
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.borderLight
   },
-  orderItemLeft: {
+  ticketLeft: {
     flexDirection: "row",
     gap: 8,
-    flex: 1
+    flex: 1,
+    paddingRight: 8
   },
-  orderItemQty: {
-    fontSize: 12,
-    fontWeight: "800",
-    color: colors.primary
+  ticketQty: {
+    fontSize: 13.5,
+    fontWeight: "900",
+    color: colors.primary,
+    minWidth: 26
   },
-  orderItemName: {
+  ticketItemName: {
     fontSize: 13,
     fontWeight: "700",
     color: colors.text
@@ -846,10 +974,12 @@ const styles = StyleSheet.create({
     color: colors.muted,
     marginTop: 1
   },
-  orderItemPrice: {
-    fontSize: 13,
-    fontWeight: "800",
-    color: colors.text
+  ticketPrice: {
+    fontSize: 13.5,
+    fontWeight: "900",
+    color: colors.text,
+    textAlign: "right",
+    minWidth: 65
   },
   paymentsCard: {
     backgroundColor: colors.surface,
@@ -884,7 +1014,8 @@ const styles = StyleSheet.create({
     padding: 16,
     backgroundColor: colors.surface,
     borderTopWidth: 1,
-    borderTopColor: colors.borderLight
+    borderTopColor: colors.borderLight,
+    alignItems: "center"
   },
   payBtn: {
     flexDirection: "row",
@@ -893,12 +1024,16 @@ const styles = StyleSheet.create({
     gap: 8,
     backgroundColor: colors.success,
     height: 52,
+    width: "100%",
     borderRadius: 16,
     shadowColor: colors.success,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.25,
     shadowRadius: 8,
     elevation: 4
+  },
+  payBtnTablet: {
+    maxWidth: 400
   },
   payBtnText: {
     fontSize: 15,
@@ -910,12 +1045,30 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(25, 23, 21, 0.65)",
     justifyContent: "flex-end"
   },
+  modalBackdropTablet: {
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20
+  },
   modalSheet: {
     backgroundColor: colors.background,
+    width: "100%",
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
     maxHeight: "85%",
     paddingBottom: 20
+  },
+  modalSheetTablet: {
+    maxWidth: 520,
+    borderRadius: 18,
+    borderTopLeftRadius: 18,
+    borderTopRightRadius: 18,
+    maxHeight: "80%",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 5
   },
   modalHeader: {
     flexDirection: "row",
@@ -925,8 +1078,8 @@ const styles = StyleSheet.create({
     paddingTop: 18,
     paddingBottom: 14,
     backgroundColor: colors.surface,
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
+    borderTopLeftRadius: 18,
+    borderTopRightRadius: 18,
     borderBottomWidth: 1,
     borderBottomColor: colors.borderLight
   },
@@ -956,36 +1109,81 @@ const styles = StyleSheet.create({
   menuProdCard: {
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "space-between",
     backgroundColor: colors.surface,
     padding: 12,
-    borderRadius: 14,
+    borderRadius: 16,
     borderWidth: 1,
     borderColor: colors.borderLight,
     gap: 10
   },
+  menuProdInfo: {
+    flex: 1
+  },
   menuProdName: {
-    fontSize: 14,
+    fontSize: 13.5,
     fontWeight: "800",
     color: colors.text
+  },
+  comboTagBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    marginTop: 2
   },
   comboBadgeText: {
     fontSize: 10,
     fontWeight: "700",
-    color: colors.primary,
-    marginTop: 2
+    color: colors.primary
   },
   menuProdPrice: {
     fontSize: 14,
     fontWeight: "900",
-    color: colors.primary
+    color: colors.primary,
+    marginTop: 4
   },
-  menuAddIcon: {
+  stepperWrapper: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8
+  },
+  stepperBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: colors.surfaceMuted,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+    paddingHorizontal: 4,
+    height: 36
+  },
+  stepperBtn: {
     width: 28,
     height: 28,
-    borderRadius: 14,
-    backgroundColor: colors.primary,
     alignItems: "center",
-    justifyContent: "center"
+    justifyContent: "center",
+    borderRadius: 6
+  },
+  stepperQtyText: {
+    fontSize: 13,
+    fontWeight: "900",
+    color: colors.text,
+    minWidth: 20,
+    textAlign: "center"
+  },
+  addItemBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: colors.primary,
+    height: 36,
+    paddingHorizontal: 12,
+    borderRadius: 10
+  },
+  addItemBtnText: {
+    color: "#ffffff",
+    fontSize: 12,
+    fontWeight: "800"
   },
   paymentModalBody: {
     padding: 20,
@@ -1057,7 +1255,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 16,
     borderRadius: 12,
-    marginTop: 12,
+    marginTop: 10,
     gap: 6
   },
   deliverOrderBtnText: {
