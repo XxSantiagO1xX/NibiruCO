@@ -24,6 +24,7 @@ import EmptyState from "../../components/EmptyState";
 import DriverVerifyPinModal from "./DriverVerifyPinModal";
 import DriverIssueModal from "./DriverIssueModal";
 import DriverOfferModal from "./DriverOfferModal";
+import DeliveryMapTracker from "../../components/DeliveryMapTracker";
 import {
   openPreferredNavigation,
   openWazeNavigation,
@@ -324,6 +325,25 @@ export default function DriverTripScreen({ navigation }) {
       setSubmittingIssue(false);
     }
   };
+
+  const handleLocationUpdate = useCallback(
+    async (loc) => {
+      if (!token || !loc) return;
+      try {
+        await axios.patch(
+          `${API_URL}/deliveries/my-location`,
+          {
+            lat: loc.latitude,
+            lng: loc.longitude,
+            heading: loc.heading || 0,
+            speed: loc.speed || 0
+          },
+          { headers: { Authorization: `Bearer ${token}` } }
+        ).catch(() => {});
+      } catch (_) {}
+    },
+    [token]
+  );
 
   if (loading) {
     return (
@@ -769,6 +789,19 @@ export default function DriverTripScreen({ navigation }) {
                   )}
                 </TouchableOpacity>
               )}
+            </View>
+
+            {/* Mapa de Ruta y Seguimiento GPS en Tiempo Real */}
+            <View style={styles.mapContainerSection}>
+              <View style={styles.mapSectionHeader}>
+                <Ionicons name="map" size={15} color={colors.primary} />
+                <Text style={styles.mapSectionTitle}>Mapa de Ruta y Seguimiento GPS</Text>
+              </View>
+              <DeliveryMapTracker
+                stops={stops}
+                onLocationChange={handleLocationUpdate}
+                height={260}
+              />
             </View>
 
             {/* Stops list */}
@@ -1662,5 +1695,23 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "900",
     color: "#ffffff"
+  },
+  mapContainerSection: {
+    marginBottom: 8
+  },
+  mapSectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginBottom: 8,
+    paddingHorizontal: 2
+  },
+  mapSectionTitle: {
+    fontSize: 13.5,
+    fontWeight: "800",
+    color: colors.text
   }
 });
+
+export { DeliveryMapTracker };
+

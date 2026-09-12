@@ -1,18 +1,31 @@
 {
   "expo": {
-    "name": "mobile-app",
-    "slug": "mobile-app",
+    "name": "MealOps",
+    "slug": "mealops",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.mealops.app",
+      "config": {
+        "googleMapsApiKey": "AIzaSyBJeAu5MBhuFQeReFxla4TU6tZ_qAgYsQM"
+      },
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
+      "package": "com.mealops.app",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
+      },
+      "config": {
+        "googleMaps": {
+          "apiKey": "AIzaSyBJeAu5MBhuFQeReFxla4TU6tZ_qAgYsQM"
+        }
       }
     },
     "web": {
@@ -29,6 +42,11 @@
           "backgroundColor": "#ffffff"
         }
       ]
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "5f6dc63d-a63e-43f6-a530-2f05582ad9b4"
+      }
+    }
   }
 }
