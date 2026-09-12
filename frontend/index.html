@@ -8,16 +8,84 @@
   <link rel="stylesheet" href="../css/theme.css" data-mealops-theme="true">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
   <style>
-    .pos-page { min-height: 100vh; display: flex; flex-direction: column; }
-    .pos-shell { max-width: 1750px; margin: 0 auto; width: 100%; padding: 24px 32px; }
-    
+    html, body {
+      height: 100vh;
+      max-height: 100vh;
+      overflow: hidden;
+      overscroll-behavior: none;
+    }
+    .pos-page, .app-shell {
+      height: 100vh;
+      max-height: 100vh;
+      overflow: hidden;
+      overscroll-behavior: none;
+    }
+    .main {
+      height: 100vh;
+      max-height: 100vh;
+      overflow: hidden;
+      overscroll-behavior: none;
+      display: flex;
+      flex-direction: column;
+      padding: 16px 24px;
+      box-sizing: border-box;
+    }
+    .pos-shell {
+      max-width: 1750px;
+      margin: 0 auto;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+      overflow: hidden;
+      padding: 0;
+    }
+    .page-header {
+      margin-bottom: 10px;
+      flex-shrink: 0;
+      display: flex;
+      gap: 20px;
+      align-items: flex-start;
+      justify-content: space-between;
+    }
+    .page-header h1 {
+      margin: 0;
+      font-size: 22px;
+      line-height: 1.15;
+      letter-spacing: -.03em;
+      font-weight: 800;
+      color: var(--text);
+    }
+    .page-header p {
+      margin: 3px 0 0;
+      color: var(--muted);
+      font-size: 12.5px;
+    }
+    .category-pills-bar {
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      padding-bottom: 4px;
+      margin-bottom: 10px;
+      flex-shrink: 0;
+    }
     .pos-layout {
       display: grid;
       grid-template-columns: minmax(0, 1fr) 400px;
-      gap: 24px;
-      align-items: start;
+      gap: 20px;
+      flex: 1 1 0%;
+      min-height: 0;
+      height: 100%;
+      overflow: hidden;
+      align-items: stretch;
     }
     @media (max-width: 1200px) {
+      html, body, .app-shell, .main, .pos-shell, .pos-layout {
+        height: auto;
+        max-height: none;
+        overflow: visible;
+      }
       .pos-layout { grid-template-columns: 1fr; }
     }
 
@@ -143,27 +211,38 @@
       transform: scale(1.08);
     }
 
-    /* Cart / Pedido Panel Fixed & Ergonomic Layout */
-    .cart-panel-sticky {
-      position: sticky;
-      top: 16px;
-      height: calc(100vh - 32px);
-      max-height: calc(100vh - 32px);
+    /* Left Column: Product Catalog Scrollable Area */
+    .pos-catalog-column {
+      height: 100%;
+      min-height: 0;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      padding-right: 6px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Right Column: Cart Panel Fixed 100% Height */
+    .cart-panel-sticky,
+    .cart-panel-fixed {
+      height: 100%;
+      max-height: 100%;
       background: var(--surface);
       border: 1.5px solid var(--border);
       border-radius: var(--radius-md);
-      padding: 18px 20px;
+      padding: 16px 18px;
       box-shadow: var(--shadow-sm);
       display: flex;
       flex-direction: column;
       gap: 10px;
       box-sizing: border-box;
       overflow: hidden;
-      z-index: 30;
+      min-height: 0;
+      flex-shrink: 0;
     }
     @media (max-width: 1200px) {
-      .cart-panel-sticky {
-        position: static;
+      .cart-panel-sticky,
+      .cart-panel-fixed {
         height: auto;
         max-height: none;
       }
@@ -362,8 +441,8 @@
     }
   </style>
 </head>
-<body>
-  <div class="app-shell">
+<body class="h-screen overflow-hidden overscroll-none">
+  <div class="app-shell h-screen overflow-hidden">
     <aside class="sidebar">
       <div class="brand">
         <div class="brand-mark"><svg class="ui-icon" width="22" height="22"><use href="assets/icons.svg#logo"></use></svg></div>
@@ -373,8 +452,8 @@
       <div class="sidebar-footer"></div>
     </aside>
 
-    <main class="main">
-      <div class="pos-shell">
+    <main class="main h-screen overflow-hidden flex flex-col">
+      <div class="pos-shell flex-1 min-h-0 overflow-hidden flex flex-col">
         <header class="page-header">
           <div>
             <h1>Ventas y Pedidos</h1>
@@ -392,9 +471,9 @@
           <button class="category-pill active" onclick="filterCategory('all')">Todos</button>
         </div>
 
-        <div class="pos-layout">
-          <!-- Left: Search & Products Grid -->
-          <section>
+        <div class="pos-layout flex-1 min-h-0 overflow-hidden">
+          <!-- Left: Search & Products Grid (Isolated Scroll Container) -->
+          <section class="pos-catalog-column h-full overflow-y-auto overscroll-contain">
             <div class="toolbar">
               <input class="search" id="search" placeholder="Buscar platillos o combos en el menú de hoy..." oninput="renderProducts()">
             </div>
@@ -427,8 +506,8 @@
             <div id="orders" class="list"></div>
           </section>
 
-          <!-- Right: Persistent Cart / Pedido Panel -->
-          <aside class="cart-panel-sticky sticky top-4 h-[calc(100vh-2rem)] flex flex-col">
+          <!-- Right: Persistent Cart / Pedido Panel (Fixed 100% Height Flex Container) -->
+          <aside class="cart-panel-fixed cart-panel-sticky h-full flex flex-col">
             <div class="cart-panel-head">
               <h2>Pedido Actual</h2>
               <button class="btn btn-ghost btn-sm" onclick="clearCart()" title="Vaciar Carrito">
