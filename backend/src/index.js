@@ -49,6 +49,7 @@ const counterRoutes = require("./routes/counter.routes");
 const deliveryRoutes = require("./routes/deliveries.routes");
 const settingsRoutes = require("./routes/settings.routes");
 const settlementsRoutes = require("./routes/settlements.routes");
+const posRoutes = require("./routes/pos.routes");
 
 const routes = [
   authRoutes,
@@ -61,7 +62,8 @@ const routes = [
   counterRoutes,
   deliveryRoutes,
   settingsRoutes,
-  settlementsRoutes
+  settlementsRoutes,
+  posRoutes
 ];
 if (routes.some((route) => typeof route !== "function")) {
   throw new Error("Una o más rutas de MealOps no son válidas");
@@ -79,6 +81,8 @@ app.use("/deliveries", deliveryRoutes);
 app.use("/settings", settingsRoutes);
 app.use("/settlements", settlementsRoutes);
 app.use("/api/settlements", settlementsRoutes);
+app.use("/pos", posRoutes);
+app.use("/api/pos", posRoutes);
 
 const projectRoot = path.resolve(__dirname, "../..");
 app.use("/uploads", express.static(path.join(__dirname, "../public/uploads")));

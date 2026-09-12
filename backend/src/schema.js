@@ -34,6 +34,10 @@ const posPinSqlPath = path.resolve(
   __dirname,
   "../sql/2026-09-12-mealops-pos-pin.sql"
 );
+const posPaymentsAndShiftsSqlPath = path.resolve(
+  __dirname,
+  "../sql/2026-09-12-mealops-pos-payments-and-shifts.sql"
+);
 
 async function ensureOperationalSchema() {
   const client = await pool.connect();
@@ -47,6 +51,7 @@ async function ensureOperationalSchema() {
     const sql6 = fs.readFileSync(routesIncidentsSqlPath, "utf8");
     const sql7 = fs.readFileSync(productCategorySqlPath, "utf8");
     const sql8 = fs.readFileSync(posPinSqlPath, "utf8");
+    const sql9 = fs.readFileSync(posPaymentsAndShiftsSqlPath, "utf8");
 
     await client.query("BEGIN");
     await client.query(sql1);
@@ -57,6 +62,7 @@ async function ensureOperationalSchema() {
     await client.query(sql6);
     await client.query(sql7);
     await client.query(sql8);
+    await client.query(sql9);
 
     const tableCount = await client.query(
       "SELECT COUNT(*)::int AS count FROM restaurant_tables"
