@@ -1,9 +1,10 @@
-import { createContext, useState, useEffect, useCallback, useMemo } from "react";
+import { createContext, useState, useEffect, useCallback, useMemo, useRef } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import axios from "axios";
 import { io } from "socket.io-client";
 import { API_URL } from "../config/api";
 import { registerForPushNotificationsAsync } from "../services/notificationService";
+import { playSound } from "../services/soundService";
 
 export const AppContext = createContext();
 
@@ -12,6 +13,9 @@ export default function AppProvider({ children }) {
   const [token, setToken] = useState(null);
   const [user, setUser] = useState(null);
   const [loadingAuth, setLoadingAuth] = useState(true);
+
+  // Alerts & Sound state
+  const [alertsMuted, setAlertsMutedState] = useState(false);
 
   // Cart state
   const [cart, setCart] = useState([]);
@@ -22,6 +26,47 @@ export default function AppProvider({ children }) {
   const [tablesUpdateSignal, setTablesUpdateSignal] = useState(0);
   const [tripsUpdateSignal, setTripsUpdateSignal] = useState(0);
   const [offerUpdateSignal, setOfferUpdateSignal] = useState(0);
+
+  // Keep refs for callbacks to prevent stale closures
+  const userRef = useRef(user);
+  useEffect(() => {
+    userRef.current = user;
+  }, [user]);
+
+  const alertsMutedRef = useRef(alertsMuted);
+  useEffect(() => {
+    alertsMutedRef.current = alertsMuted;
+  }, [alertsMuted]);
+
+  // Load alerts_muted setting
+  useEffect(() => {
+    (async () => {
+      try {
+        const stored = await AsyncStorage.getItem("alerts_muted");
+        if (stored !== null) {
+          setAlertsMutedState(stored === "true");
+        }
+      } catch (_) {}
+    })();
+  }, []);
+
+  const setAlertsMuted = useCallback(async (value) => {
+    try {
+      const boolVal = Boolean(value);
+      setAlertsMutedState(boolVal);
+      await AsyncStorage.setItem("alerts_muted", String(boolVal));
+    } catch (err) {
+      console.error("Error saving alerts_muted:", err);
+    }
+  }, []);
+
+  const toggleAlertsMuted = useCallback(async () => {
+    setAlertsMutedState((prev) => {
+      const nextVal = !prev;
+      AsyncStorage.setItem("alerts_muted", String(nextVal)).catch(() => {});
+      return nextVal;
+    });
+  }, []);
 
   // Configure global Axios headers & interceptor
   useEffect(() => {
@@ -109,16 +154,32 @@ export default function AppProvider({ children }) {
       console.log("Socket conectado:", s.id);
     });
 
+    s.on("new-order", () => {
+      setOrderUpdateSignal((v) => v + 1);
+      const curr = userRef.current;
+      if (curr && curr.role === "admin") {
+        playSound("new_order", { isMuted: alertsMutedRef.current });
+      }
+    });
+
     s.on("order-updated", () => {
       setOrderUpdateSignal((v) => v + 1);
     });
 
     s.on("orders-updated", () => {
       setOrderUpdateSignal((v) => v + 1);
+      const curr = userRef.current;
+      if (curr && curr.role === "admin") {
+        playSound("new_order", { isMuted: alertsMutedRef.current });
+      }
     });
 
     s.on("counter-updated", () => {
       setOrderUpdateSignal((v) => v + 1);
+      const curr = userRef.current;
+      if (curr && curr.role === "admin") {
+        playSound("new_order", { isMuted: alertsMutedRef.current });
+      }
     });
 
     s.on("tables-updated", () => {
@@ -128,6 +189,10 @@ export default function AppProvider({ children }) {
     s.on("waiter-table-ready", () => {
       setTablesUpdateSignal((v) => v + 1);
       setOrderUpdateSignal((v) => v + 1);
+      const curr = userRef.current;
+      if (curr && (curr.role === "mesero" || curr.role === "admin")) {
+        playSound("ready_ping", { isMuted: alertsMutedRef.current });
+      }
     });
 
     s.on("trips-updated", () => {
@@ -137,6 +202,10 @@ export default function AppProvider({ children }) {
     s.on("delivery-offer-created", () => {
       setOfferUpdateSignal((v) => v + 1);
       setTripsUpdateSignal((v) => v + 1);
+      const curr = userRef.current;
+      if (curr && (curr.role === "repartidor" || curr.role === "admin")) {
+        playSound("dispatch_alert", { isMuted: alertsMutedRef.current });
+      }
     });
 
     s.on("delivery-offer-expired", () => {
@@ -342,7 +411,13 @@ export default function AppProvider({ children }) {
         orderUpdateSignal,
         tablesUpdateSignal,
         tripsUpdateSignal,
-        offerUpdateSignal
+        offerUpdateSignal,
+
+        // Alerts & Sound settings
+        alertsMuted,
+        setAlertsMuted,
+        toggleAlertsMuted,
+        playSound
       }}
     >
       {children}

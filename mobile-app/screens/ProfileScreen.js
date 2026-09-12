@@ -7,7 +7,8 @@ import {
   StyleSheet,
   Alert,
   ScrollView,
-  Image
+  Image,
+  Switch
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { AppContext } from "../context/AppContext";
@@ -16,7 +17,7 @@ import colors from "../theme/colors";
 import Header from "../components/Header";
 
 export default function ProfileScreen({ navigation }) {
-  const { user, token, logout } = useContext(AppContext);
+  const { user, token, logout, alertsMuted, setAlertsMuted } = useContext(AppContext);
 
   const handleLogout = () => {
     Alert.alert(
@@ -307,6 +308,42 @@ export default function ProfileScreen({ navigation }) {
               </TouchableOpacity>
             </>
           )}
+        </View>
+
+        {/* System Settings & Alerts Section */}
+        <Text style={styles.sectionTitle}>Ajustes y Notificaciones</Text>
+        <View style={styles.menuCard}>
+          <View style={styles.menuRow}>
+            <View
+              style={[
+                styles.menuIconCircle,
+                {
+                  backgroundColor: alertsMuted
+                    ? colors.warningSoft || "#FEF3C7"
+                    : colors.primarySoft || "#FFF2E8"
+                }
+              ]}
+            >
+              <Ionicons
+                name={alertsMuted ? "volume-mute-outline" : "volume-high-outline"}
+                size={18}
+                color={alertsMuted ? (colors.warning || "#D97706") : colors.primary}
+              />
+            </View>
+            <View style={styles.menuTextCol}>
+              <Text style={styles.menuTitle}>Silenciar Alertas (Solo Vibración)</Text>
+              <Text style={styles.menuSubtitle}>Reproducir solo vibración sin sonido</Text>
+            </View>
+            <Switch
+              value={alertsMuted}
+              onValueChange={setAlertsMuted}
+              trackColor={{
+                false: colors.border || "#E5E7EB",
+                true: colors.primaryBorder || "#FFD4BA"
+              }}
+              thumbColor={alertsMuted ? colors.primary : "#9CA3AF"}
+            />
+          </View>
         </View>
 
         {/* Logout Button */}
