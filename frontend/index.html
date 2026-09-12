@@ -41,39 +41,140 @@
       overflow: hidden;
       padding: 0;
     }
-    .page-header {
-      margin-bottom: 10px;
+    /* Compact Topbar & Page Header */
+    .pos-topbar, .page-header {
+      margin-bottom: 12px;
       flex-shrink: 0;
       display: flex;
-      gap: 20px;
-      align-items: flex-start;
+      align-items: center;
       justify-content: space-between;
+      gap: 12px;
+      min-height: 38px;
     }
-    .page-header h1 {
+    .pos-topbar-left {
+      display: flex;
+      align-items: center;
+      flex-shrink: 0;
+    }
+    .page-header h1, .pos-topbar-left h1 {
       margin: 0;
-      font-size: 22px;
+      font-size: 20px;
       line-height: 1.15;
       letter-spacing: -.03em;
       font-weight: 800;
       color: var(--text);
+      white-space: nowrap;
     }
-    .page-header p {
-      margin: 3px 0 0;
+    .pos-topbar-center {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex: 1 1 auto;
+      min-width: 0;
+      justify-content: flex-start;
+    }
+    .pos-search-wrapper {
+      position: relative;
+      display: flex;
+      align-items: center;
+      flex: 1 1 180px;
+      max-width: 280px;
+      min-width: 140px;
+    }
+    .pos-search-icon {
+      position: absolute;
+      left: 10px;
       color: var(--muted);
-      font-size: 12.5px;
+      pointer-events: none;
+    }
+    .pos-search-input {
+      width: 100%;
+      height: 34px;
+      padding: 0 10px 0 30px;
+      border-radius: 8px;
+      border: 1.5px solid var(--border);
+      background: var(--surface);
+      color: var(--text);
+      font-size: 13px;
+      font-family: inherit;
+      transition: all .15s ease;
+      box-sizing: border-box;
+    }
+    .pos-search-input:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(245, 102, 36, 0.15);
     }
     .category-pills-bar {
       display: flex;
-      gap: 8px;
+      align-items: center;
+      gap: 6px;
       overflow-x: auto;
-      padding-bottom: 4px;
-      margin-bottom: 10px;
+      white-space: nowrap;
       flex-shrink: 0;
+      padding: 2px 0;
+    }
+    .category-pill {
+      padding: 6px 14px;
+      border-radius: 9999px;
+      background: #F3F4F6;
+      border: 1px solid transparent;
+      font-size: 12.5px;
+      font-weight: 700;
+      color: #374151;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all .15s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      user-select: none;
+    }
+    .category-pill:hover {
+      background: #E5E7EB;
+      color: #111827;
+    }
+    .category-pill.active {
+      background: var(--primary);
+      color: #FFFFFF;
+      border-color: var(--primary);
+      box-shadow: 0 2px 6px rgba(245, 102, 36, 0.25);
+    }
+    .pos-topbar-right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+    .btn-icon-square {
+      width: 34px;
+      height: 34px;
+      min-width: 34px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--surface);
+      border: 1.5px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      cursor: pointer;
+      transition: all .15s ease;
+      flex-shrink: 0;
+      padding: 0;
+    }
+    .btn-icon-square:hover {
+      border-color: var(--primary-border);
+      background: var(--surface-2);
+      color: var(--primary);
+      transform: scale(1.04);
+    }
+    .btn-icon-square:active {
+      transform: scale(0.96);
     }
     .pos-layout {
       display: grid;
       grid-template-columns: minmax(0, 1fr) 400px;
-      gap: 20px;
+      gap: 16px;
       flex: 1 1 0%;
       min-height: 0;
       height: 100%;
@@ -87,37 +188,17 @@
         overflow: visible;
       }
       .pos-layout { grid-template-columns: 1fr; }
-    }
-
-    /* Category Filter Pills */
-    .category-pills-bar {
-      display: flex;
-      gap: 8px;
-      overflow-x: auto;
-      padding-bottom: 8px;
-      margin-bottom: 16px;
-    }
-    .category-pill {
-      padding: 8px 16px;
-      border-radius: var(--radius-pill);
-      background: var(--surface);
-      border: 1px solid var(--border);
-      font-size: 13px;
-      font-weight: 700;
-      color: var(--muted);
-      cursor: pointer;
-      white-space: nowrap;
-      transition: all .15s ease;
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-    }
-    .category-pill:hover { border-color: var(--muted); color: var(--text); }
-    .category-pill.active {
-      background: var(--primary);
-      color: #fff;
-      border-color: var(--primary);
-      box-shadow: 0 2px 8px rgba(245, 102, 36, 0.25);
+      .page-header, .pos-topbar {
+        flex-wrap: wrap;
+      }
+      .pos-topbar-center {
+        order: 3;
+        width: 100%;
+        max-width: 100%;
+      }
+      .pos-search-wrapper {
+        max-width: none;
+      }
     }
 
     /* Global Scrollbars Visually Hidden */
@@ -559,29 +640,37 @@
 
     <main class="main h-screen overflow-hidden flex flex-col">
       <div class="pos-shell flex-1 min-h-0 overflow-hidden flex flex-col">
-        <header class="page-header">
-          <div>
+        <header class="pos-topbar page-header">
+          <div class="pos-topbar-left">
             <h1>Ventas y Pedidos</h1>
-            <p>Registro de comandas locales, para llevar, recolección posterior y servicio a domicilio.</p>
           </div>
-          <div class="header-actions">
-            <button class="btn btn-secondary btn-sm" onclick="loadAll()">
-              <svg class="ui-icon" width="14" height="14"><use href="assets/icons.svg#refresh"></use></svg> Actualizar
+
+          <div class="pos-topbar-center">
+            <!-- Buscador Integrado en Topbar -->
+            <div class="pos-search-wrapper">
+              <svg class="ui-icon pos-search-icon" width="14" height="14"><use href="assets/icons.svg#search"></use></svg>
+              <input class="pos-search-input" id="search" placeholder="Buscar platillos o combos..." oninput="renderProducts()">
+            </div>
+
+            <!-- Filtros de Categoría Rápidos (Pills) -->
+            <div class="category-pills-bar" id="category-pills-bar">
+              <button class="category-pill active" data-cat="all" onclick="filterCategory('all')">Todos</button>
+              <button class="category-pill" data-cat="Guisados" onclick="filterCategory('Guisados')">Guisados</button>
+              <button class="category-pill" data-cat="Bebidas" onclick="filterCategory('Bebidas')">Bebidas</button>
+              <button class="category-pill" data-cat="Extras" onclick="filterCategory('Extras')">Extras</button>
+            </div>
+          </div>
+
+          <div class="pos-topbar-right">
+            <button class="btn-icon-square" onclick="loadAll()" title="Actualizar menú y pedidos" aria-label="Actualizar">
+              <svg class="ui-icon" width="16" height="16"><use href="assets/icons.svg#refresh"></use></svg>
             </button>
           </div>
         </header>
 
-        <!-- Dynamic Category Pills Bar -->
-        <div class="category-pills-bar" id="category-pills-bar">
-          <button class="category-pill active" onclick="filterCategory('all')">Todos</button>
-        </div>
-
         <div class="pos-layout flex-1 min-h-0 overflow-hidden">
-          <!-- Left: Search & Products Grid (Isolated Scroll Container) -->
+          <!-- Left: Products Grid & Recent Orders (Isolated Scroll Container) -->
           <section class="pos-catalog-column h-full overflow-y-auto overscroll-contain">
-            <div class="toolbar">
-              <input class="search" id="search" placeholder="Buscar platillos o combos en el menú de hoy..." oninput="renderProducts()">
-            </div>
 
             <!-- Quick Sale Strip (Immediate Delivery items) -->
             <div id="quick-section" class="card card-pad hidden" style="margin-bottom:20px;background:var(--surface-2)">
@@ -832,27 +921,46 @@
 
     function buildDynamicCategories() {
       const container = document.getElementById('category-pills-bar');
+      if (!container) return;
+
+      const defaultCategories = ['Guisados', 'Bebidas', 'Extras'];
       const catsSet = new Set();
       let hasCombos = false;
 
       (products || []).forEach(p => {
-        if (p.product_kind === 'combo') hasCombos = true;
-        else if (p.category) catsSet.add(p.category);
+        if (p.product_kind === 'combo') {
+          hasCombos = true;
+        } else if (p.category && p.category.trim()) {
+          catsSet.add(p.category.trim());
+        }
       });
 
-      let html = `<button class="category-pill ${selectedCategory === 'all' ? 'active' : ''}" onclick="filterCategory('all')">Todos</button>`;
-      catsSet.forEach(cat => {
-        html += `<button class="category-pill ${selectedCategory === cat ? 'active' : ''}" onclick="filterCategory('${escapeHtml(cat)}')">${escapeHtml(cat)}</button>`;
+      // Lista consolidada de categorías
+      const categoryList = ['all'];
+      defaultCategories.forEach(c => categoryList.push(c));
+      catsSet.forEach(c => {
+        if (!categoryList.some(existing => existing.toLowerCase() === c.toLowerCase())) {
+          categoryList.push(c);
+        }
       });
+
+      let html = categoryList.map(cat => {
+        const isAll = cat === 'all';
+        const label = isAll ? 'Todos' : cat;
+        const isActive = isAll ? (selectedCategory === 'all' || !selectedCategory) : (selectedCategory.toLowerCase() === cat.toLowerCase());
+        return `<button class="category-pill ${isActive ? 'active' : ''}" data-cat="${escapeHtml(cat)}" onclick="filterCategory('${escapeHtml(cat)}')">${escapeHtml(label)}</button>`;
+      }).join('');
+
       if (hasCombos) {
-        html += `<button class="category-pill ${selectedCategory === 'combos' ? 'active' : ''}" onclick="filterCategory('combos')"><svg class="ui-icon" width="13" height="13"><use href="assets/icons.svg#combo"></use></svg> Combos</button>`;
+        const isComboActive = selectedCategory === 'combos';
+        html += `<button class="category-pill ${isComboActive ? 'active' : ''}" data-cat="combos" onclick="filterCategory('combos')"><svg class="ui-icon" width="13" height="13"><use href="assets/icons.svg#combo"></use></svg> Combos</button>`;
       }
+
       container.innerHTML = html;
     }
 
     function filterCategory(cat) {
       selectedCategory = cat;
-      document.querySelectorAll('.category-pill').forEach(btn => btn.classList.remove('active'));
       buildDynamicCategories();
       renderProducts();
     }
@@ -987,13 +1095,14 @@
     }
 
     function renderProducts() {
-      const query = document.getElementById('search').value.trim().toLowerCase();
+      const searchInput = document.getElementById('search');
+      const query = (searchInput ? searchInput.value : '').trim().toLowerCase();
       let filtered = (products || []).filter((product) => product.name.toLowerCase().includes(query));
 
       if (selectedCategory === 'combos') {
         filtered = filtered.filter(p => p.product_kind === 'combo');
-      } else if (selectedCategory !== 'all') {
-        filtered = filtered.filter(p => p.category === selectedCategory);
+      } else if (selectedCategory && selectedCategory !== 'all') {
+        filtered = filtered.filter(p => (p.category || '').toLowerCase() === selectedCategory.toLowerCase());
       }
 
       const container = document.getElementById('products');
