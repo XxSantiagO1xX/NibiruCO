@@ -41,7 +41,8 @@
           "resizeMode": "contain",
           "backgroundColor": "#ffffff"
         }
-      ]
+      ],
+      "./plugins/with-java-17"
     ],
     "extra": {
       "eas": {
